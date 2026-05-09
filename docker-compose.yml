@@ -1,0 +1,64 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: coldcase_db
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - coldcase_net
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: coldcase_backend
+    environment:
+      DATABASE_URL: "postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}?schema=public"
+      JWT_SECRET: ${JWT_SECRET}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - db
+    networks:
+      - coldcase_net
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: coldcase_frontend
+    ports:
+      - "3001:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: ${FRONTEND_API_URL}
+    depends_on:
+      - backend
+    networks:
+      - coldcase_net
+
+  simulador:
+    build:
+      context: ./simulador
+      dockerfile: Dockerfile
+    container_name: coldcase_simulador
+    environment:
+      API_URL: ${SIMULADOR_API_URL}
+    depends_on:
+      - backend
+    networks:
+      - coldcase_net
+
+volumes:
+  pgdata:
+
+networks:
+  coldcase_net:
+    driver: bridge
