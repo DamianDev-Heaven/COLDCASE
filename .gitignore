@@ -1,0 +1,38 @@
+# Monorepo global ignores
+
+# Environment and secrets
+.env
+.env.*
+**/.env
+**/.env.*
+!.env.example
+!**/.env.example
+*.pem
+*.key
+*.crt
+
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Build artifacts
+build/
+dist/
+coverage/
+.next/
+out/
+
+# Logs and runtime files
+*.log
+logs/
+*.pid
+*.pid.lock
+
+# OS/editor junk
+.DS_Store
+.idea/
+.vscode/
+
+# Local temp files
+.tmp/
+.temp/
