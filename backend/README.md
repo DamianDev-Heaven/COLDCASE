@@ -31,6 +31,10 @@
 $ npm install
 ```
 
+## Environment variables
+
+Copy [.env.example](.env.example) to `.env` and fill in your keys before starting the backend. This integration uses Groq Cloud and Zep Cloud, so `LLM_API_KEY`, `LLM_BASE_URL`, `LLM_MODEL_NAME`, `ZEP_API_URL`, and `ZEP_API_KEY` should point to your cloud credentials and endpoint. Legacy `GROQ_*` aliases are still accepted.
+
 ## Compile and run the project
 
 ```bash
