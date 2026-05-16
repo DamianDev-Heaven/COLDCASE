@@ -1,6 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { Zep, ZepClient } from "@getzep/zep-js";
+import { Zep, ZepClient, composeContextString } from "@getzep/zep-cloud";
 import Groq from "groq-sdk";
 
 export interface AnalisisResultado {
@@ -29,18 +29,20 @@ export class IaService {
       apiKey: groqApiKey,
     });
 
-    const normalizedZepUrl = this.normalizeZepBaseUrl(zepUrl);
-
-    if (normalizedZepUrl && zepApiKey) {
-      try {
-        this.zepClient = new ZepClient({ baseUrl: normalizedZepUrl, apiKey: zepApiKey });
-        this.logger.log("ZepClient inicializado correctamente.");
-      } catch (err: unknown) {
-        const error = err instanceof Error ? err : new Error(String(err));
-        this.logger.error(`Error al inicializar ZepClient: ${error.message}`, error.stack);
+    // Decide whether to pass a custom baseUrl to the SDK.
+    // The SDK already uses an environment default that includes /api/v2.
+    // To avoid double "/api/v2" we only pass baseUrl if the provided ZEP_API_URL already contains "/api/v2".
+    try {
+      if (zepUrl && zepUrl.includes("/api/v2")) {
+        this.zepClient = new ZepClient({ baseUrl: zepUrl, apiKey: zepApiKey });
+      } else {
+        // Let the SDK use its default environment (https://api.getzep.com/api/v2) if no explicit api/v2 is provided.
+        this.zepClient = new ZepClient({ apiKey: zepApiKey });
       }
-    } else {
-      this.logger.warn("ZEP_API_URL o ZEP_API_KEY no definidos. Zep Cloud no inicializado.");
+      this.logger.log("ZepClient inicializado correctamente.");
+    } catch (err: unknown) {
+      const error = err instanceof Error ? err : new Error(String(err));
+      this.logger.error(`Error al inicializar ZepClient: ${error.message}`, error.stack);
     }
 
     this.defaultModelName = groqModelName;
@@ -67,24 +69,19 @@ export class IaService {
     }
 
     try {
-      await this.zepClient.memory.getSession(threadId);
-      return;
-    } catch {
-      // Si no existe, la creamos abajo.
+      // Asegurar que el user exista (algunos proyectos requieren crear user antes de crear threads).
+      await this.zepClient.user.add({ userId: threadId, firstName: threadId, metadata: { source: "coldcase", kind: "iot" } });
+    } catch (err) {
+      // Si el usuario ya existe o hay otro error, lo ignoramos y seguimos.
+      this.logger.debug(`Info al asegurar user Zep para ${threadId}: ${err instanceof Error ? err.message : String(err)}`);
     }
 
     try {
-      await this.zepClient.memory.addSession({
-        sessionId: threadId,
-        userId: threadId,
-        metadata: {
-          source: "coldcase",
-          kind: "iot",
-        },
-      });
+      await this.zepClient.thread.create({ threadId, userId: threadId });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);
-      this.logger.warn(`No se pudo crear la sesión Zep para ${threadId}: ${message}`);
+      // Si el thread ya existe u ocurre otro error, lo registramos y continuamos.
+      this.logger.debug(`Info al asegurar thread Zep para ${threadId}: ${message}`);
     }
 
   }
@@ -95,35 +92,9 @@ export class IaService {
     }
 
     try {
-      const memory = await this.zepClient.memory.get(threadId, { lastn: 5 });
-      const lines: string[] = [];
-
-      if (memory.summary?.content) {
-        lines.push(`Resumen: ${memory.summary.content}`);
-      }
-
-      if (memory.messages?.length) {
-        for (const message of memory.messages) {
-          if (message.content) {
-            lines.push(`${message.role ?? "message"}: ${message.content}`);
-          }
-        }
-      }
-
-      if (memory.relevantFacts?.length) {
-        for (const fact of memory.relevantFacts) {
-          if (fact.fact) {
-            lines.push(`Hecho relevante: ${fact.fact}`);
-          }
-        }
-      }
-
-      if (memory.facts?.length) {
-        lines.push(`Facts: ${memory.facts.join(" | ")}`);
-      }
-
-      const contextBlock = lines.join("\n");
-      return contextBlock.trim() ? contextBlock : "Sin historial previo.";
+      const response = await this.zepClient.thread.getUserContext(threadId);
+      const context = response?.context ?? "";
+      return context.trim() ? context : "Sin historial previo.";
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);
       this.logger.warn(`Error al obtener historial de Zep Cloud para iot_id ${threadId}: ${message}`);
@@ -137,17 +108,15 @@ export class IaService {
     }
 
     try {
-      await this.zepClient.memory.add(threadId, {
+      await this.zepClient.thread.addMessages(threadId, {
         messages: [
           {
             content: eventText,
             role: "user",
-            createdAt: new Date().toISOString(),
           },
           {
             content: analysisText,
             role: "assistant",
-            createdAt: new Date().toISOString(),
           },
         ],
       });
