@@ -29,9 +29,11 @@ export class IaService {
       apiKey: groqApiKey,
     });
 
-    if (zepUrl && zepApiKey) {
+    const normalizedZepUrl = this.normalizeZepBaseUrl(zepUrl);
+
+    if (normalizedZepUrl && zepApiKey) {
       try {
-        this.zepClient = new ZepClient({ baseUrl: zepUrl, apiKey: zepApiKey });
+        this.zepClient = new ZepClient({ baseUrl: normalizedZepUrl, apiKey: zepApiKey });
         this.logger.log("ZepClient inicializado correctamente.");
       } catch (err: unknown) {
         const error = err instanceof Error ? err : new Error(String(err));
@@ -44,37 +46,126 @@ export class IaService {
     this.defaultModelName = groqModelName;
   }
 
+  private normalizeZepBaseUrl(zepUrl: string | undefined): string | undefined {
+    if (!zepUrl) {
+      return undefined;
+    }
+
+    const trimmedUrl = zepUrl.trim().replace(/\/+$/, "");
+    if (!trimmedUrl) {
+      return undefined;
+    }
+
+    return trimmedUrl.endsWith("/api/v2") ? trimmedUrl : `${trimmedUrl}/api/v2`;
+  }
+
   private readonly defaultModelName: string;
+
+  private async ensureZepIdentity(threadId: string): Promise<void> {
+    if (!this.zepClient) {
+      return;
+    }
+
+    try {
+      await this.zepClient.memory.getSession(threadId);
+      return;
+    } catch {
+      // Si no existe, la creamos abajo.
+    }
+
+    try {
+      await this.zepClient.memory.addSession({
+        sessionId: threadId,
+        userId: threadId,
+        metadata: {
+          source: "coldcase",
+          kind: "iot",
+        },
+      });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.warn(`No se pudo crear la sesión Zep para ${threadId}: ${message}`);
+    }
+
+  }
+
+  private async loadZepContext(threadId: string): Promise<string> {
+    if (!this.zepClient) {
+      return "Memoria no disponible temporalmente";
+    }
+
+    try {
+      const memory = await this.zepClient.memory.get(threadId, { lastn: 5 });
+      const lines: string[] = [];
+
+      if (memory.summary?.content) {
+        lines.push(`Resumen: ${memory.summary.content}`);
+      }
+
+      if (memory.messages?.length) {
+        for (const message of memory.messages) {
+          if (message.content) {
+            lines.push(`${message.role ?? "message"}: ${message.content}`);
+          }
+        }
+      }
+
+      if (memory.relevantFacts?.length) {
+        for (const fact of memory.relevantFacts) {
+          if (fact.fact) {
+            lines.push(`Hecho relevante: ${fact.fact}`);
+          }
+        }
+      }
+
+      if (memory.facts?.length) {
+        lines.push(`Facts: ${memory.facts.join(" | ")}`);
+      }
+
+      const contextBlock = lines.join("\n");
+      return contextBlock.trim() ? contextBlock : "Sin historial previo.";
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.warn(`Error al obtener historial de Zep Cloud para iot_id ${threadId}: ${message}`);
+      return "Sin historial previo.";
+    }
+  }
+
+  private async persistZepEvent(threadId: string, eventText: string, analysisText: string): Promise<void> {
+    if (!this.zepClient) {
+      return;
+    }
+
+    try {
+      await this.zepClient.memory.add(threadId, {
+        messages: [
+          {
+            content: eventText,
+            role: "user",
+            createdAt: new Date().toISOString(),
+          },
+          {
+            content: analysisText,
+            role: "assistant",
+            createdAt: new Date().toISOString(),
+          },
+        ],
+      });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.warn(`Error al guardar el nuevo evento en Zep Cloud para iot_id ${threadId}: ${message}`);
+    }
+  }
 
   async simularAnalisisDeFallo(
     iot_id: string,
     temperaturaActual: number,
     bateriaActual: number,
   ): Promise<AnalisisResultado> {
-    let historialContexto = "Memoria no disponible temporalmente";
+    await this.ensureZepIdentity(iot_id);
 
-    try {
-      if (this.zepClient) {
-        try {
-          await this.zepClient.memory.getSession(iot_id);
-        } catch {
-          await this.zepClient.memory.addSession({ sessionId: iot_id });
-        }
-
-        const memory = await this.zepClient.memory.get(iot_id);
-        if (memory?.messages?.length) {
-          historialContexto = memory.messages
-            .slice(-5)
-            .map((m: Zep.Message) => `${m.role ?? m.roleType}: ${m.content ?? ""}`)
-            .join("\n");
-        } else {
-          historialContexto = "Sin historial previo.";
-        }
-      }
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : String(error);
-      this.logger.warn(`Error al obtener historial de Zep Cloud para iot_id ${iot_id}: ${message}`);
-    }
+    const historialContexto = await this.loadZepContext(iot_id);
+    const eventoActual = `Evento IoT ${iot_id}: Temperatura ${temperaturaActual}°C, batería ${bateriaActual}%.`;
 
     const prompt = `
 Eres un analista de IA para logística de cadena de frío.
@@ -154,24 +245,8 @@ No incluyas texto fuera del JSON, ni markdown.
       }
     }
 
-    try {
-      if (this.zepClient) {
-        const nuevoEventoContent = `[Evento] Temperatura: ${temperaturaActual}°C, Batería: ${bateriaActual}%. [Diagnóstico] Riesgo: ${analisisFinal.nivel_riesgo}, Diagnóstico: ${analisisFinal.diagnostico_tecnico}, Mitigación: ${analisisFinal.accion_mitigacion}`;
-
-        await this.zepClient.memory.add(iot_id, {
-          messages: [
-            {
-              role: "system",
-              content: nuevoEventoContent,
-              roleType: Zep.RoleType.SystemRole,
-            } as Zep.Message,
-          ],
-        });
-      }
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : String(error);
-      this.logger.warn(`Error al guardar el nuevo evento en Zep Cloud para iot_id ${iot_id}: ${message}`);
-    }
+    const analysisText = `[Diagnóstico IA] Riesgo: ${analisisFinal.nivel_riesgo}. Detalle: ${analisisFinal.diagnostico_tecnico}. Mitigación: ${analisisFinal.accion_mitigacion}`;
+    await this.persistZepEvent(iot_id, eventoActual, analysisText);
 
     return analisisFinal;
   }
