@@ -100,6 +100,15 @@ export default function DashboardPage() {
               </p>
             </div>
           )}
+          <a
+            href="/ia"
+            className="rounded-3xl border border-emerald-400/40 bg-slate-900/70 p-6 transition hover:-translate-y-1 hover:border-emerald-300"
+          >
+            <h2 className="text-xl font-semibold">Analizador IA</h2>
+            <p className="mt-2 text-slate-300">
+              Prueba el analisis de temperatura, bateria y desvio con rutas OSRM.
+            </p>
+          </a>
         </section>
 
         <button

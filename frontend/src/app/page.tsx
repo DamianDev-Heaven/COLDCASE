@@ -42,6 +42,19 @@ export default function Home() {
               <span className="transition group-hover:translate-x-1">→</span>
             </span>
           </a>
+          <a
+            href="/ia"
+            className="group rounded-3xl border border-emerald-400/40 bg-slate-900/60 p-6 backdrop-blur transition hover:-translate-y-1 hover:border-emerald-300"
+          >
+            <h2 className="text-2xl font-semibold">Probar IA</h2>
+            <p className="mt-2 text-slate-300">
+              Ejecuta un analisis con ruta, temperatura y desvio OSRM desde el navegador.
+            </p>
+            <span className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-emerald-300">
+              Abrir analizador
+              <span className="transition group-hover:translate-x-1">→</span>
+            </span>
+          </a>
         </section>
       </main>
     </div>

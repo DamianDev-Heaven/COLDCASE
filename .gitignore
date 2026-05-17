@@ -10,7 +10,7 @@
 *.pem
 *.key
 *.crt
-
+osrm-data/
 # Dependencies
 node_modules/
 **/node_modules/

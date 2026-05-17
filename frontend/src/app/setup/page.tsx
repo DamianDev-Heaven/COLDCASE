@@ -222,6 +222,9 @@ export default function SetupPage() {
           <p className="text-slate-300">
             Usa estos formularios para crear empresa, IoT, transporte y viaje.
           </p>
+          <a href="/ia" className="w-fit text-sm font-semibold text-cyan-300 underline-offset-4 hover:underline">
+            Abrir analizador IA con ruta OSRM
+          </a>
         </header>
 
         {status && (
@@ -370,6 +373,7 @@ export default function SetupPage() {
               <div className="mt-3 h-64 overflow-hidden rounded-xl">
                 <RouteMap
                   waypoints={waypoints}
+                  routePreviewApiUrl={API_URL}
                   onAddWaypoint={(point) => {
                     const next = [...waypoints, point];
                     setWaypoints(next);

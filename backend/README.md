@@ -35,6 +35,10 @@ $ npm install
 
 Copy [.env.example](.env.example) to `.env` and fill in your keys before starting the backend. This integration uses Groq Cloud and Zep Cloud, so `LLM_API_KEY`, `LLM_BASE_URL`, `LLM_MODEL_NAME`, `ZEP_API_URL`, and `ZEP_API_KEY` should point to your cloud credentials and endpoint. For Zep Cloud, use the project base URL and this service will normalize it to `/api/v2` if you omit that suffix; `https://api.getzep.com/api/v2` is the expected shape. Legacy `GROQ_*` aliases are still accepted.
 
+For route calculations, set `OSRM_BASE_URL` to `http://osrm:5000` when running with Docker Compose, or `http://localhost:5000` when you run OSRM on the host. If the variable is missing, the service now falls back to `http://localhost:5000` instead of the public router.
+
+The IA module also exposes `POST /ia/analizar-viaje` for route-aware analysis. Set `AI_ANALYSIS_MODE=llm` to force the model, or leave it unset for the deterministic fallback that is easier to test. `OSRM_BASE_URL` defaults to the public router and is used whenever route waypoints are provided.
+
 ## Compile and run the project
 
 ```bash

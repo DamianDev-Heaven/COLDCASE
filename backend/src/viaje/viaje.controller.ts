@@ -11,6 +11,16 @@ export class ViajeController {
     return this.viajeService.create(body);
   }
 
+  @Post("ruta-preview")
+  previewRoute(
+    @Body()
+    body: {
+      waypoints: Array<{ lat: number; lon: number }>;
+    },
+  ) {
+    return this.viajeService.previewRoute(body.waypoints);
+  }
+
   @Get()
   findAll() {
     return this.viajeService.findAll();
