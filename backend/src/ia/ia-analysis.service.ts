@@ -1,7 +1,7 @@
-import { Injectable, Logger } from "@nestjs/common";
-import { ConfigService } from "@nestjs/config";
-import Groq from "groq-sdk";
-import { DbService } from "../db/db.service";
+import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import Groq from 'groq-sdk';
+import { DbService } from '../db/db.service';
 
 export interface Waypoint {
   lat: number;
@@ -9,10 +9,10 @@ export interface Waypoint {
 }
 
 export interface AnalisisResultado {
-  nivel_riesgo: "CRITICO" | "ALTO" | "MODERADO" | "DESCONOCIDO";
+  nivel_riesgo: 'CRITICO' | 'ALTO' | 'MODERADO' | 'DESCONOCIDO';
   diagnostico_tecnico: string;
   accion_mitigacion: string;
-  fuente: "reglas" | "llm";
+  fuente: 'reglas' | 'llm';
   contexto?: {
     limite_max_temp: number;
     temperatura_actual: number;
@@ -33,7 +33,7 @@ export interface AnalisisViajeInput {
   latitudActual?: number;
   longitudActual?: number;
   ruta_waypoints?: { waypoints?: Waypoint[] } | Waypoint[];
-  modo?: "auto" | "deterministic" | "llm";
+  modo?: 'auto' | 'deterministic' | 'llm';
 }
 
 type ViajeContext = {
@@ -55,7 +55,7 @@ export class IaAnalysisService {
   private readonly logger = new Logger(IaAnalysisService.name);
   private readonly groqClient: Groq | null;
   private readonly osrmBaseUrl: string;
-  private readonly analysisMode: "auto" | "deterministic" | "llm";
+  private readonly analysisMode: 'auto' | 'deterministic' | 'llm';
   private readonly defaultModelName: string;
 
   constructor(
@@ -63,18 +63,21 @@ export class IaAnalysisService {
     private readonly db: DbService,
   ) {
     const groqApiKey =
-      this.configService.get<string>("LLM_API_KEY") ?? this.configService.get<string>("GROQ_API_KEY");
+      this.configService.get<string>('LLM_API_KEY') ??
+      this.configService.get<string>('GROQ_API_KEY');
 
     this.analysisMode =
-      this.configService.get<"auto" | "deterministic" | "llm">("AI_ANALYSIS_MODE") ??
-      "deterministic";
+      this.configService.get<'auto' | 'deterministic' | 'llm'>(
+        'AI_ANALYSIS_MODE',
+      ) ?? 'deterministic';
     this.osrmBaseUrl = this.normalizeBaseUrl(
-      this.configService.get<string>("OSRM_BASE_URL") ?? "http://localhost:5000",
+      this.configService.get<string>('OSRM_BASE_URL') ??
+        'http://localhost:5000',
     );
     this.defaultModelName =
-      this.configService.get<string>("LLM_MODEL_NAME") ??
-      this.configService.get<string>("GROQ_MODEL_NAME") ??
-      "llama-3.3-70b-versatile";
+      this.configService.get<string>('LLM_MODEL_NAME') ??
+      this.configService.get<string>('GROQ_MODEL_NAME') ??
+      'llama-3.3-70b-versatile';
 
     this.groqClient = groqApiKey ? new Groq({ apiKey: groqApiKey }) : null;
   }
@@ -88,21 +91,28 @@ export class IaAnalysisService {
       iot_id,
       temperaturaActual,
       bateriaActual,
-      modo: "auto",
+      modo: 'auto',
     });
   }
 
-  async analizarEvento(payload: AnalisisViajeInput): Promise<AnalisisResultado> {
+  async analizarEvento(
+    payload: AnalisisViajeInput,
+  ): Promise<AnalisisResultado> {
     const viajeContext = await this.loadViajeContext(payload.viaje_id);
-    const limiteMaxTemp = payload.limite_max_temp ?? viajeContext?.limite_max_temp ?? 5;
-    const margenDesvioKm = payload.margen_desvio_km ?? viajeContext?.margen_desvio_km ?? 10;
+    const limiteMaxTemp =
+      payload.limite_max_temp ?? viajeContext?.limite_max_temp ?? 5;
+    const margenDesvioKm =
+      payload.margen_desvio_km ?? viajeContext?.margen_desvio_km ?? 10;
     const rutaSource = payload.ruta_waypoints ?? viajeContext?.ruta_waypoints;
     const currentPoint =
       payload.latitudActual != null && payload.longitudActual != null
         ? { lat: payload.latitudActual, lon: payload.longitudActual }
         : undefined;
 
-    const routeMetrics = await this.resolveRouteMetrics(rutaSource, currentPoint);
+    const routeMetrics = await this.resolveRouteMetrics(
+      rutaSource,
+      currentPoint,
+    );
     const analysisMode = this.resolveAnalysisMode(payload.modo);
     const deterministic = this.buildDeterministicAnalysis({
       temperaturaActual: payload.temperaturaActual,
@@ -114,7 +124,7 @@ export class IaAnalysisService {
       osrmUsado: routeMetrics.osrmUsado,
     });
 
-    if (analysisMode !== "llm" || !this.groqClient) {
+    if (analysisMode !== 'llm' || !this.groqClient) {
       return deterministic;
     }
 
@@ -134,22 +144,23 @@ export class IaAnalysisService {
       try {
         const completion = await this.groqClient.chat.completions.create(
           {
-            messages: [{ role: "user", content: prompt }],
+            messages: [{ role: 'user', content: prompt }],
             model: this.defaultModelName,
-            response_format: { type: "json_object" },
+            response_format: { type: 'json_object' },
           },
-          { signal: controller.signal as AbortSignal },
+          { signal: controller.signal },
         );
 
-        const rawContent = completion.choices[0]?.message?.content ?? "{}";
+        const rawContent = completion.choices[0]?.message?.content ?? '{}';
         const parsed = JSON.parse(rawContent) as Partial<AnalisisResultado>;
 
         return {
           nivel_riesgo: parsed.nivel_riesgo ?? deterministic.nivel_riesgo,
           diagnostico_tecnico:
             parsed.diagnostico_tecnico ?? deterministic.diagnostico_tecnico,
-          accion_mitigacion: parsed.accion_mitigacion ?? deterministic.accion_mitigacion,
-          fuente: "llm",
+          accion_mitigacion:
+            parsed.accion_mitigacion ?? deterministic.accion_mitigacion,
+          fuente: 'llm',
           contexto: deterministic.contexto,
         };
       } finally {
@@ -162,8 +173,10 @@ export class IaAnalysisService {
     }
   }
 
-  private resolveAnalysisMode(requestedMode: AnalisisViajeInput["modo"]): "auto" | "deterministic" | "llm" {
-    if (requestedMode && requestedMode !== "auto") {
+  private resolveAnalysisMode(
+    requestedMode: AnalisisViajeInput['modo'],
+  ): 'auto' | 'deterministic' | 'llm' {
+    if (requestedMode && requestedMode !== 'auto') {
       return requestedMode;
     }
 
@@ -171,15 +184,17 @@ export class IaAnalysisService {
   }
 
   private normalizeBaseUrl(url: string): string {
-    return url.trim().replace(/\/+$/, "");
+    return url.trim().replace(/\/+$/, '');
   }
 
-  private extractWaypoints(source: { waypoints?: Waypoint[] } | Waypoint[] | undefined): Waypoint[] {
+  private extractWaypoints(
+    source: { waypoints?: Waypoint[] } | Waypoint[] | undefined,
+  ): Waypoint[] {
     if (!source) {
       return [];
     }
 
-    const points = Array.isArray(source) ? source : source.waypoints ?? [];
+    const points = Array.isArray(source) ? source : (source.waypoints ?? []);
     return points.filter(
       (point): point is Waypoint =>
         Number.isFinite(point?.lat) && Number.isFinite(point?.lon),
@@ -203,7 +218,11 @@ export class IaAnalysisService {
     return 2 * earthRadiusKm * Math.asin(Math.sqrt(a));
   }
 
-  private distancePointToSegmentKm(point: Point, start: Point, end: Point): number {
+  private distancePointToSegmentKm(
+    point: Point,
+    start: Point,
+    end: Point,
+  ): number {
     const averageLatRad = this.toRadians((start.lat + end.lat) / 2);
     const metersPerDegreeLat = 111_132;
     const metersPerDegreeLon = 111_320 * Math.cos(averageLatRad);
@@ -222,7 +241,12 @@ export class IaAnalysisService {
     const segmentLengthSquared = segmentX * segmentX + segmentY * segmentY;
 
     if (segmentLengthSquared === 0) {
-      return Math.hypot(projectedPoint.x - projectedStart.x, projectedPoint.y - projectedStart.y) / 1000;
+      return (
+        Math.hypot(
+          projectedPoint.x - projectedStart.x,
+          projectedPoint.y - projectedStart.y,
+        ) / 1000
+      );
     }
 
     const rawProjection =
@@ -236,7 +260,12 @@ export class IaAnalysisService {
       y: projectedStart.y + projection * segmentY,
     };
 
-    return Math.hypot(projectedPoint.x - closestPoint.x, projectedPoint.y - closestPoint.y) / 1000;
+    return (
+      Math.hypot(
+        projectedPoint.x - closestPoint.x,
+        projectedPoint.y - closestPoint.y,
+      ) / 1000
+    );
   }
 
   private pointToPathDistanceKm(point: Point, path: Waypoint[]): number {
@@ -251,7 +280,11 @@ export class IaAnalysisService {
     let minDistance = Number.POSITIVE_INFINITY;
 
     for (let index = 0; index < path.length - 1; index += 1) {
-      const currentDistance = this.distancePointToSegmentKm(point, path[index], path[index + 1]);
+      const currentDistance = this.distancePointToSegmentKm(
+        point,
+        path[index],
+        path[index + 1],
+      );
       minDistance = Math.min(minDistance, currentDistance);
     }
 
@@ -272,10 +305,12 @@ export class IaAnalysisService {
   }
 
   private formatRouteCoordinates(points: Waypoint[]): string {
-    return points.map((point) => `${point.lon},${point.lat}`).join(";");
+    return points.map((point) => `${point.lon},${point.lat}`).join(';');
   }
 
-  private async fetchOsrmRoute(points: Waypoint[]): Promise<{ distanciaRutaKm: number | null; geometria: Waypoint[] } | null> {
+  private async fetchOsrmRoute(
+    points: Waypoint[],
+  ): Promise<{ distanciaRutaKm: number | null; geometria: Waypoint[] } | null> {
     if (points.length < 2) {
       return null;
     }
@@ -304,8 +339,12 @@ export class IaAnalysisService {
       }
 
       return {
-        distanciaRutaKm: typeof route.distance === "number" ? route.distance / 1000 : null,
-        geometria: route.geometry.coordinates.map(([lon, lat]) => ({ lat, lon })),
+        distanciaRutaKm:
+          typeof route.distance === 'number' ? route.distance / 1000 : null,
+        geometria: route.geometry.coordinates.map(([lon, lat]) => ({
+          lat,
+          lon,
+        })),
       };
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);
@@ -331,10 +370,13 @@ export class IaAnalysisService {
 
     const osrmRoute = await this.fetchOsrmRoute(points);
     const pathForDeviation = osrmRoute?.geometria ?? points;
-    const desvioKm = currentPoint ? this.pointToPathDistanceKm(currentPoint, pathForDeviation) : null;
+    const desvioKm = currentPoint
+      ? this.pointToPathDistanceKm(currentPoint, pathForDeviation)
+      : null;
 
     return {
-      distanciaRutaKm: osrmRoute?.distanciaRutaKm ?? this.computePolylineDistanceKm(points),
+      distanciaRutaKm:
+        osrmRoute?.distanciaRutaKm ?? this.computePolylineDistanceKm(points),
       desvioKm,
       osrmUsado: Boolean(osrmRoute),
     };
@@ -346,8 +388,14 @@ export class IaAnalysisService {
     bateriaActual: number;
     desvioKm: number | null;
     margen_desvio_km: number;
-  }): AnalisisResultado["nivel_riesgo"] {
-    const { temperaturaActual, limite_max_temp, bateriaActual, desvioKm, margen_desvio_km } = args;
+  }): AnalisisResultado['nivel_riesgo'] {
+    const {
+      temperaturaActual,
+      limite_max_temp,
+      bateriaActual,
+      desvioKm,
+      margen_desvio_km,
+    } = args;
     const desvioActual = desvioKm ?? 0;
 
     if (
@@ -355,7 +403,7 @@ export class IaAnalysisService {
       bateriaActual <= 10 ||
       desvioActual >= Math.max(10, margen_desvio_km * 2)
     ) {
-      return "CRITICO";
+      return 'CRITICO';
     }
 
     if (
@@ -363,10 +411,10 @@ export class IaAnalysisService {
       bateriaActual <= 25 ||
       desvioActual >= Math.max(5, margen_desvio_km)
     ) {
-      return "ALTO";
+      return 'ALTO';
     }
 
-    return "MODERADO";
+    return 'MODERADO';
   }
 
   private buildDeterministicAnalysis(args: {
@@ -378,7 +426,15 @@ export class IaAnalysisService {
     margen_desvio_km: number;
     osrmUsado: boolean;
   }): AnalisisResultado {
-    const { temperaturaActual, limite_max_temp, bateriaActual, desvioKm, distanciaRutaKm, margen_desvio_km, osrmUsado } = args;
+    const {
+      temperaturaActual,
+      limite_max_temp,
+      bateriaActual,
+      desvioKm,
+      distanciaRutaKm,
+      margen_desvio_km,
+      osrmUsado,
+    } = args;
     const nivel_riesgo = this.evaluarRiesgo({
       temperaturaActual,
       limite_max_temp,
@@ -387,8 +443,12 @@ export class IaAnalysisService {
       margen_desvio_km,
     });
 
-    const desvioTexto = desvioKm != null ? `${desvioKm.toFixed(2)} km` : "sin ubicacion actual";
-    const distanciaTexto = distanciaRutaKm != null ? `${distanciaRutaKm.toFixed(2)} km` : "sin ruta calculada";
+    const desvioTexto =
+      desvioKm != null ? `${desvioKm.toFixed(2)} km` : 'sin ubicacion actual';
+    const distanciaTexto =
+      distanciaRutaKm != null
+        ? `${distanciaRutaKm.toFixed(2)} km`
+        : 'sin ruta calculada';
 
     let diagnostico_tecnico = `Temperatura ${temperaturaActual}°C frente a limite ${limite_max_temp}°C.`;
     if (desvioKm != null) {
@@ -396,20 +456,23 @@ export class IaAnalysisService {
     }
     diagnostico_tecnico += ` Bateria ${bateriaActual}%. Ruta ${distanciaTexto}.`;
 
-    let accion_mitigacion = "Mantener monitoreo y seguir telemetria.";
-    if (nivel_riesgo === "CRITICO") {
-      accion_mitigacion = "Detener el viaje, revisar cadena de frio y validar geolocalizacion manualmente.";
-    } else if (nivel_riesgo === "ALTO") {
-      accion_mitigacion = "Avisar al operador, revisar ruta y confirmar estado del equipo de refrigeracion.";
+    let accion_mitigacion = 'Mantener monitoreo y seguir telemetria.';
+    if (nivel_riesgo === 'CRITICO') {
+      accion_mitigacion =
+        'Detener el viaje, revisar cadena de frio y validar geolocalizacion manualmente.';
+    } else if (nivel_riesgo === 'ALTO') {
+      accion_mitigacion =
+        'Avisar al operador, revisar ruta y confirmar estado del equipo de refrigeracion.';
     } else {
-      accion_mitigacion = "Mantener seguimiento activo y preparar alerta preventiva.";
+      accion_mitigacion =
+        'Mantener seguimiento activo y preparar alerta preventiva.';
     }
 
     return {
       nivel_riesgo,
       diagnostico_tecnico,
       accion_mitigacion,
-      fuente: "reglas",
+      fuente: 'reglas',
       contexto: {
         limite_max_temp,
         temperatura_actual: temperaturaActual,
@@ -429,23 +492,32 @@ export class IaAnalysisService {
     margenDesvioKm: number;
     routeMetrics: RouteMetrics;
   }): string {
-    const { iotId, temperaturaActual, bateriaActual, limiteMaxTemp, margenDesvioKm, routeMetrics } = args;
+    const {
+      iotId,
+      temperaturaActual,
+      bateriaActual,
+      limiteMaxTemp,
+      margenDesvioKm,
+      routeMetrics,
+    } = args;
     return [
-      "Eres un analista de IA para logística de cadena de frio y seguimiento de rutas.",
-      "Responde siempre con un JSON puro y sin texto adicional.",
+      'Eres un analista de IA para logística de cadena de frio y seguimiento de rutas.',
+      'Responde siempre con un JSON puro y sin texto adicional.',
       `IoT: ${iotId}`,
       `Temperatura actual: ${temperaturaActual}°C`,
       `Bateria actual: ${bateriaActual}%`,
       `Limite maximo de temperatura: ${limiteMaxTemp}°C`,
       `Margen de desvio: ${margenDesvioKm} km`,
-      `Distancia de la ruta: ${routeMetrics.distanciaRutaKm != null ? `${routeMetrics.distanciaRutaKm.toFixed(2)} km` : "no disponible"}`,
-      `Desvio actual: ${routeMetrics.desvioKm != null ? `${routeMetrics.desvioKm.toFixed(2)} km` : "no disponible"}`,
-      `OSRM usado: ${routeMetrics.osrmUsado ? "si" : "no"}`,
+      `Distancia de la ruta: ${routeMetrics.distanciaRutaKm != null ? `${routeMetrics.distanciaRutaKm.toFixed(2)} km` : 'no disponible'}`,
+      `Desvio actual: ${routeMetrics.desvioKm != null ? `${routeMetrics.desvioKm.toFixed(2)} km` : 'no disponible'}`,
+      `OSRM usado: ${routeMetrics.osrmUsado ? 'si' : 'no'}`,
       'Propiedades requeridas: "nivel_riesgo" (CRITICO, ALTO o MODERADO), "diagnostico_tecnico" y "accion_mitigacion".',
-    ].join("\n");
+    ].join('\n');
   }
 
-  private async loadViajeContext(viajeId: string | undefined): Promise<ViajeContext | null> {
+  private async loadViajeContext(
+    viajeId: string | undefined,
+  ): Promise<ViajeContext | null> {
     if (!viajeId) {
       return null;
     }
@@ -454,7 +526,10 @@ export class IaAnalysisService {
       limite_max_temp: number;
       margen_desvio_km: number | null;
       ruta_waypoints: { waypoints?: Waypoint[] } | Waypoint[];
-    }>("SELECT limite_max_temp, margen_desvio_km, ruta_waypoints FROM viaje WHERE id = $1", [viajeId]);
+    }>(
+      'SELECT limite_max_temp, margen_desvio_km, ruta_waypoints FROM viaje WHERE id = $1',
+      [viajeId],
+    );
 
     const viaje = result.rows[0];
     if (!viaje) {

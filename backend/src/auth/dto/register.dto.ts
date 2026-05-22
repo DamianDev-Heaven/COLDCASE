@@ -1,4 +1,4 @@
-import { IsEmail, IsIn, IsString, MinLength } from "class-validator";
+import { IsEmail, IsIn, IsString, MinLength } from 'class-validator';
 
 export class RegisterDto {
   @IsEmail()
@@ -9,6 +9,6 @@ export class RegisterDto {
   password: string;
 
   @IsString()
-  @IsIn(["Admin", "Operador", "Auditor"])
-  rol: "Admin" | "Operador" | "Auditor";
+  @IsIn(['Admin', 'Operador', 'Auditor'])
+  rol: 'Admin' | 'Operador' | 'Auditor';
 }

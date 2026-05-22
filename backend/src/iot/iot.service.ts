@@ -1,5 +1,5 @@
-import { Injectable } from "@nestjs/common";
-import { DbService } from "../db/db.service";
+import { Injectable } from '@nestjs/common';
+import { DbService } from '../db/db.service';
 
 @Injectable()
 export class IotService {
@@ -12,7 +12,7 @@ export class IotService {
     firmware_version?: string;
   }) {
     const result = await this.db.query(
-      "INSERT INTO iot (tipo_dispositivo, estado_conexion, ultimo_ping, firmware_version) VALUES ($1, $2, $3, $4) RETURNING id, tipo_dispositivo, estado_conexion, ultimo_ping, firmware_version",
+      'INSERT INTO iot (tipo_dispositivo, estado_conexion, ultimo_ping, firmware_version) VALUES ($1, $2, $3, $4) RETURNING id, tipo_dispositivo, estado_conexion, ultimo_ping, firmware_version',
       [
         payload.tipo_dispositivo,
         payload.estado_conexion,
@@ -26,7 +26,7 @@ export class IotService {
 
   async findAll() {
     const result = await this.db.query(
-      "SELECT id, tipo_dispositivo, estado_conexion, ultimo_ping, firmware_version FROM iot ORDER BY ultimo_ping DESC",
+      'SELECT id, tipo_dispositivo, estado_conexion, ultimo_ping, firmware_version FROM iot ORDER BY ultimo_ping DESC',
     );
 
     return result.rows;

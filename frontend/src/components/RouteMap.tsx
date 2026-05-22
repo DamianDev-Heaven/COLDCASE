@@ -5,12 +5,21 @@ import { useEffect, useRef, useState } from "react";
 
 type Waypoint = { lat: number; lon: number };
 
+type IncidentMarker = {
+  id: string | number;
+  lat: number;
+  lon: number;
+  label?: string;
+  accent?: "rose" | "amber" | "cyan";
+};
+
 type RouteMapProps = {
   waypoints: Waypoint[];
-  onAddWaypoint: (point: Waypoint) => void;
+  onAddWaypoint?: (point: Waypoint) => void;
   center?: [number, number];
   zoom?: number;
   routePreviewApiUrl?: string;
+  incidentMarkers?: IncidentMarker[];
 };
 
 type PreviewStatus = "idle" | "loading" | "osrm" | "fallback";
@@ -21,6 +30,7 @@ export default function RouteMap({
   center = [13.6929, -89.2182],
   zoom = 12,
   routePreviewApiUrl,
+  incidentMarkers = [],
 }: RouteMapProps) {
   const [leaflet, setLeaflet] = useState<null | typeof import("leaflet")>(null);
   const [previewRoute, setPreviewRoute] = useState<Waypoint[] | null>(null);
@@ -76,9 +86,11 @@ export default function RouteMap({
       map.invalidateSize();
     }, 0);
 
-    map.on("click", (event: import("leaflet").LeafletMouseEvent) => {
-      addRef.current({ lat: event.latlng.lat, lon: event.latlng.lng });
-    });
+    if (onAddWaypoint) {
+      map.on("click", (event: import("leaflet").LeafletMouseEvent) => {
+        addRef.current?.({ lat: event.latlng.lat, lon: event.latlng.lng });
+      });
+    }
 
     mapRef.current = map;
     layerRef.current = layerGroup;
@@ -123,6 +135,31 @@ export default function RouteMap({
       bounds.extend(marker.getLatLng());
     });
 
+    (incidentMarkers ?? []).forEach((incidentMarker) => {
+      const accentColor =
+        incidentMarker.accent === "amber"
+          ? "#f59e0b"
+          : incidentMarker.accent === "cyan"
+            ? "#22d3ee"
+            : "#f43f5e";
+
+      const marker = leaflet
+        .circleMarker([incidentMarker.lat, incidentMarker.lon], {
+          radius: 9,
+          color: accentColor,
+          weight: 3,
+          fillColor: "#020617",
+          fillOpacity: 1,
+        })
+        .addTo(layerRef.current!);
+
+      if (incidentMarker.label) {
+        marker.bindTooltip(incidentMarker.label, { direction: "top", sticky: true });
+      }
+
+      bounds.extend(marker.getLatLng());
+    });
+
     if (routeToDraw && routeToDraw.length > 1) {
       const routeLine = leaflet
         .polyline(
@@ -151,7 +188,7 @@ export default function RouteMap({
         mapRef.current?.setView([waypoints[0].lat, waypoints[0].lon], 16, { animate: true });
       }
     }
-  }, [leaflet, waypoints, previewRoute, previewStatus, routePreviewApiUrl]);
+  }, [leaflet, waypoints, previewRoute, previewStatus, routePreviewApiUrl, incidentMarkers]);
 
   useEffect(() => {
     let active = true;

@@ -7,7 +7,7 @@ import {
   IsUUID,
   Max,
   Min,
-} from "class-validator";
+} from 'class-validator';
 
 export class CreateViajeDto {
   @IsUUID()
@@ -53,6 +53,6 @@ export class CreateViajeDto {
   final_viaje?: string;
 
   @IsOptional()
-  @IsIn(["pendiente", "en_curso", "pausado", "cancelado", "finalizado"])
-  estado?: "pendiente" | "en_curso" | "pausado" | "cancelado" | "finalizado";
+  @IsIn(['pendiente', 'en_curso', 'pausado', 'cancelado', 'finalizado'])
+  estado?: 'pendiente' | 'en_curso' | 'pausado' | 'cancelado' | 'finalizado';
 }

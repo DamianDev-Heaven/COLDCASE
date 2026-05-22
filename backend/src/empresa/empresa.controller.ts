@@ -1,8 +1,8 @@
-import { Body, Controller, Get, Post } from "@nestjs/common";
-import { CreateEmpresaDto } from "./dto/create-empresa.dto";
-import { EmpresaService } from "./empresa.service";
+import { Body, Controller, Get, Post } from '@nestjs/common';
+import { CreateEmpresaDto } from './dto/create-empresa.dto';
+import { EmpresaService } from './empresa.service';
 
-@Controller("empresa")
+@Controller('empresa')
 export class EmpresaController {
   constructor(private readonly empresaService: EmpresaService) {}
 

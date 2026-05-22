@@ -1,5 +1,9 @@
-import { Injectable } from "@nestjs/common";
-import { IaAnalysisService, AnalisisResultado, AnalisisViajeInput } from "./ia-analysis.service";
+import { Injectable } from '@nestjs/common';
+import {
+  IaAnalysisService,
+  AnalisisResultado,
+  AnalisisViajeInput,
+} from './ia-analysis.service';
 
 @Injectable()
 export class IaService {
@@ -14,6 +18,10 @@ export class IaService {
     temperaturaActual: number,
     bateriaActual: number,
   ): Promise<AnalisisResultado> {
-    return this.iaAnalysisService.simularAnalisisDeFallo(iot_id, temperaturaActual, bateriaActual);
+    return this.iaAnalysisService.simularAnalisisDeFallo(
+      iot_id,
+      temperaturaActual,
+      bateriaActual,
+    );
   }
 }

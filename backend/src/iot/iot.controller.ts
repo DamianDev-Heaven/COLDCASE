@@ -1,8 +1,8 @@
-import { Body, Controller, Get, Post } from "@nestjs/common";
-import { CreateIotDto } from "./dto/create-iot.dto";
-import { IotService } from "./iot.service";
+import { Body, Controller, Get, Post } from '@nestjs/common';
+import { CreateIotDto } from './dto/create-iot.dto';
+import { IotService } from './iot.service';
 
-@Controller("iot")
+@Controller('iot')
 export class IotController {
   constructor(private readonly iotService: IotService) {}
 

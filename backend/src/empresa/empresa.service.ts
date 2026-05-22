@@ -1,5 +1,5 @@
-import { Injectable } from "@nestjs/common";
-import { DbService } from "../db/db.service";
+import { Injectable } from '@nestjs/common';
+import { DbService } from '../db/db.service';
 
 @Injectable()
 export class EmpresaService {
@@ -7,7 +7,7 @@ export class EmpresaService {
 
   async create(nombre: string) {
     const result = await this.db.query(
-      "INSERT INTO empresa (nombre) VALUES ($1) RETURNING id, nombre",
+      'INSERT INTO empresa (nombre) VALUES ($1) RETURNING id, nombre',
       [nombre],
     );
 
@@ -16,7 +16,7 @@ export class EmpresaService {
 
   async findAll() {
     const result = await this.db.query(
-      "SELECT id, nombre FROM empresa ORDER BY nombre ASC",
+      'SELECT id, nombre FROM empresa ORDER BY nombre ASC',
     );
 
     return result.rows;

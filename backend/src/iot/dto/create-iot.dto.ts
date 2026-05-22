@@ -1,4 +1,4 @@
-import { IsDateString, IsOptional, IsString, MinLength } from "class-validator";
+import { IsDateString, IsOptional, IsString, MinLength } from 'class-validator';
 
 export class CreateIotDto {
   @IsString()

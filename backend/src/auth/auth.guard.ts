@@ -3,9 +3,9 @@ import {
   ExecutionContext,
   Injectable,
   UnauthorizedException,
-} from "@nestjs/common";
-import { Request } from "express";
-import { AuthService } from "./auth.service";
+} from '@nestjs/common';
+import { Request } from 'express';
+import { AuthService } from './auth.service';
 
 @Injectable()
 export class AuthGuard implements CanActivate {
@@ -15,18 +15,18 @@ export class AuthGuard implements CanActivate {
     const request = context.switchToHttp().getRequest<Request>();
     const authHeader = request.headers.authorization;
 
-    if (!authHeader?.startsWith("Bearer ")) {
-      throw new UnauthorizedException("Token requerido.");
+    if (!authHeader?.startsWith('Bearer ')) {
+      throw new UnauthorizedException('Token requerido.');
     }
 
-    const token = authHeader.slice("Bearer ".length);
+    const token = authHeader.slice('Bearer '.length);
 
     try {
       const payload = await this.authService.verifyToken(token);
       (request as Request & { user?: unknown }).user = payload;
       return true;
     } catch {
-      throw new UnauthorizedException("Token invalido.");
+      throw new UnauthorizedException('Token invalido.');
     }
   }
 }
