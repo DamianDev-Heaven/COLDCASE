@@ -19,6 +19,9 @@ jobs:
       - name: Run OSRM prepare script
         run: ./scripts/prepare-osrm.sh
 
+      - name: Fix permissions on osrm-data
+        run: chmod -R a+r osrm-data
+
       - name: Archive osrm-data
         run: zip -r osrm-data.zip osrm-data
 
