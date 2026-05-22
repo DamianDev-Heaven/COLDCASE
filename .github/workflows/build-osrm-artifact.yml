@@ -1,0 +1,43 @@
+name: Build OSRM Artifacts
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Ensure prepare script is executable
+        run: chmod +x ./scripts/prepare-osrm.sh
+
+      - name: Run OSRM prepare script
+        run: ./scripts/prepare-osrm.sh
+
+      - name: Archive osrm-data
+        run: zip -r osrm-data.zip osrm-data
+
+      - name: Tag release
+        run: |
+          git tag -f osrm-data-el-salvador
+          git push -f origin osrm-data-el-salvador
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: osrm-data-el-salvador
+          name: OSRM El Salvador data
+          files: osrm-data.zip
+          generate_release_notes: false
+          make_latest: true
+
+      - name: Upload OSRM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: osrm-data
+          path: osrm-data.zip

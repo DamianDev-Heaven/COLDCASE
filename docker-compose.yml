@@ -56,13 +56,20 @@ services:
       - coldcase_net
 
   osrm:
-    image: osrm/osrm-backend
+    build:
+      context: ./osrm
+      dockerfile: Dockerfile
     restart: unless-stopped
     ports:
       - "5000:5000"
     volumes:
       - ./osrm-data:/data
     command: "osrm-routed --algorithm mld /data/el-salvador-latest.osrm"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/route/v1/driving/-89.2182,13.6929;-89.2045,13.7001?overview=false"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - coldcase_net
 
