@@ -19,6 +19,9 @@ jobs:
       - name: Run OSRM prepare script
         run: ./scripts/prepare-osrm.sh
 
+      - name: Cambiar dueño de osrm-data
+        run: sudo chown -R $USER:$USER osrm-data
+
       - name: Fix permissions on osrm-data
         run: chmod -R a+r osrm-data
 
