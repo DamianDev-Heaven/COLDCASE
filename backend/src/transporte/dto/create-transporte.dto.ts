@@ -1,4 +1,11 @@
-import { IsIn, IsNumber, IsOptional, IsString, IsUUID, MinLength } from "class-validator";
+import {
+  IsIn,
+  IsNumber,
+  IsOptional,
+  IsString,
+  IsUUID,
+  MinLength,
+} from 'class-validator';
 
 export class CreateTransporteDto {
   @IsString()
@@ -12,8 +19,8 @@ export class CreateTransporteDto {
   empresa_id: string;
 
   @IsString()
-  @IsIn(["Activo", "Mantenimiento"])
-  estado: "Activo" | "Mantenimiento";
+  @IsIn(['Activo', 'Mantenimiento'])
+  estado: 'Activo' | 'Mantenimiento';
 
   @IsOptional()
   @IsNumber()

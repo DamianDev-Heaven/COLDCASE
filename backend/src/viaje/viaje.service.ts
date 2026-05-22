@@ -1,6 +1,6 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
-import { ConfigService } from "@nestjs/config";
-import { DbService } from "../db/db.service";
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { DbService } from '../db/db.service';
 
 @Injectable()
 export class ViajeService {
@@ -21,9 +21,10 @@ export class ViajeService {
       }
 
       const osrmBaseUrl =
-        this.config.get<string>("OSRM_BASE_URL") ||
-        "http://localhost:5000";
-      const coordinates = points.map((point) => `${point.lon},${point.lat}`).join(";");
+        this.config.get<string>('OSRM_BASE_URL') || 'http://localhost:5000';
+      const coordinates = points
+        .map((point) => `${point.lon},${point.lat}`)
+        .join(';');
       const url = `${osrmBaseUrl}/route/v1/driving/${coordinates}?geometries=geojson`;
 
       const controller = new AbortController();
@@ -53,7 +54,7 @@ export class ViajeService {
 
       return null;
     } catch (error) {
-      console.error("OSRM request error:", error);
+      console.error('OSRM request error:', error);
       return null;
     }
   }
@@ -64,7 +65,9 @@ export class ViajeService {
     return {
       osrm_usado: Boolean(routeData),
       distancia_km: routeData ? routeData.distance / 1000 : null,
-      geometry: routeData?.geometry ?? points.map((point) => [point.lon, point.lat] as [number, number]),
+      geometry:
+        routeData?.geometry ??
+        points.map((point) => [point.lon, point.lat] as [number, number]),
     };
   }
 
@@ -78,26 +81,24 @@ export class ViajeService {
     margen_desvio_km?: number;
     inicio_viaje?: string;
     final_viaje?: string;
-    estado?: "pendiente" | "en_curso" | "pausado" | "cancelado" | "finalizado";
+    estado?: 'pendiente' | 'en_curso' | 'pausado' | 'cancelado' | 'finalizado';
   }) {
     // Fetch route from OSRM
-    const routeData = await this.fetchOsrmRoute(
-      [
-        { lon: payload.origen_lon, lat: payload.origen_lat },
-        { lon: payload.destino_lon, lat: payload.destino_lat },
-      ],
-    );
-    const routeSource = routeData ? "osrm" : "fallback";
+    const routeData = await this.fetchOsrmRoute([
+      { lon: payload.origen_lon, lat: payload.origen_lat },
+      { lon: payload.destino_lon, lat: payload.destino_lat },
+    ]);
+    const routeSource = routeData ? 'osrm' : 'fallback';
 
     // Build waypoints structure (geometry from OSRM or fallback to origin/destination)
     const ruta_waypoints = routeData
       ? {
-          type: "FeatureCollection",
+          type: 'FeatureCollection',
           features: [
             {
-              type: "Feature",
+              type: 'Feature',
               geometry: {
-                type: "LineString",
+                type: 'LineString',
                 coordinates: routeData.geometry,
               },
               properties: {
@@ -109,12 +110,12 @@ export class ViajeService {
           ],
         }
       : {
-          type: "FeatureCollection",
+          type: 'FeatureCollection',
           features: [
             {
-              type: "Feature",
+              type: 'Feature',
               geometry: {
-                type: "LineString",
+                type: 'LineString',
                 coordinates: [
                   [payload.origen_lon, payload.origen_lat],
                   [payload.destino_lon, payload.destino_lat],
@@ -130,7 +131,7 @@ export class ViajeService {
         };
 
     const result = await this.db.query(
-      "INSERT INTO viaje (transporte_id, limite_max_temp, ruta_waypoints, margen_desvio_km, inicio_viaje, final_viaje, estado) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, transporte_id, limite_max_temp, ruta_waypoints, margen_desvio_km, inicio_viaje, final_viaje, estado",
+      'INSERT INTO viaje (transporte_id, limite_max_temp, ruta_waypoints, margen_desvio_km, inicio_viaje, final_viaje, estado) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, transporte_id, limite_max_temp, ruta_waypoints, margen_desvio_km, inicio_viaje, final_viaje, estado',
       [
         payload.transporte_id,
         payload.limite_max_temp,
@@ -138,7 +139,7 @@ export class ViajeService {
         payload.margen_desvio_km ?? null,
         payload.inicio_viaje ?? null,
         payload.final_viaje ?? null,
-        payload.estado ?? "pendiente",
+        payload.estado ?? 'pendiente',
       ],
     );
 
@@ -150,7 +151,7 @@ export class ViajeService {
 
   async findAll() {
     const result = await this.db.query(
-      "SELECT id, transporte_id, limite_max_temp, ruta_waypoints, margen_desvio_km, inicio_viaje, final_viaje, estado FROM viaje ORDER BY inicio_viaje DESC NULLS LAST",
+      'SELECT id, transporte_id, limite_max_temp, ruta_waypoints, margen_desvio_km, inicio_viaje, final_viaje, estado FROM viaje ORDER BY inicio_viaje DESC NULLS LAST',
     );
 
     return result.rows;
@@ -158,13 +159,13 @@ export class ViajeService {
 
   async findOne(id: string) {
     const result = await this.db.query(
-      "SELECT id, transporte_id, limite_max_temp, ruta_waypoints, margen_desvio_km, inicio_viaje, final_viaje, estado FROM viaje WHERE id = $1",
+      'SELECT id, transporte_id, limite_max_temp, ruta_waypoints, margen_desvio_km, inicio_viaje, final_viaje, estado FROM viaje WHERE id = $1',
       [id],
     );
 
     const viaje = result.rows[0];
     if (!viaje) {
-      throw new NotFoundException("Viaje no encontrado.");
+      throw new NotFoundException('Viaje no encontrado.');
     }
 
     return viaje;

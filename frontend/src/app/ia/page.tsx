@@ -3,7 +3,7 @@
 import { FormEvent, useMemo, useState } from "react";
 import RouteMap from "../../components/RouteMap";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
 
 type Waypoint = { lat: number; lon: number };
 

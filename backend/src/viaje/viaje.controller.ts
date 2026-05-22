@@ -1,8 +1,8 @@
-import { Body, Controller, Get, Param, Post } from "@nestjs/common";
-import { CreateViajeDto } from "./dto/create-viaje.dto";
-import { ViajeService } from "./viaje.service";
+import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { CreateViajeDto } from './dto/create-viaje.dto';
+import { ViajeService } from './viaje.service';
 
-@Controller("viaje")
+@Controller('viaje')
 export class ViajeController {
   constructor(private readonly viajeService: ViajeService) {}
 
@@ -11,7 +11,7 @@ export class ViajeController {
     return this.viajeService.create(body);
   }
 
-  @Post("ruta-preview")
+  @Post('ruta-preview')
   previewRoute(
     @Body()
     body: {
@@ -26,8 +26,8 @@ export class ViajeController {
     return this.viajeService.findAll();
   }
 
-  @Get(":id")
-  findOne(@Param("id") id: string) {
+  @Get(':id')
+  findOne(@Param('id') id: string) {
     return this.viajeService.findOne(id);
   }
 }

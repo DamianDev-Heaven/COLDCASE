@@ -11,8 +11,9 @@ export default function Home() {
             Acceso seguro para el monitoreo de cadena de frio.
           </h1>
           <p className="max-w-2xl text-lg text-slate-200">
-            Gestiona usuarios, roles y tokens desde un flujo de autenticacion
-            simple. Ingresa o crea tu cuenta para continuar.
+            Gestiona la cadena de frío, los incidentes inmutables y el estado de
+            los viajes desde un flujo de autenticacion separado entre acceso
+            publico y alta administrativa.
           </p>
         </header>
         <section className="grid gap-6 sm:grid-cols-2">
@@ -30,19 +31,6 @@ export default function Home() {
             </span>
           </a>
           <a
-            href="/register"
-            className="group rounded-3xl border border-pink-400/40 bg-slate-900/60 p-6 backdrop-blur transition hover:-translate-y-1 hover:border-pink-300"
-          >
-            <h2 className="text-2xl font-semibold">Crear cuenta</h2>
-            <p className="mt-2 text-slate-300">
-              Registra un usuario nuevo con rol Admin, Operador o Auditor.
-            </p>
-            <span className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-pink-300">
-              Ir al registro
-              <span className="transition group-hover:translate-x-1">→</span>
-            </span>
-          </a>
-          <a
             href="/ia"
             className="group rounded-3xl border border-emerald-400/40 bg-slate-900/60 p-6 backdrop-blur transition hover:-translate-y-1 hover:border-emerald-300"
           >
@@ -55,6 +43,13 @@ export default function Home() {
               <span className="transition group-hover:translate-x-1">→</span>
             </span>
           </a>
+          <div className="rounded-3xl border border-slate-800 bg-slate-900/60 p-6 backdrop-blur sm:col-span-2">
+            <h2 className="text-2xl font-semibold">Alta administrativa</h2>
+            <p className="mt-2 max-w-2xl text-slate-300">
+              El alta de usuarios queda dentro del dashboard para administradores autenticados.
+              El login sigue disponible desde fuera del sistema.
+            </p>
+          </div>
         </section>
       </main>
     </div>

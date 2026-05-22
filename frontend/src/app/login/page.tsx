@@ -3,7 +3,7 @@
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -69,7 +69,7 @@ export default function LoginPage() {
           </p>
           <h1 className="mt-4 text-3xl font-semibold">Iniciar sesion</h1>
           <p className="mt-2 text-slate-300">
-            Ingresa tus credenciales para obtener el token JWT.
+            Ingresa tus credenciales para obtener el token JWT y acceder al dashboard externo.
           </p>
 
           <form onSubmit={handleSubmit} className="mt-8 flex flex-col gap-5">
@@ -119,7 +119,7 @@ export default function LoginPage() {
           )}
 
           <div className="mt-8 text-sm text-slate-400">
-            No tienes cuenta? <a href="/register" className="text-cyan-300">Registrate</a>.
+            El alta de usuarios es administrada desde el dashboard privado.
           </div>
         </div>
       </div>

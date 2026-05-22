@@ -1,4 +1,12 @@
-import { IsIn, IsNumber, IsObject, IsOptional, IsString, IsUUID, Min } from "class-validator";
+import {
+  IsIn,
+  IsNumber,
+  IsObject,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Min,
+} from 'class-validator';
 
 export class AnalizarViajeDto {
   @IsString()
@@ -33,9 +41,11 @@ export class AnalizarViajeDto {
 
   @IsOptional()
   @IsObject()
-  ruta_waypoints?: { waypoints?: Array<{ lat: number; lon: number }> } | Array<{ lat: number; lon: number }>;
+  ruta_waypoints?:
+    | { waypoints?: Array<{ lat: number; lon: number }> }
+    | Array<{ lat: number; lon: number }>;
 
   @IsOptional()
-  @IsIn(["auto", "deterministic", "llm"])
-  modo?: "auto" | "deterministic" | "llm";
+  @IsIn(['auto', 'deterministic', 'llm'])
+  modo?: 'auto' | 'deterministic' | 'llm';
 }
