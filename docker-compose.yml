@@ -1,9 +1,6 @@
-version: '3.8'
-
 services:
   db:
     image: postgres:15-alpine
-    container_name: coldcase_db
     environment:
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
@@ -12,6 +9,7 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/00-schema.sql:ro
     networks:
       - coldcase_net
 
@@ -19,10 +17,21 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: coldcase_backend
+    volumes:
+      - ./backend:/usr/src/app
+      - backend_node_modules:/usr/src/app/node_modules
     environment:
       DATABASE_URL: "postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}?schema=public"
       JWT_SECRET: ${JWT_SECRET}
+      LLM_API_KEY: ${LLM_API_KEY}
+      LLM_BASE_URL: ${LLM_BASE_URL}
+      LLM_MODEL_NAME: ${LLM_MODEL_NAME}
+      LLM_BOOST_API_KEY: ${LLM_BOOST_API_KEY}
+      LLM_BOOST_BASE_URL: ${LLM_BOOST_BASE_URL}
+      LLM_BOOST_MODEL_NAME: ${LLM_BOOST_MODEL_NAME}
+      ZEP_API_URL: ${ZEP_API_URL}
+      ZEP_API_KEY: ${ZEP_API_KEY}
+      OSRM_BASE_URL: "http://osrm:5000"
     ports:
       - "3000:3000"
     depends_on:
@@ -34,7 +43,9 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: coldcase_frontend
+    volumes:
+      - ./frontend:/usr/src/app
+      - frontend_node_modules:/usr/src/app/node_modules
     ports:
       - "3001:3000"
     environment:
@@ -44,11 +55,21 @@ services:
     networks:
       - coldcase_net
 
+  osrm:
+    image: osrm/osrm-backend
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./osrm-data:/data
+    command: "osrm-routed --algorithm mld /data/el-salvador-latest.osrm"
+    networks:
+      - coldcase_net
+
   simulador:
     build:
       context: ./simulador
       dockerfile: Dockerfile
-    container_name: coldcase_simulador
     environment:
       API_URL: ${SIMULADOR_API_URL}
     depends_on:
@@ -58,6 +79,8 @@ services:
 
 volumes:
   pgdata:
+  backend_node_modules:
+  frontend_node_modules:
 
 networks:
   coldcase_net:
