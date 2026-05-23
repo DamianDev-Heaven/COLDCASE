@@ -1,0 +1,4 @@
+# Solo forzamos el formato en el archivo que sabemos que falla
+infra/munin/nestjs_app text eol=lf
+
+
