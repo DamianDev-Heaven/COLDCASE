@@ -35,7 +35,8 @@ services:
     ports:
       - "3000:3000"
     depends_on:
-      - db
+      db:
+        condition: service_started
     networks:
       - coldcase_net
 

@@ -2,6 +2,17 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DbService } from '../db/db.service';
 
+type Waypoint = { lat: number; lon: number };
+
+type FeatureCollectionRoute = {
+  features?: Array<{
+    geometry?: {
+      coordinates?: Array<[number, number]>;
+    };
+    properties?: Record<string, unknown>;
+  }>;
+};
+
 @Injectable()
 export class ViajeService {
   constructor(
@@ -71,24 +82,136 @@ export class ViajeService {
     };
   }
 
+  private parseLegacyRoutePoints(
+    rutaWaypoints?: Record<string, unknown> | Array<Waypoint>,
+  ) {
+    if (!rutaWaypoints) {
+      return null;
+    }
+
+    if (Array.isArray(rutaWaypoints)) {
+      return rutaWaypoints;
+    }
+
+    const featureCollection = rutaWaypoints as FeatureCollectionRoute;
+    const coordinates = featureCollection.features?.[0]?.geometry?.coordinates;
+
+    if (!Array.isArray(coordinates) || coordinates.length < 2) {
+      return null;
+    }
+
+    return coordinates.map(([lon, lat]) => ({ lat, lon }));
+  }
+
+  private async resolveRouteEndpoints(payload: {
+    sucursal_origen_id?: string;
+    sucursal_destino_id?: string;
+    origen_lon?: number;
+    origen_lat?: number;
+    destino_lon?: number;
+    destino_lat?: number;
+    ruta_waypoints?: Record<string, unknown> | Array<Waypoint>;
+  }) {
+    if (payload.sucursal_origen_id && payload.sucursal_destino_id) {
+      const result = await this.db.query<{
+        origen_id: string;
+        origen_nombre: string;
+        origen_empresa_nombre: string;
+        origen_lat: number;
+        origen_lon: number;
+        destino_id: string;
+        destino_nombre: string;
+        destino_empresa_nombre: string;
+        destino_lat: number;
+        destino_lon: number;
+      }>(
+        `SELECT
+          so.id AS origen_id,
+          so.nombre AS origen_nombre,
+          eo.nombre AS origen_empresa_nombre,
+          so.lat AS origen_lat,
+          so.lon AS origen_lon,
+          sd.id AS destino_id,
+          sd.nombre AS destino_nombre,
+          ed.nombre AS destino_empresa_nombre,
+          sd.lat AS destino_lat,
+          sd.lon AS destino_lon
+        FROM sucursal so
+        INNER JOIN empresa eo ON eo.id = so.empresa_id
+        CROSS JOIN sucursal sd
+        INNER JOIN empresa ed ON ed.id = sd.empresa_id
+        WHERE so.id = $1 AND sd.id = $2`,
+        [payload.sucursal_origen_id, payload.sucursal_destino_id],
+      );
+
+      const row = result.rows[0];
+      if (row) {
+        return {
+          points: [
+            { lat: Number(row.origen_lat), lon: Number(row.origen_lon) },
+            { lat: Number(row.destino_lat), lon: Number(row.destino_lon) },
+          ],
+          metadata: row,
+        };
+      }
+    }
+
+    if (
+      typeof payload.origen_lat === 'number' &&
+      typeof payload.origen_lon === 'number' &&
+      typeof payload.destino_lat === 'number' &&
+      typeof payload.destino_lon === 'number'
+    ) {
+      return {
+        points: [
+          { lat: payload.origen_lat, lon: payload.origen_lon },
+          { lat: payload.destino_lat, lon: payload.destino_lon },
+        ],
+        metadata: null,
+      };
+    }
+
+    const legacyPoints = this.parseLegacyRoutePoints(payload.ruta_waypoints);
+    if (legacyPoints && legacyPoints.length >= 2) {
+      return {
+        points: [legacyPoints[0], legacyPoints[legacyPoints.length - 1]],
+        metadata: null,
+      };
+    }
+
+    throw new Error(
+      'Debes enviar sucursal_origen_id y sucursal_destino_id, o coordenadas origen/destino, o una ruta legacy con al menos dos puntos.',
+    );
+  }
+
   async create(payload: {
     transporte_id: string;
     limite_max_temp: number;
-    origen_lon: number;
-    origen_lat: number;
-    destino_lon: number;
-    destino_lat: number;
+    sucursal_origen_id?: string;
+    sucursal_destino_id?: string;
+    origen_lon?: number;
+    origen_lat?: number;
+    destino_lon?: number;
+    destino_lat?: number;
+    ruta_waypoints?: Record<string, unknown> | Array<Waypoint>;
     margen_desvio_km?: number;
     inicio_viaje?: string;
     final_viaje?: string;
     estado?: 'pendiente' | 'en_curso' | 'pausado' | 'cancelado' | 'finalizado';
   }) {
-    // Fetch route from OSRM
-    const routeData = await this.fetchOsrmRoute([
-      { lon: payload.origen_lon, lat: payload.origen_lat },
-      { lon: payload.destino_lon, lat: payload.destino_lat },
-    ]);
+    const resolvedRoute = await this.resolveRouteEndpoints(payload);
+    const routeData = await this.fetchOsrmRoute(resolvedRoute.points);
     const routeSource = routeData ? 'osrm' : 'fallback';
+    const routeLabels = resolvedRoute.metadata
+      ? {
+          origen_sucursal_id: resolvedRoute.metadata.origen_id,
+          destino_sucursal_id: resolvedRoute.metadata.destino_id,
+          origen_sucursal_nombre: resolvedRoute.metadata.origen_nombre,
+          destino_sucursal_nombre: resolvedRoute.metadata.destino_nombre,
+          origen_empresa_nombre: resolvedRoute.metadata.origen_empresa_nombre,
+          destino_empresa_nombre: resolvedRoute.metadata.destino_empresa_nombre,
+        }
+      : {};
 
     // Build waypoints structure (geometry from OSRM or fallback to origin/destination)
     const ruta_waypoints = routeData
@@ -105,6 +228,7 @@ export class ViajeService {
                 distancia_km: routeData.distance / 1000,
                 osrm_usado: true,
                 ruta_origen: routeSource,
+                ...routeLabels,
               },
             },
           ],
@@ -125,13 +249,14 @@ export class ViajeService {
                 distancia_km: null,
                 osrm_usado: false,
                 ruta_origen: routeSource,
+                ...routeLabels,
               },
             },
           ],
         };
 
     const result = await this.db.query(
-      'INSERT INTO viaje (transporte_id, limite_max_temp, ruta_waypoints, margen_desvio_km, inicio_viaje, final_viaje, estado) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, transporte_id, limite_max_temp, ruta_waypoints, margen_desvio_km, inicio_viaje, final_viaje, estado',
+      'INSERT INTO viaje (transporte_id, limite_max_temp, ruta_waypoints, margen_desvio_km, inicio_viaje, final_viaje, estado, sucursal_origen_id, sucursal_destino_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id, transporte_id, limite_max_temp, ruta_waypoints, margen_desvio_km, inicio_viaje, final_viaje, estado, sucursal_origen_id, sucursal_destino_id',
       [
         payload.transporte_id,
         payload.limite_max_temp,
@@ -140,18 +265,45 @@ export class ViajeService {
         payload.inicio_viaje ?? null,
         payload.final_viaje ?? null,
         payload.estado ?? 'pendiente',
+        payload.sucursal_origen_id ?? null,
+        payload.sucursal_destino_id ?? null,
       ],
     );
 
     return {
       ...result.rows[0],
       ruta_origen: routeSource,
+      ...routeLabels,
     };
   }
 
   async findAll() {
     const result = await this.db.query(
-      'SELECT id, transporte_id, limite_max_temp, ruta_waypoints, margen_desvio_km, inicio_viaje, final_viaje, estado FROM viaje ORDER BY inicio_viaje DESC NULLS LAST',
+      `SELECT
+        v.id,
+        v.transporte_id,
+        v.limite_max_temp,
+        v.ruta_waypoints,
+        v.margen_desvio_km,
+        v.inicio_viaje,
+        v.final_viaje,
+        v.estado,
+        v.sucursal_origen_id,
+        v.sucursal_destino_id,
+        so.nombre AS origen_sucursal_nombre,
+        so.lat AS origen_lat,
+        so.lon AS origen_lon,
+        eo.nombre AS origen_empresa_nombre,
+        sd.nombre AS destino_sucursal_nombre,
+        sd.lat AS destino_lat,
+        sd.lon AS destino_lon,
+        ed.nombre AS destino_empresa_nombre
+      FROM viaje v
+      LEFT JOIN sucursal so ON so.id = v.sucursal_origen_id
+      LEFT JOIN empresa eo ON eo.id = so.empresa_id
+      LEFT JOIN sucursal sd ON sd.id = v.sucursal_destino_id
+      LEFT JOIN empresa ed ON ed.id = sd.empresa_id
+      ORDER BY v.inicio_viaje DESC NULLS LAST`,
     );
 
     return result.rows;
@@ -159,7 +311,31 @@ export class ViajeService {
 
   async findOne(id: string) {
     const result = await this.db.query(
-      'SELECT id, transporte_id, limite_max_temp, ruta_waypoints, margen_desvio_km, inicio_viaje, final_viaje, estado FROM viaje WHERE id = $1',
+      `SELECT
+        v.id,
+        v.transporte_id,
+        v.limite_max_temp,
+        v.ruta_waypoints,
+        v.margen_desvio_km,
+        v.inicio_viaje,
+        v.final_viaje,
+        v.estado,
+        v.sucursal_origen_id,
+        v.sucursal_destino_id,
+        so.nombre AS origen_sucursal_nombre,
+        so.lat AS origen_lat,
+        so.lon AS origen_lon,
+        eo.nombre AS origen_empresa_nombre,
+        sd.nombre AS destino_sucursal_nombre,
+        sd.lat AS destino_lat,
+        sd.lon AS destino_lon,
+        ed.nombre AS destino_empresa_nombre
+      FROM viaje v
+      LEFT JOIN sucursal so ON so.id = v.sucursal_origen_id
+      LEFT JOIN empresa eo ON eo.id = so.empresa_id
+      LEFT JOIN sucursal sd ON sd.id = v.sucursal_destino_id
+      LEFT JOIN empresa ed ON ed.id = sd.empresa_id
+      WHERE v.id = $1`,
       [id],
     );
 

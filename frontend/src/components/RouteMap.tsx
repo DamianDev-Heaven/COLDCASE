@@ -14,8 +14,11 @@ type IncidentMarker = {
 };
 
 type RouteMapProps = {
-  waypoints: Waypoint[];
+  viajeId?: string | number;
+  waypoints?: Waypoint[];
   onAddWaypoint?: (point: Waypoint) => void;
+  onMapClick?: (coords: { lat: number; lon: number }) => void;
+  mode?: "setup" | "view" | string;
   center?: [number, number];
   zoom?: number;
   routePreviewApiUrl?: string;
@@ -25,8 +28,11 @@ type RouteMapProps = {
 type PreviewStatus = "idle" | "loading" | "osrm" | "fallback";
 
 export default function RouteMap({
-  waypoints,
+  viajeId: _viajeId,
+  waypoints = [],
   onAddWaypoint,
+  onMapClick,
+  mode,
   center = [13.6929, -89.2182],
   zoom = 12,
   routePreviewApiUrl,
@@ -39,11 +45,13 @@ export default function RouteMap({
   const mapRef = useRef<import("leaflet").Map | null>(null);
   const layerRef = useRef<import("leaflet").LayerGroup | null>(null);
   const addRef = useRef(onAddWaypoint);
+  const mapClickRef = useRef(onMapClick);
   const resizeTimeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
     addRef.current = onAddWaypoint;
-  }, [onAddWaypoint]);
+    mapClickRef.current = onMapClick;
+  }, [onAddWaypoint, onMapClick]);
 
   useEffect(() => {
     let active = true;
@@ -86,9 +94,11 @@ export default function RouteMap({
       map.invalidateSize();
     }, 0);
 
-    if (onAddWaypoint) {
+    if (onAddWaypoint || onMapClick) {
       map.on("click", (event: import("leaflet").LeafletMouseEvent) => {
-        addRef.current?.({ lat: event.latlng.lat, lon: event.latlng.lng });
+        const coords = { lat: event.latlng.lat, lon: event.latlng.lng };
+        addRef.current?.(coords);
+        mapClickRef.current?.(coords);
       });
     }
 
@@ -113,7 +123,7 @@ export default function RouteMap({
   }, [center, zoom, leaflet]);
 
   useEffect(() => {
-    if (!layerRef.current || !leaflet) {
+    if (!layerRef.current || !leaflet || !containerRef.current?.isConnected) {
       return;
     }
 
@@ -177,17 +187,38 @@ export default function RouteMap({
       bounds.extend(routeLine.getBounds());
     }
 
-    if (bounds.isValid()) {
-      if (routeToDraw && routeToDraw.length > 1) {
-        mapRef.current?.fitBounds(bounds, {
-          padding: [36, 36],
-          maxZoom: 16,
-          animate: true,
-        });
-      } else if (waypoints.length === 1) {
-        mapRef.current?.setView([waypoints[0].lat, waypoints[0].lon], 16, { animate: true });
-      }
+    const map = mapRef.current;
+
+    if (!map || !map.getContainer()?.isConnected) {
+      return;
     }
+
+    const container = map.getContainer();
+    const hasVisibleSize = container.clientWidth > 0 && container.clientHeight > 0;
+
+    window.requestAnimationFrame(() => {
+      if (!mapRef.current || !mapRef.current.getContainer()?.isConnected) {
+        return;
+      }
+
+      if (!hasVisibleSize) {
+        return;
+      }
+
+      try {
+        map.invalidateSize();
+
+        if (bounds.isValid()) {
+          if (routeToDraw && routeToDraw.length > 1) {
+            map.setView(bounds.getCenter(), Math.max(map.getZoom(), 12), { animate: true });
+          } else if (waypoints.length === 1) {
+            map.setView([waypoints[0].lat, waypoints[0].lon], 16, { animate: true });
+          }
+        }
+      } catch (error) {
+        console.error("Leaflet map update skipped:", error);
+      }
+    });
   }, [leaflet, waypoints, previewRoute, previewStatus, routePreviewApiUrl, incidentMarkers]);
 
   useEffect(() => {

@@ -3,6 +3,7 @@ import {
   IsIn,
   IsNotEmpty,
   IsNumber,
+  IsObject,
   IsOptional,
   IsUUID,
   Max,
@@ -16,29 +17,41 @@ export class CreateViajeDto {
   @IsNumber()
   limite_max_temp: number;
 
-  @IsNotEmpty()
+  @IsOptional()
+  @IsUUID()
+  sucursal_origen_id?: string;
+
+  @IsOptional()
+  @IsUUID()
+  sucursal_destino_id?: string;
+
+  @IsOptional()
   @IsNumber()
   @Min(-180)
   @Max(180)
   origen_lon: number;
 
-  @IsNotEmpty()
+  @IsOptional()
   @IsNumber()
   @Min(-90)
   @Max(90)
   origen_lat: number;
 
-  @IsNotEmpty()
+  @IsOptional()
   @IsNumber()
   @Min(-180)
   @Max(180)
   destino_lon: number;
 
-  @IsNotEmpty()
+  @IsOptional()
   @IsNumber()
   @Min(-90)
   @Max(90)
   destino_lat: number;
+
+  @IsOptional()
+  @IsObject()
+  ruta_waypoints?: Record<string, unknown> | Array<{ lat: number; lon: number }>;
 
   @IsOptional()
   @IsNumber()
