@@ -84,6 +84,20 @@ services:
     networks:
       - coldcase_net
 
+  munin:
+    build:
+      context: ./infra/munin
+      dockerfile: Dockerfile
+    container_name: coldcase_munin
+    volumes: 
+      - /etc/localtime:/etc/localtime:ro
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+    networks:
+      - coldcase_net
+
 volumes:
   pgdata:
   backend_node_modules:

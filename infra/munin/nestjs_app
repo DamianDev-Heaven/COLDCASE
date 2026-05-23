@@ -1,0 +1,19 @@
+#!/bin/bash
+if [ "$1" = "config" ]; then
+    echo "graph_title Rendimiento de NestJS"
+    echo "graph_vlabel Bytes"
+    echo "graph_category nestjs"
+    echo "heapTotal.label Memoria Total"
+    echo "heapUsed.label Memoria en Uso"
+    echo "rss.label Memoria RSS"
+    echo "uptime.label Tiempo Activo"
+    exit 0
+fi
+
+DATA=$(curl -s http://backend:3000/munin/metrics)
+
+# Usamos awk buscando la palabra clave y tomando el último campo de la línea, sin importar los espacios
+echo "heapTotal.value $(echo "$DATA" | awk '/heapTotal\.value/ {print $NF+0}')"
+echo "heapUsed.value $(echo "$DATA" | awk '/heapUsed\.value/ {print $NF+0}')"
+echo "rss.value $(echo "$DATA" | awk '/rss\.value/ {print $NF+0}')"
+echo "uptime.value $(echo "$DATA" | awk '/uptime\.value/ {print $NF+0}')"
