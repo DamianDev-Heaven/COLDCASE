@@ -11,6 +11,7 @@ import { IotModule } from './iot/iot.module';
 import { TelemetriaModule } from './telemetria/telemetria.module';
 import { TransporteModule } from './transporte/transporte.module';
 import { ViajeModule } from './viaje/viaje.module';
+import { MuninController } from './munin/munin.controller';
 
 @Module({
   imports: [
@@ -25,7 +26,7 @@ import { ViajeModule } from './viaje/viaje.module';
     TransporteModule,
     ViajeModule,
   ],
-  controllers: [AppController],
+  controllers: [AppController, MuninController],
   providers: [AppService],
 })
 export class AppModule {}
