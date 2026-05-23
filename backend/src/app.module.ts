@@ -10,6 +10,7 @@ import { IaModule } from './ia/ia.module';
 import { IotModule } from './iot/iot.module';
 import { TelemetriaModule } from './telemetria/telemetria.module';
 import { TransporteModule } from './transporte/transporte.module';
+import { SucursalModule } from './sucursal/sucursal.module';
 import { ViajeModule } from './viaje/viaje.module';
 import { MuninController } from './munin/munin.controller';
 
@@ -24,6 +25,7 @@ import { MuninController } from './munin/munin.controller';
     IaModule,
     TelemetriaModule,
     TransporteModule,
+    SucursalModule,
     ViajeModule,
   ],
   controllers: [AppController, MuninController],

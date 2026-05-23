@@ -13,6 +13,31 @@ services:
     networks:
       - coldcase_net
 
+  db-migrate:
+    image: postgres:15-alpine
+    depends_on:
+      db:
+        condition: service_started
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${DB_NAME:-postgres}
+      PGPASSWORD: ${DB_PASSWORD:-postgres}
+    volumes:
+      - ./database/init.sql:/migrations/init.sql:ro
+    command:
+      - sh
+      - -c
+      - |
+        until pg_isready -h db -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"; do
+          echo "Esperando a PostgreSQL..."
+          sleep 1
+        done
+
+        psql -h db -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" -v ON_ERROR_STOP=1 -f /migrations/init.sql
+    networks:
+      - coldcase_net
+
   backend:
     build:
       context: ./backend
@@ -35,7 +60,10 @@ services:
     ports:
       - "3000:3000"
     depends_on:
-      - db
+      db:
+        condition: service_started
+      db-migrate:
+        condition: service_completed_successfully
     networks:
       - coldcase_net
 
