@@ -46,4 +46,11 @@ export class IaService {
   obtenerHistorialAnalisis(viajeId: string): Promise<AnalisisIaRow[]> {
     return this.iaAnalysisService.obtenerHistorialAnalisis(viajeId);
   }
+
+  /**
+   * Obtiene el contexto relacional extraído por el Standalone Graph de Zep.
+   */
+  obtenerContextoGrafo(viajeId: string, query: string) {
+    return this.iaAnalysisService.obtenerContextoGrafo(viajeId, query);
+  }
 }

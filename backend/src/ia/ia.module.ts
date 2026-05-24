@@ -5,12 +5,14 @@ import { ZepClient } from '@getzep/zep-cloud';
 import { IaController } from './ia.controller';
 import { IaAnalysisService } from './ia-analysis.service';
 import { IaService } from './ia.service';
+import { ZepMemoryService } from './zep-memory.service';
 
 @Module({
   controllers: [IaController],
   providers: [
     IaService,
     IaAnalysisService,
+    ZepMemoryService,
     {
       provide: 'GROQ_CLIENT',
       useFactory: (config: ConfigService): Groq | null => {
@@ -32,13 +34,15 @@ import { IaService } from './ia.service';
           return null;
         }
         const environment = config.get<string>('ZEP_API_URL');
-        return environment
+        // Si el URL apunta a getzep.com (cloud), ignoramos la variable para que el SDK resuelva por defecto su ruta correcta
+        const isCloudUrl = environment && environment.includes('getzep.com');
+        return environment && !isCloudUrl
           ? new ZepClient({ apiKey, environment })
           : new ZepClient({ apiKey });
       },
       inject: [ConfigService],
     },
   ],
-  exports: [IaAnalysisService],
+  exports: [IaAnalysisService, ZepMemoryService],
 })
 export class IaModule {}

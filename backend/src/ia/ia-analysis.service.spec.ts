@@ -1,7 +1,12 @@
 import { Test } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { DbService } from '../db/db.service';
-import { IaAnalysisService } from './ia-analysis.service';
+import {
+  IaAnalysisService,
+  AnalisisViajeInput,
+} from './ia-analysis.service';
+import { TelemetriaInput } from './ia.interfaces';
+import { ZepMemoryService } from './zep-memory.service';
 
 // ── Mocks ─────────────────────────────────────────
 
@@ -25,28 +30,37 @@ const mockGroqClient = {
   },
 };
 
-const mockZepClient = {
-  memory: {
-    get: jest.fn(),
-    add: jest.fn(),
-    getSession: jest.fn(),
-    addSession: jest.fn(),
-  },
+const mockZepMemoryService = {
+  recuperarHistorial: jest.fn(),
+  recuperarContextoGlobal: jest.fn(),
+  guardarInteraccion: jest.fn(),
+  guardarMensajeUsuario: jest.fn(),
+  guardarRespuestaLLM: jest.fn(),
 };
 
 // ── Helper para crear el módulo de test ───────────
 
-async function createTestService(overrides?: {
-  groq?: unknown;
-  zep?: unknown;
+async function createTestService(options?: {
+  groq?: any;
+  zep?: any;
 }) {
   const moduleRef = await Test.createTestingModule({
     providers: [
       IaAnalysisService,
       { provide: ConfigService, useValue: configService },
       { provide: DbService, useValue: dbService },
-      { provide: 'GROQ_CLIENT', useValue: overrides?.groq ?? null },
-      { provide: 'ZEP_CLIENT', useValue: overrides?.zep ?? null },
+      {
+        provide: 'GROQ_CLIENT',
+        useValue: options?.groq ?? { chat: { completions: { create: jest.fn() } } },
+      },
+      {
+        provide: ZepMemoryService,
+        useValue: options?.zep ?? {
+          guardarInteraccion: jest.fn().mockResolvedValue({ success: true }),
+          recuperarHistorial: jest.fn().mockResolvedValue({ messages: '', messageCount: 0 }),
+          recuperarContextoGlobal: jest.fn().mockResolvedValue({ messages: '', messageCount: 0 }),
+        },
+      },
     ],
   }).compile();
 
@@ -271,13 +285,14 @@ describe('IaAnalysisService', () => {
     });
 
     it('handles Zep failure silently without crashing', async () => {
-      mockZepClient.memory.get.mockRejectedValueOnce(
+      mockZepMemoryService.guardarInteraccion.mockRejectedValueOnce(
         new Error('Zep connection refused'),
       );
+      mockZepMemoryService.recuperarContextoGlobal.mockResolvedValueOnce({ messages: '', messageCount: 0 });
 
       service = await createTestService({
         groq: null,
-        zep: mockZepClient,
+        zep: mockZepMemoryService,
       });
 
       // Should NOT throw despite Zep error

@@ -2,6 +2,7 @@ import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Groq from 'groq-sdk';
 import { DbService } from '../db/db.service';
+import { ZepMemoryService } from './zep-memory.service';
 import type {
   AnalisisIaResultado,
   AnalisisIaRow,
@@ -77,7 +78,7 @@ export class IaAnalysisService {
     private readonly configService: ConfigService,
     private readonly db: DbService,
     @Optional() @Inject('GROQ_CLIENT') private readonly groqClient: Groq | null,
-    @Optional() @Inject('ZEP_CLIENT') private readonly zepClient: any | null,
+    private readonly zepMemory: ZepMemoryService,
   ) {
     this.analysisMode =
       this.configService.get<'auto' | 'deterministic' | 'llm'>(
@@ -139,6 +140,13 @@ export class IaAnalysisService {
       return deterministic;
     }
 
+    // 1. Recuperar contexto de anomalías previas desde el Grafo Global (Zep)
+    const mensajeSensorCorto = `Temp=${payload.temperaturaActual}°C, Batería=${payload.bateriaActual}%, Desvío=${routeMetrics.desvioKm}km`;
+    const { messages: historialZep } = await this.zepMemory.recuperarContextoGlobal(
+      payload.viaje_id || '',
+      mensajeSensorCorto, // Query de búsqueda en el grafo
+    );
+
     try {
       const prompt = this.buildPrompt({
         iotId: payload.iot_id,
@@ -155,7 +163,11 @@ export class IaAnalysisService {
       try {
         const completion = await this.groqClient.chat.completions.create(
           {
-            messages: [{ role: 'user', content: prompt }],
+            messages: [
+              { role: 'system', content: 'Eres un experto en logística de cadena de frío.' },
+              { role: 'system', content: `Contexto Base de Conocimiento Global (Grafo):\n${historialZep || 'Ninguno.'}` },
+              { role: 'user', content: prompt }
+            ],
             model: this.defaultModelName,
             response_format: { type: 'json_object' },
           },
@@ -165,15 +177,34 @@ export class IaAnalysisService {
         const rawContent = completion.choices[0]?.message?.content ?? '{}';
         const parsed = JSON.parse(rawContent) as Partial<AnalisisResultado>;
 
-        return {
+        const respuestaFinal = {
           nivel_riesgo: parsed.nivel_riesgo ?? deterministic.nivel_riesgo,
           diagnostico_tecnico:
             parsed.diagnostico_tecnico ?? deterministic.diagnostico_tecnico,
           accion_mitigacion:
             parsed.accion_mitigacion ?? deterministic.accion_mitigacion,
-          fuente: 'llm',
+          fuente: 'llm' as const,
           contexto: deterministic.contexto,
         };
+
+        // 2. Guardar la nueva interacción de forma asíncrona en Zep
+        const mensajeSensor = `Viaje=${payload.viaje_id}. Sensor: Temp=${payload.temperaturaActual}°C, Batería=${payload.bateriaActual}%, Desvío=${routeMetrics.desvioKm}km`;
+        const respuestaIA = JSON.stringify({
+          nivel_riesgo: respuestaFinal.nivel_riesgo,
+          diagnostico_tecnico: respuestaFinal.diagnostico_tecnico,
+          accion_mitigacion: respuestaFinal.accion_mitigacion,
+        });
+
+        if (payload.viaje_id) {
+          this.zepMemory
+            .guardarInteraccion(payload.viaje_id, mensajeSensor, respuestaIA)
+            .catch((err: unknown) => {
+              const msg = err instanceof Error ? err.message : String(err);
+              this.logger.warn(`Zep: guardado no bloqueante falló (analizarEvento): ${msg}`);
+            });
+        }
+
+        return respuestaFinal;
       } finally {
         clearTimeout(abortTimeoutId);
       }
@@ -573,7 +604,8 @@ export class IaAnalysisService {
     telemetriaActual: TelemetriaInput,
   ): Promise<AnalisisIaResultado> {
     const viajeMeta = await this.loadViajeMetadata(viajeId);
-    const historialZep = await this.recuperarHistorialZep(viajeId);
+    const queryGrafo = `Anomalía actual: Temperatura ${telemetriaActual.temp}°C, Batería ${telemetriaActual.bateria ?? 'N/A'}%`;
+    const { messages: historialZep } = await this.zepMemory.recuperarContextoGlobal(viajeId, queryGrafo);
 
     let nivel_riesgo: NivelRiesgo;
     let diagnostico_tecnico: string;
@@ -617,14 +649,19 @@ export class IaAnalysisService {
     });
 
     // Guardar en Zep de forma asíncrona — nunca bloquea ni crashea
-    this.guardarEnMemoriaZep(viajeId, telemetriaActual, {
-      nivel_riesgo,
-      diagnostico_tecnico,
-      accion_mitigacion,
-    }).catch((err: unknown) => {
-      const msg = err instanceof Error ? err.message : String(err);
-      this.logger.warn(`Zep: guardado no bloqueante falló: ${msg}`);
-    });
+    const mensajeSensor = `Telemetría: temp=${telemetriaActual.temp}°C, humedad=${telemetriaActual.humedad ?? 'N/A'}%, batería=${telemetriaActual.bateria ?? 'N/A'}%, ubicación=(${telemetriaActual.lat}, ${telemetriaActual.lon}), timestamp=${telemetriaActual.timestamp_sensor}`;
+    const respuestaIA = JSON.stringify({ nivel_riesgo, diagnostico_tecnico, accion_mitigacion });
+
+    this.zepMemory
+      .guardarInteraccion(viajeId, mensajeSensor, respuestaIA, {
+        viaje_id: viajeId,
+        telemetria_id: telemetriaActual.id,
+        fuente,
+      })
+      .catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : String(err);
+        this.logger.warn(`Zep: guardado no bloqueante falló: ${msg}`);
+      });
 
     return registro;
   }
@@ -645,71 +682,7 @@ export class IaAnalysisService {
     return result.rows;
   }
 
-  // ── Zep Memory ──────────────────────────────────────────────────
-
-  private async recuperarHistorialZep(viajeId: string): Promise<string> {
-    if (!this.zepClient) return '';
-
-    const sessionId = `viaje-session-${viajeId}`;
-
-    try {
-      const memory = await this.zepClient.memory.get(sessionId);
-      if (!memory?.messages?.length) return '';
-
-      return memory.messages
-        .slice(-10)
-        .map(
-          (m: { role?: string; content?: string }) =>
-            `[${m.role ?? 'unknown'}]: ${m.content ?? ''}`,
-        )
-        .join('\n');
-    } catch {
-      this.logger.debug(
-        `Zep: sesión ${sessionId} no encontrada o Zep no disponible`,
-      );
-      return '';
-    }
-  }
-
-  private async guardarEnMemoriaZep(
-    viajeId: string,
-    telemetria: TelemetriaInput,
-    resultado: {
-      nivel_riesgo: string;
-      diagnostico_tecnico: string;
-      accion_mitigacion: string;
-    },
-  ): Promise<void> {
-    if (!this.zepClient) return;
-
-    const sessionId = `viaje-session-${viajeId}`;
-
-    try {
-      // Asegurar que la sesión exista
-      try {
-        await this.zepClient.memory.getSession(sessionId);
-      } catch {
-        await this.zepClient.memory.addSession({ sessionId });
-      }
-
-      await this.zepClient.memory.add(sessionId, {
-        messages: [
-          {
-            roleType: 'user',
-            role: 'sensor',
-            content: `Telemetría: temp=${telemetria.temp}°C, humedad=${telemetria.humedad ?? 'N/A'}%, batería=${telemetria.bateria ?? 'N/A'}%, ubicación=(${telemetria.lat}, ${telemetria.lon}), timestamp=${telemetria.timestamp_sensor}`,
-          },
-          {
-            roleType: 'assistant',
-            role: 'ia_coldcase',
-            content: JSON.stringify(resultado),
-          },
-        ],
-      });
-    } catch {
-      // Silencioso — el caller ya maneja el .catch()
-    }
-  }
+  // ── Zep Memory (delegado a ZepMemoryService) ──────────────────
 
   // ── Inferencia Groq ─────────────────────────────────────────────
 
@@ -819,7 +792,7 @@ export class IaAnalysisService {
     ];
 
     if (historialZep) {
-      lines.push('', '=== HISTORIAL DE ANOMALÍAS PREVIAS ===', historialZep);
+      lines.push('', '=== CONTEXTO DEL GRAFO GLOBAL (ANOMALÍAS HISTÓRICAS) ===', historialZep);
     }
 
     return lines.join('\n');
@@ -935,5 +908,12 @@ export class IaAnalysisService {
     );
 
     return result.rows[0] as unknown as AnalisisIaResultado;
+  }
+
+  /**
+   * Obtiene las relaciones e historial semántico desde el Grafo Global de Zep.
+   */
+  async obtenerContextoGrafo(viajeId: string, query: string) {
+    return this.zepMemory.recuperarContextoGlobal(viajeId, query);
   }
 }
