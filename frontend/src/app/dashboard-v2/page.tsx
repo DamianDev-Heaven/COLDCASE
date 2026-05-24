@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import RouteMap from "@/components/RouteMap"; // Tu mapa real basado en OSRM/Leaflet[cite: 1]
+import RouteMap from "@/components/RouteMap";
+import { ResponsiveContainer, ComposedChart, Line, XAxis, YAxis, Tooltip, ReferenceArea } from "recharts";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
 const UUID_REGEX =
@@ -17,6 +18,50 @@ type Sucursal = {
   lon: number;
 };
 
+// ========================================================
+// SUBCOMPONENTE INLINE: GRÁFICO DE TELEMETRÍA "ZONA SEGURA"
+// ========================================================
+function TelemetryChart({ telemetryData, limiteMin, limiteMax }: { telemetryData: any[]; limiteMin: number; limiteMax: number }) {
+  const CustomDot = (props: any) => {
+    const { cx, cy, payload } = props;
+    const t = payload.temp;
+    const esAlta = t > limiteMax;
+    const esBaja = t < limiteMin;
+
+    if (esAlta || esBaja) {
+      return (
+        <g key={`dot-${payload.timestamp_sensor}`}>
+          <circle cx={cx} cy={cy} r={7} className={`${esAlta ? "fill-red-500" : "fill-sky-400"} opacity-40 animate-ping`} />
+          <circle cx={cx} cy={cy} r={4} className={`${esAlta ? "fill-red-500" : "fill-sky-400"} stroke-[#161920] stroke-2`} />
+        </g>
+      );
+    }
+    return <circle cx={cx} cy={cy} r={3} className="fill-slate-400" key={`dot-normal-${payload.timestamp_sensor}`} />;
+  };
+
+  return (
+    <div className="w-full h-full min-h-[170px]">
+      <ResponsiveContainer width="100%" height="100%">
+        <ComposedChart data={telemetryData} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
+          <XAxis 
+            dataKey="timestamp_sensor" 
+            tickFormatter={(t) => new Date(t).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+            stroke="#475569"
+            fontSize={10}
+          />
+          <YAxis stroke="#475569" fontSize={10} domain={[limiteMin - 3, limiteMax + 3]} />
+          <Tooltip contentStyle={{ backgroundColor: "#0f1115", borderColor: "#334155", borderRadius: "6px", fontSize: "11px", color: "#fff" }} />
+          <ReferenceArea y1={limiteMin} y2={limiteMax} fill="#10b981" fillOpacity={0.05} stroke="#10b981" strokeOpacity={0.15} strokeDasharray="3 3" />
+          <Line type="monotone" dataKey="temp" stroke="#f1f5f9" strokeWidth={2} dot={<CustomDot />} activeDot={{ r: 5 }} isAnimationActive={false} />
+        </ComposedChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+// ========================================================
+// COMPONENTE PRINCIPAL (DASHBOARD V2)
+// ========================================================
 export default function DashboardV2() {
   const [viajes, setViajes] = useState<any[]>([]);
   const [sucursales, setSucursales] = useState<Sucursal[]>([]);
@@ -26,111 +71,117 @@ export default function DashboardV2() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  // Estados para el formulario real de nuevo envío (Modal)
+  const [activeTab, setActiveTab] = useState<"overview" | "timeline">("overview");
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // Estados para el formulario real de nuevo envío (Modal con campos añadidos)
   const [transporteIdForm, setTransporteIdForm] = useState("");
   const [sucursalOrigenIdForm, setSucursalOrigenIdForm] = useState("");
   const [sucursalDestinoIdForm, setSucursalDestinoIdForm] = useState("");
+  const [tipoProductoForm, setTipoProductoForm] = useState("");
+  const [valorComercialForm, setValorComercialForm] = useState("");
+  const [pesoKgForm, setPesoKgForm] = useState("");
+  const [volumenM3Form, setVolumenM3Form] = useState("");
   const [limiteMaxTempForm, setLimiteMaxTempForm] = useState("5");
-  const [estadoForm, setEstadoForm] = useState<"pendiente" | "en_curso" | "pausado" | "cancelado" | "finalizado">("pendiente");
+  const [limiteMinTempForm, setLimiteMinTempForm] = useState("1");
+  const [estadoForm, setEstadoForm] = useState<"pendiente" | "en_curso">("pendiente");
 
   const resetModalForm = () => {
     setTransporteIdForm("");
     setSucursalOrigenIdForm("");
     setSucursalDestinoIdForm("");
+    setTipoProductoForm("");
+    setValorComercialForm("");
+    setPesoKgForm("");
+    setVolumenM3Form("");
     setLimiteMaxTempForm("5");
+    setLimiteMinTempForm("1");
     setEstadoForm("pendiente");
     setSubmitError(null);
   };
 
-  const sucursalOrigenSeleccionada = useMemo(
-    () => sucursales.find((sucursal) => sucursal.id === sucursalOrigenIdForm) ?? null,
-    [sucursales, sucursalOrigenIdForm],
-  );
+  // 📍 RUTA DEL VIAJE SELECCIONADO EN LA LISTA LATERAL (Crucial para el mapa interactivo)
+  const waypointsViajeActivo = useMemo(() => {
+    if (!viajeSeleccionado || sucursales.length === 0) return [];
+    
+    const origen = sucursales.find((s) => s.id === viajeSeleccionado.sucursal_origen_id);
+    const destino = sucursales.find((s) => s.id === viajeSeleccionado.sucursal_destino_id);
+    
+    if (!origen || !destino) return [];
+    return [
+      { lat: Number(origen.lat), lon: Number(origen.lon) },
+      { lat: Number(destino.lat), lon: Number(destino.lon) },
+    ];
+  }, [viajeSeleccionado, sucursales]);
 
-  const sucursalDestinoSeleccionada = useMemo(
-    () => sucursales.find((sucursal) => sucursal.id === sucursalDestinoIdForm) ?? null,
-    [sucursales, sucursalDestinoIdForm],
-  );
+  // 📍 RUTA PREVIA DEL FORMULARIO MODAL
+  const waypointsFormModal = useMemo(() => {
+    const orig = sucursales.find((s) => s.id === sucursalOrigenIdForm);
+    const dest = sucursales.find((s) => s.id === sucursalDestinoIdForm);
+    if (!orig || !dest) return [];
+    return [
+      { lat: Number(orig.lat), lon: Number(orig.lon) },
+      { lat: Number(dest.lat), lon: Number(dest.lon) },
+    ];
+  }, [sucursales, sucursalOrigenIdForm, sucursalDestinoIdForm]);
 
   const transporteSeleccionado = useMemo(
-    () => transportes.find((transporte) => transporte.id === transporteIdForm) ?? null,
-    [transportes, transporteIdForm],
+    () => transportes.find((t) => t.id === transporteIdForm) ?? null,
+    [transportes, transporteIdForm]
   );
 
-  const isUuid = (value: string) => UUID_REGEX.test(value);
-
-  const selectedWaypoints = useMemo(() => {
-    if (!sucursalOrigenSeleccionada || !sucursalDestinoSeleccionada) {
-      return [];
+  // Telemetría simulada en base al ID estático de la BD
+  const telemetryDataQuery = useMemo(() => {
+    if (!viajeSeleccionado) return [];
+    if (viajeSeleccionado.id === "77777777-7777-4777-8777-777777777777") {
+      return [
+        { timestamp_sensor: "2026-05-23T16:00:00Z", temp: 3.8 },
+        { timestamp_sensor: "2026-05-23T16:10:00Z", temp: 4.2 },
+        { timestamp_sensor: "2026-05-23T16:20:00Z", temp: 6.2 },
+        { timestamp_sensor: "2026-05-23T16:30:00Z", temp: 3.5 },
+        { timestamp_sensor: "2026-05-23T16:40:00Z", temp: 1.1 },
+      ];
     }
-
     return [
-      { lat: Number(sucursalOrigenSeleccionada.lat), lon: Number(sucursalOrigenSeleccionada.lon) },
-      { lat: Number(sucursalDestinoSeleccionada.lat), lon: Number(sucursalDestinoSeleccionada.lon) },
+      { timestamp_sensor: "2026-05-23T16:00:00Z", temp: 2.5 },
+      { timestamp_sensor: "2026-05-23T16:20:00Z", temp: 3.0 },
+      { timestamp_sensor: "2026-05-23T16:40:00Z", temp: 2.8 },
     ];
-  }, [sucursalOrigenSeleccionada, sucursalDestinoSeleccionada]);
+  }, [viajeSeleccionado]);
 
-  const isFormReady = Boolean(
-    transporteSeleccionado &&
-      sucursalOrigenSeleccionada &&
-      sucursalDestinoSeleccionada &&
-      selectedWaypoints.length === 2 &&
-      isUuid(transporteSeleccionado.id) &&
-      isUuid(sucursalOrigenSeleccionada.id) &&
-      isUuid(sucursalDestinoSeleccionada.id),
-  );
-
+  // ✅ DECLARACIÓN CORRECTA DE CONEXIÓN AL BACKEND CON LOS NUEVOS CAMPOS LOGÍSTICOS
   const handleCreateViaje = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setSubmitError(null);
 
-    if (!transporteIdForm) {
-      setSubmitError("Selecciona un transporte.");
-      return;
-    }
-
-    if (!sucursalOrigenIdForm || !sucursalDestinoIdForm) {
-      setSubmitError("Selecciona sucursal de origen y destino.");
-      return;
-    }
-
-    if (!transporteSeleccionado || !sucursalOrigenSeleccionada || !sucursalDestinoSeleccionada) {
-      setSubmitError("La selección actual no coincide con un UUID valido cargado desde la base de datos.");
-      return;
-    }
-
-    if (
-      !isUuid(transporteSeleccionado.id) ||
-      !isUuid(sucursalOrigenSeleccionada.id) ||
-      !isUuid(sucursalDestinoSeleccionada.id)
-    ) {
-      setSubmitError("Los identificadores seleccionados no son UUID validos.");
+    if (!transporteIdForm || !sucursalOrigenIdForm || !sucursalDestinoIdForm || !tipoProductoForm || !valorComercialForm) {
+      setSubmitError("Completa todos los campos técnicos y comerciales obligatorios.");
       return;
     }
 
     const payload = {
-      transporte_id: transporteSeleccionado.id,
+      transporte_id: transporteIdForm,
+      sucursal_origen_id: sucursalOrigenIdForm,
+      sucursal_destino_id: sucursalDestinoIdForm,
+      tipo_producto: tipoProductoForm,
+      valor_comercial: Number(valorComercialForm),
+      peso_kg: Number(pesoKgForm || 0),
+      volumen_m3: Number(volumenM3Form || 0),
       limite_max_temp: Number(limiteMaxTempForm),
-      sucursal_origen_id: sucursalOrigenSeleccionada.id,
-      sucursal_destino_id: sucursalDestinoSeleccionada.id,
+      limite_min_temp: Number(limiteMinTempForm),
       estado: estadoForm,
+      ruta_waypoints: {}, // OSRM se calculará de forma nativa en el backend
     };
 
     setIsSubmitting(true);
-
     try {
       const response = await fetch(`${API_URL}/viaje`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
 
-      if (!response.ok) {
-        const message = await response.text();
-        throw new Error(message || "No se pudo crear el viaje");
-      }
+      if (!response.ok) throw new Error("Error en la respuesta del servidor NestJS");
 
       const nuevoViaje = await response.json();
       setViajes((current) => [nuevoViaje, ...current]);
@@ -138,8 +189,7 @@ export default function DashboardV2() {
       setIsModalOpen(false);
       resetModalForm();
     } catch (error) {
-      console.error("Error creando envío:", error);
-      setSubmitError(error instanceof Error ? error.message : "Error inesperado al crear el envío");
+      setSubmitError(error instanceof Error ? error.message : "Error inesperado al mapear el envío");
     } finally {
       setIsSubmitting(false);
     }
@@ -162,7 +212,7 @@ export default function DashboardV2() {
         setSucursales(Array.isArray(sucursalesData) ? sucursalesData : []);
         if (data.length > 0 && !viajeSeleccionado) setViajeSeleccionado(data[0]);
       } catch (error) {
-        console.error("Error cargando viajes reales:", error);
+        console.error("Error cargando variables reales:", error);
       } finally {
         setIsLoading(false);
       }
@@ -172,204 +222,138 @@ export default function DashboardV2() {
     return () => clearInterval(interval);
   }, [viajeSeleccionado]);
 
-  const [activeTab, setActiveTab] = useState<"overview" | "timeline" | "documents" | "incidents">("overview");
-  const [isModalOpen, setIsModalOpen] = useState(false);
-
   if (isLoading) {
     return (
-      <div className="h-screen w-full bg-[#0f1115] flex items-center justify-center text-white font-mono">
+      <div className="h-screen w-full bg-[#0f1115] flex items-center justify-center text-white font-mono text-xs">
         Cargando telemetría de COLDCASE...
       </div>
     );
   }
 
   return (
-    <div className="bg-app-main text-app-primary h-screen w-full overflow-hidden flex flex-col font-sans antialiased">
+    <div className="bg-[#0f1115] text-slate-100 h-screen w-full overflow-hidden flex flex-col font-sans antialiased">
       
       {/* HEADER BAR */}
-      <header className="bg-surface fixed top-0 right-0 w-[calc(100%-64px)] z-30 border-b border-outline-variant flex justify-between items-center px-6 h-16 transition-colors">
+      <header className="bg-[#161920] fixed top-0 right-0 w-[calc(100%-64px)] z-30 border-b border-slate-800 flex justify-between items-center px-6 h-16">
         <div className="flex items-center gap-4">
-          <h1 className="text-xl font-bold text-on-surface">Tracking Dashboard</h1>
-          <div className="h-6 w-px bg-outline-variant mx-2"></div>
-          <div className="flex items-center gap-4 font-mono text-[10px] uppercase tracking-wider text-slate-400">
-            <div className="flex items-center gap-1.5">
-              <div className="w-[6px] h-[6px] rounded-full bg-[#22c55e] animate-pulse"></div>
-              <span>Back: Online</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-[6px] h-[6px] rounded-full bg-[#22c55e] animate-pulse"></div>
-              <span>DB: Persistent</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-[6px] h-[6px] rounded-full bg-[#22c55e] animate-pulse"></div>
-              <span>SIM: Online</span>
-            </div>
+          <h1 className="text-sm font-bold text-white uppercase tracking-wider">Control Panel V2</h1>
+          <div className="h-4 w-px bg-slate-800"></div>
+          <div className="flex items-center gap-4 font-mono text-[9px] uppercase tracking-wider text-slate-400">
+            <div className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /><span>Back: Online</span></div>
+            <div className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /><span>DB: Persistent</span></div>
           </div>
         </div>
-        <div className="flex items-center gap-4">
-          <button 
-            onClick={() => {
-              resetModalForm();
-              setIsModalOpen(true);
-            }}
-            className="bg-primary-container text-on-primary-container hover:opacity-90 px-4 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1"
-          >
-            <span className="material-symbols-outlined text-[16px]">add</span>
-            Registrar Envío
-          </button>
-        </div>
+        <button 
+          onClick={() => { resetModalForm(); setIsModalOpen(true); }}
+          className="bg-[#4cc9f0] text-black hover:opacity-90 px-4 py-1.5 rounded-md text-xs font-bold flex items-center gap-1"
+        >
+          Registrar Envío
+        </button>
       </header>
 
-      {/* WORKSPACE */}
+      {/* WORKSPACE AREA */}
       <div className="flex h-full pt-16">
-        
-        {/* SIDE NAV */}
-        <nav className="bg-surface-container-low fixed left-0 top-0 h-full w-[64px] z-30 border-r border-outline-variant flex flex-col items-center py-4 justify-between">
-          <div className="w-10 h-10 bg-primary-container rounded-lg flex items-center justify-center mb-8">
-            <span className="font-bold text-on-primary-container">CC</span>
-          </div>
+        <nav className="bg-[#111319] fixed left-0 top-0 h-full w-[64px] z-30 border-r border-slate-800 flex flex-col items-center py-4 justify-between">
+          <div className="w-10 h-10 bg-slate-800 rounded-lg flex items-center justify-center font-bold text-[#4cc9f0]">CC</div>
         </nav>
 
-        {/* MAIN LAYOUT */}
-        <main className="flex-1 ml-[64px] flex w-full h-full bg-app-main p-3 gap-3 overflow-hidden">
+        <main className="flex-1 ml-[64px] flex p-3 gap-3 overflow-hidden h-full">
           
-          {/* BARRA LATERAL: LISTA DE VIAJES */}
-          <aside className="w-[380px] h-full flex flex-col bg-app-main rounded-lg overflow-hidden border-app-border border">
-            <div className="p-4 border-b border-app-border shrink-0">
-              <h2 className="text-md font-bold text-app-primary flex items-center gap-2">
-                Lista de Monitoreo
-                <span className="bg-surface-container-highest text-app-secondary px-2 py-0.5 rounded-full text-[10px]">
-                  {viajes.length} activos
-                </span>
+          {/* BARRA LATERAL */}
+          <aside className="w-[320px] h-full flex flex-col bg-[#161920] rounded-xl border border-slate-800 overflow-hidden shrink-0">
+            <div className="p-3 border-b border-slate-800">
+              <h2 className="text-xs font-bold uppercase tracking-wider text-slate-300 flex justify-between">
+                Monitoreo Activo <span className="text-[#4cc9f0]">{viajes.length}</span>
               </h2>
             </div>
-
             <div className="flex-1 overflow-y-auto p-2 space-y-2">
-              {viajes.map((viaje) => {
-                let primerPunto = "No asignado";
-                let ultimoPunto = "No asignado";
-
-                try {
-                  const datosRuta = viaje.ruta_waypoints || viaje.rutaWaypoints;
-                  if (datosRuta) {
-                    const waypoints = typeof datosRuta === "string" ? JSON.parse(datosRuta) : datosRuta;
-                    const feature = Array.isArray(waypoints) ? null : waypoints?.features?.[0];
-
-                    if (Array.isArray(waypoints) && waypoints.length > 0) {
-                      primerPunto = waypoints[0].name || waypoints[0].nombre || "Inicio";
-                      ultimoPunto = waypoints[waypoints.length - 1].name || waypoints[waypoints.length - 1].nombre || "Fin";
-                    } else if (feature) {
-                      const propiedades = feature.properties ?? {};
-                      const coordenadas = feature.geometry?.coordinates ?? [];
-
-                      primerPunto =
-                        propiedades.origen_sucursal_nombre ||
-                        propiedades.origen ||
-                        propiedades.ruta_origen ||
-                        "Inicio";
-                      ultimoPunto =
-                        propiedades.destino_sucursal_nombre ||
-                        propiedades.destino ||
-                        "Fin";
-
-                      if (primerPunto === "Inicio" && Array.isArray(coordenadas) && coordenadas.length > 0) {
-                        const [lon, lat] = coordenadas[0];
-                        primerPunto = `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
-                      }
-
-                      if (ultimoPunto === "Fin" && Array.isArray(coordenadas) && coordenadas.length > 0) {
-                        const [lon, lat] = coordenadas[coordenadas.length - 1];
-                        ultimoPunto = `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
-                      }
-                    }
-                  }
-                } catch (err) {
-                  console.error("Error al procesar los waypoints del viaje:", err);
-                }
-
-                return (
-                  <div 
-                    key={viaje.id}
-                    onClick={() => setViajeSeleccionado(viaje)}
-                    className={`bg-app-panel border rounded-lg p-4 cursor-pointer hover:border-app-secondary transition-all relative overflow-hidden group ${
-                      viajeSeleccionado?.id === viaje.id ? 'border-app-accent' : 'border-app-border'
-                    }`}
-                  >
-                    <div className={`absolute left-0 top-0 bottom-0 w-1 ${viajeSeleccionado?.id === viaje.id ? 'bg-app-accent' : 'transparent'}`}></div>
-                    
-                    <div className="flex justify-between items-start mb-3">
-                      <span className="font-mono text-app-primary text-sm font-semibold">
-                        Envío #{viaje.id.substring(0, 6).toUpperCase()}
-                      </span>
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
-                        viaje.estado === 'en_curso' ? 'bg-[#1e293b] text-app-accent border border-app-accent/30' : 
-                        viaje.estado === 'pendiente' ? 'bg-slate-800 text-slate-400' : 'bg-emerald-950 text-emerald-400'
-                      }`}>
-                        {viaje.estado}
-                      </span>
-                    </div>
-
-                    <div className="font-mono text-[10px] text-slate-500 mb-2">
-                      UMBRAL: {viaje.limite_max_temp || viaje.limiteMaxTemp || 2.0}°C
-                    </div>
-
-                    <div className="mt-4 flex flex-col gap-1 text-xs">
-                      <div className="flex justify-between">
-                        <span className="text-app-secondary">Origen:</span>
-                        <span className="text-app-primary font-medium">{primerPunto}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-app-secondary">Destino:</span>
-                        <span className="text-app-primary font-medium">{ultimoPunto}</span>
-                      </div>
-                    </div>
+              {viajes.map((viaje) => (
+                <div 
+                  key={viaje.id}
+                  onClick={() => setViajeSeleccionado(viaje)}
+                  className={`bg-[#0f1115] border rounded-lg p-3 cursor-pointer hover:border-slate-700 transition-all ${
+                    viajeSeleccionado?.id === viaje.id ? "border-[#4cc9f0]" : "border-slate-800"
+                  }`}
+                >
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="font-mono text-xs font-bold text-white">#{viaje.id.substring(0, 6).toUpperCase()}</span>
+                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase ${viaje.estado === 'en_curso' ? "bg-cyan-950 text-cyan-400" : "bg-slate-800 text-slate-400"}`}>{viaje.estado}</span>
                   </div>
-                );
-              })}
+                  <p className="text-[10px] text-slate-400 font-mono">Prod: {viaje.tipo_producto || "No especificado"}</p>
+                  <p className="text-[10px] text-slate-500 font-mono">Val: ${Number(viaje.valor_comercial || 0).toLocaleString()}</p>
+                </div>
+              ))}
             </div>
           </aside>
 
-          {/* VISUALIZADOR PRINCIPAL */}
+          {/* AREA CENTRAL: MAPA + APARTADO INFERIOR */}
           <div className="flex-1 flex flex-col gap-3 h-full min-w-0">
             
-            {/* MAPA DEL DASHBOARD (z-10 para evitar que flote sobre el modal) */}
-            <div className="flex-1 bg-app-map rounded-xl border border-app-border relative overflow-hidden flex flex-col z-10">
-              {viajeSeleccionado ? (
+            {/* MAPA INTERACTIVO CON RUTA PUNTO A PUNTO ACTIVA */}
+            <div className="flex-1 bg-slate-900 rounded-xl border border-slate-800 relative overflow-hidden z-10">
+              {waypointsViajeActivo.length === 2 ? (
                 <RouteMap 
                   viajeId={viajeSeleccionado.id} 
-                  waypoints={selectedWaypoints}
-                  routePreviewApiUrl={API_URL}
+                  waypoints={waypointsViajeActivo} 
+                  routePreviewApiUrl={API_URL} 
                 />
               ) : (
-                <div className="m-auto text-app-secondary text-sm">Selecciona un envío para ver el mapa</div>
+                <div className="w-full h-full flex items-center justify-center text-slate-500 text-xs font-mono">
+                  📍 Geolocalizando trayecto OSRM para el viaje seleccionado...
+                </div>
               )}
             </div>
 
             {/* LOWER SPECS TABS */}
-            <div className="h-[280px] shrink-0 bg-app-panel rounded-xl border border-app-border flex flex-col overflow-hidden relative">
-              <div className="flex border-b border-app-border px-4 pt-2">
-                <button 
-                  onClick={() => setActiveTab("overview")}
-                  className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === "overview" ? "border-app-accent text-app-primary" : "border-transparent text-app-secondary"}`}
-                >Overview</button>
-                <button 
-                  onClick={() => setActiveTab("timeline")}
-                  className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === "timeline" ? "border-app-accent text-app-primary" : "border-transparent text-app-secondary"}`}
-                >Timeline</button>
+            <div className="h-[290px] shrink-0 bg-[#161920] rounded-xl border border-slate-800 flex flex-col overflow-hidden">
+              <div className="flex border-b border-slate-800 px-4 bg-[#111319]">
+                <button onClick={() => setActiveTab("overview")} className={`px-4 py-2.5 text-xs font-bold uppercase tracking-wider border-b-2 transition-colors ${activeTab === "overview" ? "border-[#4cc9f0] text-white" : "border-transparent text-slate-400"}`}>Historial Térmico</button>
+                <button onClick={() => setActiveTab("timeline")} className={`px-4 py-2.5 text-xs font-bold uppercase tracking-wider border-b-2 transition-colors ${activeTab === "timeline" ? "border-[#4cc9f0] text-white" : "border-transparent text-slate-400"}`}>Ficha Despacho</button>
               </div>
 
-              <div className="flex-1 p-6 bg-app-panel relative overflow-y-auto">
+              <div className="flex-1 p-4 overflow-y-auto">
                 {activeTab === "overview" && viajeSeleccionado && (
-                  <div className="flex gap-8 items-center h-full">
-                    <div className="flex flex-col w-1/4">
-                      <h3 className="text-lg text-app-primary font-bold">ID: {viajeSeleccionado.id.substring(0,8)}</h3>
-                      <p className="text-xs text-app-secondary">Estado: {viajeSeleccionado.estado}</p>
+                  <div className="flex flex-col md:flex-row gap-4 h-full items-center">
+                    <div className="w-full md:w-1/4 bg-[#0f1115] border border-slate-800 p-3 rounded-lg flex flex-col justify-center h-full">
+                      <span className="text-[9px] font-mono text-slate-400 uppercase">Límites de Carga</span>
+                      <div className="text-xs font-mono text-red-400 mt-1">Max: {viajeSeleccionado.limite_max_temp || 5}°C</div>
+                      <div className="text-xs font-mono text-sky-400">Min: {viajeSeleccionado.limite_min_temp || 1}°C</div>
+                      <div className="h-px bg-slate-800 my-2" />
+                      <span className="text-[9px] font-mono text-slate-500">Masa: {viajeSeleccionado.peso_kg || 0} Kg</span>
                     </div>
-                    <div className="flex-1 bg-[#1b2023] p-4 rounded-lg border border-app-border">
-                      <span className="text-[10px] uppercase text-app-secondary">Última Temperatura Registrada</span>
-                      <h2 className="text-2xl font-bold text-app-primary">
-                        {viajeSeleccionado.limite_max_temp} °C
-                      </h2>
+                    <div className="flex-1 w-full h-full flex items-center justify-center">
+                      <TelemetryChart 
+                        telemetryData={telemetryDataQuery} 
+                        limiteMin={Number(viajeSeleccionado.limite_min_temp || 1)} 
+                        limiteMax={Number(viajeSeleccionado.limite_max_temp || 5)} 
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {activeTab === "timeline" && viajeSeleccionado && (
+                  <div className="flex flex-col gap-4 h-full justify-between">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <div className="bg-[#0f1115] border border-slate-800 p-3 rounded-lg">
+                        <span className="text-[9px] font-mono uppercase text-slate-400 block tracking-wider">Valor Asegurado</span>
+                        <span className="text-base font-bold text-white mt-0.5 block">
+                          ${Number(viajeSeleccionado.valor_comercial || 0).toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                      <div className={`bg-[#0f1115] border p-3 rounded-lg ${viajeSeleccionado.id === "77777777-7777-4777-8777-777777777777" ? "border-red-900/60 text-red-400 animate-pulse" : "border-slate-800 text-emerald-400"}`}>
+                        <span className="text-[9px] font-mono uppercase text-slate-400 block tracking-wider">Estado de Riesgo</span>
+                        <span className="text-base font-bold mt-0.5 block">{viajeSeleccionado.id === "77777777-7777-4777-8777-777777777777" ? "⚠️ CRÍTICO" : "✅ ESTABLE"}</span>
+                      </div>
+                      <div className="bg-[#0f1115] border border-slate-800 p-3 rounded-lg">
+                        <span className="text-[9px] font-mono uppercase text-slate-400 block tracking-wider">Ocupación de Contenedor</span>
+                        <span className="text-base font-bold text-[#4cc9f0] mt-0.5 block">{((Number(viajeSeleccionado.peso_kg || 0) / 15000) * 100).toFixed(1)}%</span>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-xs font-mono border-t border-slate-800/80 pt-3">
+                      <div className="flex justify-between"><span className="text-slate-500">Categoría Producto:</span> <span className="text-white font-medium">{viajeSeleccionado.tipo_producto || "N/A"}</span></div>
+                      <div className="flex justify-between"><span className="text-slate-500">Volumen Ocupado:</span> <span className="text-[#4cc9f0] font-medium">{viajeSeleccionado.volumen_m3 || 0} m³</span></div>
+                      <div className="flex justify-between"><span className="text-slate-500">Margen de Desvío:</span> <span className="text-white font-medium">{viajeSeleccionado.margen_desvio_km} Km</span></div>
+                      <div className="flex justify-between"><span className="text-slate-500">ID Sucursal Destino:</span> <span className="text-slate-400 text-[11px] truncate w-40 text-right">{viajeSeleccionado.sucursal_destino_id || "N/A"}</span></div>
                     </div>
                   </div>
                 )}
@@ -381,169 +365,115 @@ export default function DashboardV2() {
       </div>
 
       {/* ========================================================
-          MODAL DE REGISTRO ROBUSTO (Con z-50 para quedar arriba del todo)
+          MODAL DE REGISTRO EVOLUCIONADO CON LOS NUEVOS CAMPOS
          ======================================================== */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="bg-[#161920] border border-slate-800/80 w-[850px] p-6 rounded-xl shadow-2xl relative">
-            
-            <button 
-              className="absolute top-4 right-4 text-slate-400 hover:text-white transition-colors z-[60]" 
-              onClick={() => {
-                setIsModalOpen(false);
-                resetModalForm();
-              }}
-            >
-              <span className="material-symbols-outlined">close</span>
-            </button>
-            
-            <div className="mb-6">
-              <h2 className="text-base font-semibold text-slate-100 mb-1">Registrar Nuevo Envío</h2>
-              <p className="text-xs text-slate-400">Asigne la empresa, transporte y dibuje los hitos directamente sobre el mapa de control</p>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+          <div className="bg-[#161920] border border-slate-800 w-[900px] p-5 rounded-xl shadow-2xl relative">
+            <button className="absolute top-4 right-4 text-slate-400 hover:text-white" onClick={() => { setIsModalOpen(false); resetModalForm(); }}><span className="material-symbols-outlined">close</span></button>
+            <div className="mb-4">
+              <h2 className="text-xs font-bold text-white uppercase tracking-wider">Registrar Nuevo Envío Termocontrolado</h2>
             </div>
+            
+            <div className="flex flex-row gap-4">
+              {/* FORMULARIO */}
+              <div className="w-[50%] flex flex-col gap-3">
+                <form id="new-viaje-form" className="flex flex-col gap-3" onSubmit={handleCreateViaje}>
+                  
+                  {/* ASIGNACIONES SUCURSALES */}
+                  <div className="flex gap-2">
+                    <div className="flex-1 flex flex-col gap-1">
+                      <label className="text-[9px] uppercase font-mono text-slate-400">Origen (Sucursal)</label>
+                      <select value={sucursalOrigenIdForm} onChange={(e) => setSucursalOrigenIdForm(e.target.value)} className="w-full bg-[#0f1115] border border-slate-800 text-xs text-slate-200 p-2 rounded-md outline-none">
+                        <option value="">Seleccionar</option>
+                        {sucursales.map((s) => <option key={s.id} value={s.id}>{s.nombre}</option>)}
+                      </select>
+                    </div>
+                    <div className="flex-1 flex flex-col gap-1">
+                      <label className="text-[9px] uppercase font-mono text-slate-400">Destino (Sucursal)</label>
+                      <select value={sucursalDestinoIdForm} onChange={(e) => setSucursalDestinoIdForm(e.target.value)} className="w-full bg-[#0f1115] border border-slate-800 text-xs text-slate-200 p-2 rounded-md outline-none">
+                        <option value="">Seleccionar</option>
+                        {sucursales.map((s) => <option key={s.id} value={s.id}>{s.nombre}</option>)}
+                      </select>
+                    </div>
+                  </div>
 
-            <div className="flex flex-row gap-8">
-              {/* COLUMNA IZQUIERDA: FORMULARIO */}
-              <div className="w-[45%] flex flex-col gap-4">
-                <form id="new-viaje-form" className="flex flex-col gap-4" onSubmit={handleCreateViaje}>
-                  {/* DROPBOX DE TRANSPORTE */}
-                  <div className="flex flex-col gap-1.5">
-                    <label className="uppercase text-[10px] text-slate-400 font-mono font-semibold">Transporte</label>
-                    <select 
-                      value={transporteIdForm}
-                      onChange={(e) => setTransporteIdForm(e.target.value)}
-                      className="w-full bg-[#0f1115] border border-slate-800 text-xs text-slate-200 p-2.5 rounded-md focus:border-[#4cc9f0] outline-none"
-                    >
+                  {/* TRANSPORTE ASIGNADO */}
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[9px] uppercase font-mono text-slate-400">Vehículo / Transporte</label>
+                    <select value={transporteIdForm} onChange={(e) => setTransporteIdForm(e.target.value)} className="w-full bg-[#0f1115] border border-slate-800 text-xs text-slate-200 p-2 rounded-md outline-none">
                       <option value="">Seleccionar transporte</option>
-                      {transportes.map((transporte) => (
-                        <option key={transporte.id} value={transporte.id}>
-                          {transporte.placa} · {transporte.estado}
-                        </option>
-                      ))}
+                      {transportes.map((t) => <option key={t.id} value={t.id}>{t.placa} · {t.estado}</option>)}
                     </select>
-                    <span className="text-[10px] text-slate-500 font-mono">
-                      {transporteSeleccionado ? transporteSeleccionado.id : "Selecciona un transporte para obtener su UUID"}
-                    </span>
                   </div>
 
-                  <div className="flex gap-4">
-                    <div className="flex flex-col gap-1.5 flex-1">
-                      <label className="uppercase text-[10px] text-slate-400 font-mono font-semibold">Sucursal origen</label>
-                      <select
-                        value={sucursalOrigenIdForm}
-                        onChange={(e) => setSucursalOrigenIdForm(e.target.value)}
-                        className="w-full bg-[#0f1115] border border-slate-800 text-xs text-slate-200 p-2.5 rounded-md focus:border-[#4cc9f0] outline-none"
-                      >
-                        <option value="">Selecciona sucursal de origen</option>
-                        {sucursales.map((sucursal) => (
-                          <option key={sucursal.id} value={sucursal.id}>
-                            {sucursal.empresa_nombre} · {sucursal.nombre}
-                          </option>
-                        ))}
-                      </select>
+                  {/* NUEVA FILA: TIPO PRODUCTO Y VALOR COMERCIAL */}
+                  <div className="flex gap-2">
+                    <div className="flex-1 flex flex-col gap-1">
+                      <label className="text-[9px] uppercase font-mono text-slate-400">Categoría Carga</label>
+                      <input type="text" placeholder="Ej: Vacunas, Carnes" value={tipoProductoForm} onChange={(e) => setTipoProductoForm(e.target.value)} className="w-full bg-[#0f1115] border border-slate-800 text-xs text-slate-200 p-2 rounded-md outline-none" />
                     </div>
-                    <div className="flex flex-col gap-1.5 flex-1">
-                      <label className="uppercase text-[10px] text-slate-400 font-mono font-semibold">Sucursal destino</label>
-                      <select
-                        value={sucursalDestinoIdForm}
-                        onChange={(e) => setSucursalDestinoIdForm(e.target.value)}
-                        className="w-full bg-[#0f1115] border border-slate-800 text-xs text-slate-200 p-2.5 rounded-md focus:border-[#4cc9f0] outline-none"
-                      >
-                        <option value="">Selecciona sucursal de destino</option>
-                        {sucursales.map((sucursal) => (
-                          <option key={sucursal.id} value={sucursal.id}>
-                            {sucursal.empresa_nombre} · {sucursal.nombre}
-                          </option>
-                        ))}
-                      </select>
+                    <div className="flex-1 flex flex-col gap-1">
+                      <label className="text-[9px] uppercase font-mono text-slate-400">Valor Comercial (USD)</label>
+                      <input type="number" placeholder="Monto Asegurado" value={valorComercialForm} onChange={(e) => setValorComercialForm(e.target.value)} className="w-full bg-[#0f1115] border border-slate-800 text-xs text-slate-200 p-2 rounded-md outline-none" />
                     </div>
                   </div>
 
-                  <div className="flex gap-4">
-                    <div className="flex flex-col gap-1.5 flex-1">
-                      <label className="uppercase text-[10px] text-slate-400 font-mono font-semibold">Temperatura máxima</label>
-                      <input
-                        type="number"
-                        step="0.1"
-                        value={limiteMaxTempForm}
-                        onChange={(e) => setLimiteMaxTempForm(e.target.value)}
-                        className="w-full bg-[#0f1115] border border-slate-800 text-xs text-slate-200 p-2.5 rounded-md focus:border-[#4cc9f0] outline-none"
-                      />
+                  {/* NUEVA FILA: FICHA DE PESO Y VOLUMEN */}
+                  <div className="flex gap-2">
+                    <div className="flex-1 flex flex-col gap-1">
+                      <label className="text-[9px] uppercase font-mono text-slate-400">Masa Carga (Kg)</label>
+                      <input type="number" placeholder="Peso neto" value={pesoKgForm} onChange={(e) => setPesoKgForm(e.target.value)} className="w-full bg-[#0f1115] border border-slate-800 text-xs text-slate-200 p-2 rounded-md outline-none" />
                     </div>
+                    <div className="flex-1 flex flex-col gap-1">
+                      <label className="text-[9px] uppercase font-mono text-slate-400">Volumen Carga (m³)</label>
+                      <input type="number" step="0.01" placeholder="Cubaje" value={volumenM3Form} onChange={(e) => setVolumenM3Form(e.target.value)} className="w-full bg-[#0f1115] border border-slate-800 text-xs text-slate-200 p-2 rounded-md outline-none" />
+                    </div>
+                  </div>
 
-                    <div className="flex flex-col gap-1.5 flex-1">
-                      <label className="uppercase text-[10px] text-slate-400 font-mono font-semibold">Estado inicial</label>
-                      <select
-                        value={estadoForm}
-                        onChange={(e) => setEstadoForm(e.target.value as typeof estadoForm)}
-                        className="w-full bg-[#0f1115] border border-slate-800 text-xs text-slate-200 p-2.5 rounded-md focus:border-[#4cc9f0] outline-none"
-                      >
+                  {/* FILA: UMBRALES TÉRMICOS SEGUROS */}
+                  <div className="flex gap-2">
+                    <div className="flex-1 flex flex-col gap-1">
+                      <label className="text-[9px] uppercase font-mono text-slate-400">Temp Mínima (°C)</label>
+                      <input type="number" value={limiteMinTempForm} onChange={(e) => setLimiteMinTempForm(e.target.value)} className="w-full bg-[#0f1115] border border-slate-800 text-xs text-slate-200 p-2 rounded-md outline-none" />
+                    </div>
+                    <div className="flex-1 flex flex-col gap-1">
+                      <label className="text-[9px] uppercase font-mono text-slate-400">Temp Máxima (°C)</label>
+                      <input type="number" value={limiteMaxTempForm} onChange={(e) => setLimiteMaxTempForm(e.target.value)} className="w-full bg-[#0f1115] border border-slate-800 text-xs text-slate-200 p-2 rounded-md outline-none" />
+                    </div>
+                    <div className="flex-1 flex flex-col gap-1">
+                      <label className="text-[9px] uppercase font-mono text-slate-400">Estado</label>
+                      <select value={estadoForm} onChange={(e) => setEstadoForm(e.target.value as any)} className="w-full bg-[#0f1115] border border-slate-800 text-xs text-slate-200 p-2 rounded-md outline-none">
                         <option value="pendiente">pendiente</option>
                         <option value="en_curso">en_curso</option>
-                        <option value="pausado">pausado</option>
-                        <option value="cancelado">cancelado</option>
-                        <option value="finalizado">finalizado</option>
                       </select>
                     </div>
                   </div>
 
-                  {submitError && (
-                    <div className="rounded-md border border-red-500/40 bg-red-950/40 px-3 py-2 text-xs text-red-200">
-                      {submitError}
-                    </div>
-                  )}
+                  {submitError && <div className="text-[11px] text-red-400 font-mono">{submitError}</div>}
                 </form>
               </div>
 
-              {/* COLUMNA DERECHA: MAPA SELECCIONABLE E INTERACTIVO (COMO SETUP) */}
-              <div className="w-[55%] flex flex-col">
-                <div className="flex-1 bg-app-map border border-slate-800 rounded-lg relative overflow-hidden min-h-[320px] flex flex-col">
-                  
-                  {/* Cargamos tu componente RouteMap real para interactuar de forma nativa */}
-                  <RouteMap 
-                    waypoints={selectedWaypoints}
-                    routePreviewApiUrl={API_URL}
-                    center={selectedWaypoints[0] ? [selectedWaypoints[0].lat, selectedWaypoints[0].lon] : [13.6929, -89.2182]}
-                    zoom={selectedWaypoints.length > 0 ? 13 : 12}
-                  />
-
-                  <div className="absolute bottom-0 left-0 right-0 bg-black/60 backdrop-blur-md p-3 border-t border-slate-800 z-50 flex justify-between items-center">
-                    <p className="text-[10px] font-mono text-slate-300">
-                      Ruta en mapa: <span className="text-white">{sucursalOrigenSeleccionada ? `${sucursalOrigenSeleccionada.empresa_nombre} · ${sucursalOrigenSeleccionada.nombre}` : "Origen"} → {sucursalDestinoSeleccionada ? `${sucursalDestinoSeleccionada.empresa_nombre} · ${sucursalDestinoSeleccionada.nombre}` : "Destino"}</span>
-                    </p>
-                    <p className="text-[10px] font-mono text-slate-300">
-                      {selectedWaypoints.length === 2 ? "OSRM listo sobre sucursales seleccionadas" : "Selecciona ambas sucursales"}
-                    </p>
-                  </div>
-                </div>
+              {/* MAPA DE PREVISUALIZACIÓN */}
+              <div className="w-[50%] min-h-[300px] relative border border-slate-800 rounded-lg overflow-hidden">
+                <RouteMap 
+                  waypoints={waypointsFormModal} 
+                  routePreviewApiUrl={API_URL} 
+                  center={waypointsFormModal[0] ? [waypointsFormModal[0].lat, waypointsFormModal[0].lon] : [13.6929, -89.2182]} 
+                  zoom={11} 
+                />
               </div>
-
             </div>
 
-            <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-slate-800/80">
-              <button 
-                className="px-4 py-2 text-xs font-medium text-slate-400 hover:text-slate-200 transition-colors" 
-                onClick={() => {
-                  setIsModalOpen(false);
-                  resetModalForm();
-                }}
-                type="button"
-              >
-                Cancelar
-              </button>
-              <button 
-                className="px-6 py-2 bg-[#4cc9f0] text-black text-xs font-bold rounded-md hover:bg-[#3db8df] transition-colors" 
-                type="submit"
-                form="new-viaje-form"
-              >
-                {isSubmitting ? "Creando..." : "Iniciar Monitoreo"}
+            <div className="flex justify-end gap-2 mt-4 pt-3 border-t border-slate-800">
+              <button className="text-xs text-slate-400 px-3 py-1.5" onClick={() => { setIsModalOpen(false); resetModalForm(); }}>Cancelar</button>
+              <button className="bg-[#4cc9f0] text-black font-bold text-xs px-4 py-1.5 rounded-md hover:opacity-90" type="submit" form="new-viaje-form">
+                {isSubmitting ? "Procesando..." : "Iniciar Monitoreo"}
               </button>
             </div>
-
           </div>
         </div>
       )}
-
     </div>
   );
 }

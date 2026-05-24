@@ -187,6 +187,11 @@ export class ViajeService {
   async create(payload: {
     transporte_id: string;
     limite_max_temp: number;
+    limite_min_temp?: number;
+    tipo_producto?: string;
+    valor_comercial?: number;
+    peso_kg?: number;
+    volumen_m3?: number;
     sucursal_origen_id?: string;
     sucursal_destino_id?: string;
     origen_lon?: number;
@@ -256,10 +261,15 @@ export class ViajeService {
         };
 
     const result = await this.db.query(
-      'INSERT INTO viaje (transporte_id, limite_max_temp, ruta_waypoints, margen_desvio_km, inicio_viaje, final_viaje, estado, sucursal_origen_id, sucursal_destino_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id, transporte_id, limite_max_temp, ruta_waypoints, margen_desvio_km, inicio_viaje, final_viaje, estado, sucursal_origen_id, sucursal_destino_id',
+      'INSERT INTO viaje (transporte_id, limite_max_temp, limite_min_temp, tipo_producto, valor_comercial, peso_kg, volumen_m3, ruta_waypoints, margen_desvio_km, inicio_viaje, final_viaje, estado, sucursal_origen_id, sucursal_destino_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING id, transporte_id, limite_max_temp, limite_min_temp, tipo_producto, valor_comercial, peso_kg, volumen_m3, ruta_waypoints, margen_desvio_km, inicio_viaje, final_viaje, estado, sucursal_origen_id, sucursal_destino_id',
       [
         payload.transporte_id,
         payload.limite_max_temp,
+        payload.limite_min_temp ?? null,
+        payload.tipo_producto ?? null,
+        payload.valor_comercial ?? null,
+        payload.peso_kg ?? null,
+        payload.volumen_m3 ?? null,
         JSON.stringify(ruta_waypoints),
         payload.margen_desvio_km ?? null,
         payload.inicio_viaje ?? null,
@@ -283,6 +293,11 @@ export class ViajeService {
         v.id,
         v.transporte_id,
         v.limite_max_temp,
+        v.limite_min_temp,
+        v.tipo_producto,
+        v.valor_comercial,
+        v.peso_kg,
+        v.volumen_m3,
         v.ruta_waypoints,
         v.margen_desvio_km,
         v.inicio_viaje,
@@ -315,6 +330,11 @@ export class ViajeService {
         v.id,
         v.transporte_id,
         v.limite_max_temp,
+        v.limite_min_temp,
+        v.tipo_producto,
+        v.valor_comercial,
+        v.peso_kg,
+        v.volumen_m3,
         v.ruta_waypoints,
         v.margen_desvio_km,
         v.inicio_viaje,

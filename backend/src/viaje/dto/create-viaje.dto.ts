@@ -18,6 +18,26 @@ export class CreateViajeDto {
   limite_max_temp: number;
 
   @IsOptional()
+  @IsNotEmpty()
+  tipo_producto?: string;
+
+  @IsOptional()
+  @IsNumber()
+  valor_comercial?: number;
+
+  @IsOptional()
+  @IsNumber()
+  peso_kg?: number;
+
+  @IsOptional()
+  @IsNumber()
+  volumen_m3?: number;
+
+  @IsOptional()
+  @IsNumber()
+  limite_min_temp?: number;
+
+  @IsOptional()
   @IsUUID()
   sucursal_origen_id?: string;
 
@@ -29,25 +49,25 @@ export class CreateViajeDto {
   @IsNumber()
   @Min(-180)
   @Max(180)
-  origen_lon: number;
+  origen_lon?: number;
 
   @IsOptional()
   @IsNumber()
   @Min(-90)
   @Max(90)
-  origen_lat: number;
+  origen_lat?: number;
 
   @IsOptional()
   @IsNumber()
   @Min(-180)
   @Max(180)
-  destino_lon: number;
+  destino_lon?: number;
 
   @IsOptional()
   @IsNumber()
   @Min(-90)
   @Max(90)
-  destino_lat: number;
+  destino_lat?: number;
 
   @IsOptional()
   @IsObject()
