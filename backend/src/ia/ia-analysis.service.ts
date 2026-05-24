@@ -1,7 +1,14 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Groq from 'groq-sdk';
 import { DbService } from '../db/db.service';
+import type {
+  AnalisisIaResultado,
+  AnalisisIaRow,
+  FuenteAnalisis,
+  NivelRiesgo,
+  TelemetriaInput,
+} from './ia.interfaces';
 
 export interface Waypoint {
   lat: number;
@@ -42,6 +49,13 @@ type ViajeContext = {
   ruta_waypoints: { waypoints?: Waypoint[] } | Waypoint[];
 };
 
+type ViajeMetadata = {
+  tipo_producto: string;
+  valor_comercial: number;
+  limite_max_temp: number;
+  limite_min_temp: number;
+};
+
 type RouteMetrics = {
   distanciaRutaKm: number | null;
   desvioKm: number | null;
@@ -53,19 +67,18 @@ type Point = { lat: number; lon: number };
 @Injectable()
 export class IaAnalysisService {
   private readonly logger = new Logger(IaAnalysisService.name);
-  private readonly groqClient: Groq | null;
   private readonly osrmBaseUrl: string;
   private readonly analysisMode: 'auto' | 'deterministic' | 'llm';
   private readonly defaultModelName: string;
 
+  private static readonly REALTIME_MODEL = 'llama3-70b-8192';
+
   constructor(
     private readonly configService: ConfigService,
     private readonly db: DbService,
+    @Optional() @Inject('GROQ_CLIENT') private readonly groqClient: Groq | null,
+    @Optional() @Inject('ZEP_CLIENT') private readonly zepClient: any | null,
   ) {
-    const groqApiKey =
-      this.configService.get<string>('LLM_API_KEY') ??
-      this.configService.get<string>('GROQ_API_KEY');
-
     this.analysisMode =
       this.configService.get<'auto' | 'deterministic' | 'llm'>(
         'AI_ANALYSIS_MODE',
@@ -78,8 +91,6 @@ export class IaAnalysisService {
       this.configService.get<string>('LLM_MODEL_NAME') ??
       this.configService.get<string>('GROQ_MODEL_NAME') ??
       'llama-3.3-70b-versatile';
-
-    this.groqClient = groqApiKey ? new Groq({ apiKey: groqApiKey }) : null;
   }
 
   async simularAnalisisDeFallo(
@@ -537,5 +548,392 @@ export class IaAnalysisService {
     }
 
     return viaje;
+  }
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // MOTOR HÍBRIDO EN TIEMPO REAL (Groq + Zep + PostgreSQL)
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  /**
+   * Punto de entrada público para análisis en tiempo real.
+   *
+   * Diseñado para que TelemetriaService lo invoque con una sola línea:
+   *   await this.iaAnalysis.analizarEventoEnTiempoReal(viaje_id, telemetria);
+   *
+   * Flujo interno:
+   *  1. Consulta metadata del viaje (tipo_producto, valor_comercial, límites)
+   *  2. Recupera historial de anomalías desde Zep (fallo silencioso)
+   *  3. Ejecuta inferencia con Groq (llama3-70b-8192, JSON mode)
+   *  4. Si Groq falla → Circuit Breaker → reglas deterministas
+   *  5. Persiste resultado en tabla analisis_ia
+   *  6. Guarda interacción en Zep (async, no bloqueante)
+   */
+  async analizarEventoEnTiempoReal(
+    viajeId: string,
+    telemetriaActual: TelemetriaInput,
+  ): Promise<AnalisisIaResultado> {
+    const viajeMeta = await this.loadViajeMetadata(viajeId);
+    const historialZep = await this.recuperarHistorialZep(viajeId);
+
+    let nivel_riesgo: NivelRiesgo;
+    let diagnostico_tecnico: string;
+    let accion_mitigacion: string;
+    let fuente: FuenteAnalisis;
+
+    try {
+      if (!this.groqClient) {
+        throw new Error('Groq client no disponible');
+      }
+
+      const resultado = await this.inferirConGroq(
+        viajeMeta,
+        telemetriaActual,
+        historialZep,
+      );
+      nivel_riesgo = resultado.nivel_riesgo;
+      diagnostico_tecnico = resultado.diagnostico_tecnico;
+      accion_mitigacion = resultado.accion_mitigacion;
+      fuente = 'groq_llm';
+    } catch (error: unknown) {
+      const fallback = this.evaluarReglasDuras(viajeMeta, telemetriaActual);
+      nivel_riesgo = fallback.nivel_riesgo;
+      diagnostico_tecnico = fallback.diagnostico_tecnico;
+      accion_mitigacion = fallback.accion_mitigacion;
+      fuente = 'reglas_fallback';
+
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.warn(
+        `Circuit Breaker activado → fallback determinista: ${message}`,
+      );
+    }
+
+    const registro = await this.persistirAnalisis({
+      viaje_id: viajeId,
+      telemetria_id: telemetriaActual.id,
+      nivel_riesgo,
+      diagnostico_tecnico,
+      accion_mitigacion,
+      fuente,
+    });
+
+    // Guardar en Zep de forma asíncrona — nunca bloquea ni crashea
+    this.guardarEnMemoriaZep(viajeId, telemetriaActual, {
+      nivel_riesgo,
+      diagnostico_tecnico,
+      accion_mitigacion,
+    }).catch((err: unknown) => {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.logger.warn(`Zep: guardado no bloqueante falló: ${msg}`);
+    });
+
+    return registro;
+  }
+
+  /**
+   * Obtiene el historial de análisis de IA para un viaje,
+   * ordenado por fecha descendente.
+   */
+  async obtenerHistorialAnalisis(viajeId: string): Promise<AnalisisIaRow[]> {
+    const result = await this.db.query<AnalisisIaRow>(
+      `SELECT id, viaje_id, telemetria_id, nivel_riesgo, diagnostico_tecnico,
+              accion_mitigacion, fuente, version_modelo, created_at
+       FROM analisis_ia
+       WHERE viaje_id = $1
+       ORDER BY created_at DESC`,
+      [viajeId],
+    );
+    return result.rows;
+  }
+
+  // ── Zep Memory ──────────────────────────────────────────────────
+
+  private async recuperarHistorialZep(viajeId: string): Promise<string> {
+    if (!this.zepClient) return '';
+
+    const sessionId = `viaje-session-${viajeId}`;
+
+    try {
+      const memory = await this.zepClient.memory.get(sessionId);
+      if (!memory?.messages?.length) return '';
+
+      return memory.messages
+        .slice(-10)
+        .map(
+          (m: { role?: string; content?: string }) =>
+            `[${m.role ?? 'unknown'}]: ${m.content ?? ''}`,
+        )
+        .join('\n');
+    } catch {
+      this.logger.debug(
+        `Zep: sesión ${sessionId} no encontrada o Zep no disponible`,
+      );
+      return '';
+    }
+  }
+
+  private async guardarEnMemoriaZep(
+    viajeId: string,
+    telemetria: TelemetriaInput,
+    resultado: {
+      nivel_riesgo: string;
+      diagnostico_tecnico: string;
+      accion_mitigacion: string;
+    },
+  ): Promise<void> {
+    if (!this.zepClient) return;
+
+    const sessionId = `viaje-session-${viajeId}`;
+
+    try {
+      // Asegurar que la sesión exista
+      try {
+        await this.zepClient.memory.getSession(sessionId);
+      } catch {
+        await this.zepClient.memory.addSession({ sessionId });
+      }
+
+      await this.zepClient.memory.add(sessionId, {
+        messages: [
+          {
+            roleType: 'user',
+            role: 'sensor',
+            content: `Telemetría: temp=${telemetria.temp}°C, humedad=${telemetria.humedad ?? 'N/A'}%, batería=${telemetria.bateria ?? 'N/A'}%, ubicación=(${telemetria.lat}, ${telemetria.lon}), timestamp=${telemetria.timestamp_sensor}`,
+          },
+          {
+            roleType: 'assistant',
+            role: 'ia_coldcase',
+            content: JSON.stringify(resultado),
+          },
+        ],
+      });
+    } catch {
+      // Silencioso — el caller ya maneja el .catch()
+    }
+  }
+
+  // ── Inferencia Groq ─────────────────────────────────────────────
+
+  private async inferirConGroq(
+    viajeMeta: ViajeMetadata,
+    telemetria: TelemetriaInput,
+    historialZep: string,
+  ): Promise<{
+    nivel_riesgo: NivelRiesgo;
+    diagnostico_tecnico: string;
+    accion_mitigacion: string;
+  }> {
+    const systemPrompt = this.buildSystemPromptTiempoReal();
+    const userPrompt = this.buildUserPromptTiempoReal(
+      viajeMeta,
+      telemetria,
+      historialZep,
+    );
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+    try {
+      const completion = await this.groqClient!.chat.completions.create(
+        {
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt },
+          ],
+          model: IaAnalysisService.REALTIME_MODEL,
+          response_format: { type: 'json_object' },
+          temperature: 0.1,
+        },
+        { signal: controller.signal },
+      );
+
+      const rawContent = completion.choices[0]?.message?.content ?? '{}';
+      const parsed = JSON.parse(rawContent) as Record<string, unknown>;
+
+      const validNiveles: NivelRiesgo[] = ['bajo', 'medio', 'alto', 'critico'];
+      const nivelRiesgo = parsed.nivel_riesgo as NivelRiesgo;
+
+      if (
+        !nivelRiesgo ||
+        !validNiveles.includes(nivelRiesgo) ||
+        typeof parsed.diagnostico_tecnico !== 'string' ||
+        typeof parsed.accion_mitigacion !== 'string'
+      ) {
+        throw new Error(
+          `Respuesta Groq con estructura inválida: ${rawContent.substring(0, 200)}`,
+        );
+      }
+
+      return {
+        nivel_riesgo: nivelRiesgo,
+        diagnostico_tecnico: parsed.diagnostico_tecnico as string,
+        accion_mitigacion: parsed.accion_mitigacion as string,
+      };
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  }
+
+  private buildSystemPromptTiempoReal(): string {
+    return [
+      'Eres un sistema experto de análisis de riesgo para cadena de frío en transporte de mercancías perecederas.',
+      '',
+      'REGLA ABSOLUTA: Responde ÚNICAMENTE con un objeto JSON válido. Sin texto adicional, sin explicaciones fuera del JSON, sin markdown.',
+      '',
+      'El JSON DEBE tener exactamente estas tres llaves:',
+      '  "nivel_riesgo": uno de "bajo", "medio", "alto", "critico"',
+      '  "diagnostico_tecnico": análisis técnico conciso de la situación',
+      '  "accion_mitigacion": acción concreta recomendada',
+      '',
+      'Criterios de evaluación de riesgo:',
+      '  "critico": Temperatura excede el límite máximo por ≥4°C o está ≥4°C por debajo del mínimo, batería ≤10%, o múltiples anomalías graves simultáneas.',
+      '  "alto": Temperatura fuera de rango permitido, batería ≤25%, o patrón de anomalía persistente en el historial.',
+      '  "medio": Temperatura dentro de 2°C del límite, tendencia de deterioro, o batería ≤40%.',
+      '  "bajo": Todos los parámetros dentro de rangos normales y estables.',
+      '',
+      'Considera el tipo de producto, su valor comercial y el historial de anomalías previas para contextualizar tu diagnóstico.',
+    ].join('\n');
+  }
+
+  private buildUserPromptTiempoReal(
+    viajeMeta: ViajeMetadata,
+    telemetria: TelemetriaInput,
+    historialZep: string,
+  ): string {
+    const temp =
+      typeof telemetria.temp === 'string'
+        ? parseFloat(telemetria.temp)
+        : telemetria.temp;
+
+    const lines = [
+      '=== DATOS DEL VIAJE ===',
+      `Producto: ${viajeMeta.tipo_producto}`,
+      `Valor comercial: $${viajeMeta.valor_comercial}`,
+      `Rango de temperatura permitido: ${viajeMeta.limite_min_temp}°C – ${viajeMeta.limite_max_temp}°C`,
+      '',
+      '=== TELEMETRÍA ACTUAL ===',
+      `Temperatura: ${temp}°C`,
+      `Humedad: ${telemetria.humedad ?? 'N/A'}%`,
+      `Batería: ${telemetria.bateria ?? 'N/A'}%`,
+      `Ubicación: (${telemetria.lat}, ${telemetria.lon})`,
+      `Timestamp sensor: ${telemetria.timestamp_sensor}`,
+    ];
+
+    if (historialZep) {
+      lines.push('', '=== HISTORIAL DE ANOMALÍAS PREVIAS ===', historialZep);
+    }
+
+    return lines.join('\n');
+  }
+
+  // ── Reglas Deterministas (Fallback / Circuit Breaker) ───────────
+
+  private evaluarReglasDuras(
+    viajeMeta: ViajeMetadata,
+    telemetria: TelemetriaInput,
+  ): {
+    nivel_riesgo: NivelRiesgo;
+    diagnostico_tecnico: string;
+    accion_mitigacion: string;
+  } {
+    const temp =
+      typeof telemetria.temp === 'string'
+        ? parseFloat(telemetria.temp)
+        : telemetria.temp;
+    const bateria = telemetria.bateria ?? 100;
+    const limiteMax = viajeMeta.limite_max_temp;
+    const limiteMin = viajeMeta.limite_min_temp;
+
+    const excesoMax = temp - limiteMax;
+    const excesoMin = limiteMin - temp;
+    const fueraDeRango = temp > limiteMax || temp < limiteMin;
+    const cercaDelLimite = temp >= limiteMax - 2 || temp <= limiteMin + 2;
+
+    let nivel_riesgo: NivelRiesgo;
+    let diagnostico_tecnico: string;
+    let accion_mitigacion: string;
+
+    if (excesoMax >= 4 || excesoMin >= 4 || bateria <= 10) {
+      nivel_riesgo = 'critico';
+      diagnostico_tecnico = `CRÍTICO: Temp ${temp}°C (rango: ${limiteMin}–${limiteMax}°C). Batería: ${bateria}%. Producto: ${viajeMeta.tipo_producto}.`;
+      accion_mitigacion =
+        'Detener el viaje de inmediato. Inspeccionar cadena de frío y validar estado del equipo manualmente.';
+    } else if (fueraDeRango || bateria <= 25) {
+      nivel_riesgo = 'alto';
+      diagnostico_tecnico = `ALTO: Temp ${temp}°C fuera de rango (${limiteMin}–${limiteMax}°C). Batería: ${bateria}%. Producto: ${viajeMeta.tipo_producto}.`;
+      accion_mitigacion =
+        'Notificar al operador. Verificar equipo de refrigeración y confirmar ruta actual.';
+    } else if (cercaDelLimite || bateria <= 40) {
+      nivel_riesgo = 'medio';
+      diagnostico_tecnico = `PRECAUCIÓN: Temp ${temp}°C cercana al límite (${limiteMin}–${limiteMax}°C). Batería: ${bateria}%. Producto: ${viajeMeta.tipo_producto}.`;
+      accion_mitigacion =
+        'Incrementar frecuencia de monitoreo. Preparar alerta preventiva.';
+    } else {
+      nivel_riesgo = 'bajo';
+      diagnostico_tecnico = `NORMAL: Temp ${temp}°C dentro de rango (${limiteMin}–${limiteMax}°C). Batería: ${bateria}%. Producto: ${viajeMeta.tipo_producto}.`;
+      accion_mitigacion = 'Continuar monitoreo estándar.';
+    }
+
+    return { nivel_riesgo, diagnostico_tecnico, accion_mitigacion };
+  }
+
+  // ── Metadata de Viaje (para tiempo real) ────────────────────────
+
+  private async loadViajeMetadata(viajeId: string): Promise<ViajeMetadata> {
+    const result = await this.db.query<{
+      tipo_producto: string | null;
+      valor_comercial: number | null;
+      limite_max_temp: number;
+      limite_min_temp: number | null;
+    }>(
+      'SELECT tipo_producto, valor_comercial, limite_max_temp, limite_min_temp FROM viaje WHERE id = $1',
+      [viajeId],
+    );
+
+    const viaje = result.rows[0];
+    if (!viaje) {
+      throw new Error(`Viaje ${viajeId} no encontrado para análisis de IA`);
+    }
+
+    return {
+      tipo_producto: viaje.tipo_producto ?? 'No especificado',
+      valor_comercial: viaje.valor_comercial ?? 0,
+      limite_max_temp: viaje.limite_max_temp,
+      limite_min_temp: viaje.limite_min_temp ?? -50,
+    };
+  }
+
+  // ── Persistencia en PostgreSQL ──────────────────────────────────
+
+  private async persistirAnalisis(data: {
+    viaje_id: string;
+    telemetria_id: number;
+    nivel_riesgo: NivelRiesgo;
+    diagnostico_tecnico: string;
+    accion_mitigacion: string;
+    fuente: FuenteAnalisis;
+  }): Promise<AnalisisIaResultado> {
+    const versionModelo =
+      data.fuente === 'groq_llm'
+        ? IaAnalysisService.REALTIME_MODEL
+        : 'reglas_deterministas_v1';
+
+    const result = await this.db.query<AnalisisIaRow>(
+      `INSERT INTO analisis_ia
+         (viaje_id, telemetria_id, nivel_riesgo, diagnostico_tecnico, accion_mitigacion, fuente, version_modelo)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       RETURNING id, viaje_id, telemetria_id, nivel_riesgo, diagnostico_tecnico,
+                 accion_mitigacion, fuente, version_modelo, created_at`,
+      [
+        data.viaje_id,
+        data.telemetria_id,
+        data.nivel_riesgo,
+        data.diagnostico_tecnico,
+        data.accion_mitigacion,
+        data.fuente,
+        versionModelo,
+      ],
+    );
+
+    return result.rows[0] as unknown as AnalisisIaResultado;
   }
 }

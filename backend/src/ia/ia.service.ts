@@ -4,6 +4,7 @@ import {
   AnalisisResultado,
   AnalisisViajeInput,
 } from './ia-analysis.service';
+import type { AnalisisIaResultado, AnalisisIaRow, TelemetriaInput } from './ia.interfaces';
 
 @Injectable()
 export class IaService {
@@ -23,5 +24,26 @@ export class IaService {
       temperaturaActual,
       bateriaActual,
     );
+  }
+
+  /**
+   * Proxy al motor híbrido de tiempo real.
+   * Punto de entrada para integración futura desde TelemetriaService.
+   */
+  analizarEventoEnTiempoReal(
+    viajeId: string,
+    telemetriaActual: TelemetriaInput,
+  ): Promise<AnalisisIaResultado> {
+    return this.iaAnalysisService.analizarEventoEnTiempoReal(
+      viajeId,
+      telemetriaActual,
+    );
+  }
+
+  /**
+   * Historial de análisis de IA para un viaje específico.
+   */
+  obtenerHistorialAnalisis(viajeId: string): Promise<AnalisisIaRow[]> {
+    return this.iaAnalysisService.obtenerHistorialAnalisis(viajeId);
   }
 }
