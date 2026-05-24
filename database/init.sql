@@ -207,42 +207,55 @@ ALTER TABLE viaje ADD COLUMN IF NOT EXISTS volumen_m3 DECIMAL(10,2);
 UPDATE viaje
 SET sucursal_origen_id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
     sucursal_destino_id = 'cccccccc-cccc-cccc-cccc-cccccccccccc'
-WHERE id = '77777777-7777-7777-7777-777777777777';
+    WHERE id = '77777777-7777-4777-8777-777777777777';
 
 UPDATE viaje
 SET sucursal_origen_id = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
     sucursal_destino_id = 'dddddddd-dddd-dddd-dddd-dddddddddddd'
-WHERE id = '88888888-8888-8888-8888-888888888888';
+    WHERE id = '88888888-8888-4888-8888-888888888888';
 
 CREATE INDEX IF NOT EXISTS idx_viaje_sucursal_origen ON viaje(sucursal_origen_id);
 CREATE INDEX IF NOT EXISTS idx_viaje_sucursal_destino ON viaje(sucursal_destino_id);
 
 ALTER TABLE incidente ADD COLUMN IF NOT EXISTS resuelta BOOLEAN DEFAULT FALSE;
 
+CREATE TABLE IF NOT EXISTS analisis_ia (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    viaje_id UUID NOT NULL REFERENCES viaje(id) ON DELETE CASCADE,
+    telemetria_id BIGINT NOT NULL REFERENCES telemetria(id) ON DELETE CASCADE,
+    nivel_riesgo VARCHAR(30) NOT NULL,       -- 'bajo', 'medio', 'alto', 'critico'
+    diagnostico_tecnico TEXT NOT NULL,
+    accion_mitigacion TEXT NOT NULL,
+    fuente VARCHAR(50) NOT NULL,             -- 'groq_llm' o 'reglas_fallback'
+    version_modelo VARCHAR(50) DEFAULT 'llama3-70b-8192',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_analisis_ia_viaje ON analisis_ia(viaje_id);
 -- ============================================
 -- DATOS SEMILLA
 -- ============================================
 
 INSERT INTO empresa (id, nombre, lat, lon) VALUES
-    ('11111111-1111-1111-1111-111111111111', 'Coldcase Central', 13.692900, -89.218200),
-    ('22222222-2222-2222-2222-222222222222', 'Coldcase Occidente', 13.980000, -89.559700)
+    ('11111111-1111-4111-8111-111111111111', 'Coldcase Central', 13.692900, -89.218200),
+    ('22222222-2222-4222-8222-222222222222', 'Coldcase Occidente', 13.980000, -89.559700)
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO iot (id, tipo_dispositivo, estado_conexion, ultimo_ping, firmware_version) VALUES
-    ('33333333-3333-3333-3333-333333333333', 'Tracker GPS', 'online', CURRENT_TIMESTAMP, 'v1.0.0'),
-    ('44444444-4444-4444-4444-444444444444', 'Tracker GPS', 'online', CURRENT_TIMESTAMP, 'v1.0.1')
+    ('33333333-3333-4333-8333-333333333333', 'Tracker GPS', 'online', CURRENT_TIMESTAMP, 'v1.0.0'),
+    ('44444444-4444-4444-8444-444444444444', 'Tracker GPS', 'online', CURRENT_TIMESTAMP, 'v1.0.1')
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO transporte (id, placa, iot_id, empresa_id, estado, capacidad) VALUES
-    ('55555555-5555-5555-5555-555555555555', 'P123-456', '33333333-3333-3333-3333-333333333333', '11111111-1111-1111-1111-111111111111', 'Activo', 12.500000),
-    ('66666666-6666-6666-6666-666666666666', 'P789-012', '44444444-4444-4444-4444-444444444444', '22222222-2222-2222-2222-222222222222', 'Activo', 8.750000)
+    ('55555555-5555-4555-8555-555555555555', 'P123-456', '33333333-3333-4333-8333-333333333333', '11111111-1111-4111-8111-111111111111', 'Activo', 12.500000),
+    ('66666666-6666-4666-8666-666666666666', 'P789-012', '44444444-4444-4444-8444-444444444444', '22222222-2222-4222-8222-222222222222', 'Activo', 8.750000)
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO sucursal (id, empresa_id, nombre, direccion, lat, lon) VALUES
-    ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '11111111-1111-1111-1111-111111111111', 'Sucursal Central', 'Bulevar del Ejercito, San Salvador', 13.692900, -89.218200),
-    ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', '11111111-1111-1111-1111-111111111111', 'Sucursal Metro', 'Colonia Escalon, San Salvador', 13.709500, -89.229900),
-    ('cccccccc-cccc-cccc-cccc-cccccccccccc', '22222222-2222-2222-2222-222222222222', 'Sucursal Occidente', 'Centro de Santa Ana', 13.977000, -89.561400),
-    ('dddddddd-dddd-dddd-dddd-dddddddddddd', '22222222-2222-2222-2222-222222222222', 'Sucursal Oriente', 'Centro de San Miguel', 13.483900, -88.177300)
+    ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', '11111111-1111-4111-8111-111111111111', 'Sucursal Central', 'Bulevar del Ejercito, San Salvador', 13.692900, -89.218200),
+    ('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', '11111111-1111-4111-8111-111111111111', 'Sucursal Metro', 'Colonia Escalon, San Salvador', 13.709500, -89.229900),
+    ('cccccccc-cccc-4ccc-8ccc-cccccccccccc', '22222222-2222-4222-8222-222222222222', 'Sucursal Occidente', 'Centro de Santa Ana', 13.977000, -89.561400),
+    ('dddddddd-dddd-4ddd-8ddd-dddddddddddd', '22222222-2222-4222-8222-222222222222', 'Sucursal Oriente', 'Centro de San Miguel', 13.483900, -88.177300)
 ON CONFLICT (id) DO NOTHING;
 
 ALTER TABLE viaje DROP CONSTRAINT IF EXISTS fk_viaje_sucursal_origen;
@@ -276,16 +289,16 @@ INSERT INTO viaje (
     volumen_m3
 ) VALUES
     (
-        '77777777-7777-7777-7777-777777777777',
-        '55555555-5555-5555-5555-555555555555',
+        '77777777-7777-4777-8777-777777777777',
+        '55555555-5555-4555-8555-555555555555',
         5,
         '{"type":"FeatureCollection","features":[{"type":"Feature","geometry":{"type":"LineString","coordinates":[[-89.2182,13.6929],[-89.6501,13.9800]]},"properties":{"origen":"San Salvador","destino":"Santa Ana","distancia_km":64.2,"osrm_usado":true}}]}'::json,
         2.5,
         CURRENT_TIMESTAMP - INTERVAL '3 hours',
         NULL,
         'en_curso',
-        'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
-        'cccccccc-cccc-cccc-cccc-cccccccccccc',
+        'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+        'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
         2,
         'Medicamentos',
         12500.00,
@@ -293,16 +306,16 @@ INSERT INTO viaje (
         14.50
     ),
     (
-        '88888888-8888-8888-8888-888888888888',
-        '66666666-6666-6666-6666-666666666666',
+        '88888888-8888-4888-8888-888888888888',
+        '66666666-6666-4666-8666-666666666666',
         4,
         '{"type":"FeatureCollection","features":[{"type":"Feature","geometry":{"type":"LineString","coordinates":[[-89.2182,13.6929],[-88.8943,13.4839]]},"properties":{"origen":"San Salvador","destino":"San Miguel","distancia_km":138.0,"osrm_usado":false}}]}'::json,
         3.0,
         CURRENT_TIMESTAMP - INTERVAL '6 hours',
         NULL,
         'pendiente',
-        'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
-        'dddddddd-dddd-dddd-dddd-dddddddddddd',
+        'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+        'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
         1,
         'Alimentos',
         8200.00,
@@ -336,9 +349,9 @@ INSERT INTO telemetria (
     timestamp_sensor,
     received_at
 ) VALUES
-    (1001, '77777777-7777-7777-7777-777777777777', 13.700100, -89.200300, 3.8, 68, 91, CURRENT_TIMESTAMP - INTERVAL '20 minutes', CURRENT_TIMESTAMP - INTERVAL '19 minutes'),
-    (1002, '77777777-7777-7777-7777-777777777777', 13.745200, -89.330400, 4.2, 66, 89, CURRENT_TIMESTAMP - INTERVAL '10 minutes', CURRENT_TIMESTAMP - INTERVAL '9 minutes'),
-    (1003, '88888888-8888-8888-8888-888888888888', 13.705000, -89.250000, 5.1, 70, 95, CURRENT_TIMESTAMP - INTERVAL '15 minutes', CURRENT_TIMESTAMP - INTERVAL '14 minutes')
+    (1001, '77777777-7777-4777-8777-777777777777', 13.700100, -89.200300, 3.8, 68, 91, CURRENT_TIMESTAMP - INTERVAL '20 minutes', CURRENT_TIMESTAMP - INTERVAL '19 minutes'),
+    (1002, '77777777-7777-4777-8777-777777777777', 13.745200, -89.330400, 4.2, 66, 89, CURRENT_TIMESTAMP - INTERVAL '10 minutes', CURRENT_TIMESTAMP - INTERVAL '9 minutes'),
+    (1003, '88888888-8888-4888-8888-888888888888', 13.705000, -89.250000, 5.1, 70, 95, CURRENT_TIMESTAMP - INTERVAL '15 minutes', CURRENT_TIMESTAMP - INTERVAL '14 minutes')
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO incidente (
@@ -351,5 +364,5 @@ INSERT INTO incidente (
     timestamp_bd,
     resuelta
 ) VALUES
-    ('99999999-9999-9999-9999-999999999999', '77777777-7777-7777-7777-777777777777', 1001, 'TEMP_ALTA', 6.2, 5.0, CURRENT_TIMESTAMP - INTERVAL '18 minutes', false)
+    ('99999999-9999-4999-8999-999999999999', '77777777-7777-4777-8777-777777777777', 1001, 'TEMP_ALTA', 6.2, 5.0, CURRENT_TIMESTAMP - INTERVAL '18 minutes', false)
 ON CONFLICT (id) DO NOTHING;

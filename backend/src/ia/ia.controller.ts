@@ -1,4 +1,4 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Query } from '@nestjs/common';
 import { AnalizarFalloDto } from './dto/analizar-fallo.dto';
 import { AnalizarViajeDto } from './dto/analizar-viaje.dto';
 import { IaService } from './ia.service';
@@ -19,5 +19,28 @@ export class IaController {
   @Post('analizar-viaje')
   analizarViaje(@Body() body: AnalizarViajeDto) {
     return this.iaService.analizarEvento(body);
+  }
+
+  /**
+   * GET /ia/historial/:viajeId
+   * Devuelve la bitácora de inferencias de IA para un viaje,
+   * ordenada por fecha descendente.
+   */
+  @Get('historial/:viajeId')
+  obtenerHistorial(@Param('viajeId', ParseUUIDPipe) viajeId: string) {
+    return this.iaService.obtenerHistorialAnalisis(viajeId);
+  }
+
+  /**
+   * GET /ia/contexto-grafo/:viajeId
+   * Recupera el contexto global del Grafo de Conocimiento Standalone de Zep
+   * para un viaje y una consulta semántica.
+   */
+  @Get('contexto-grafo/:viajeId')
+  obtenerContextoGrafo(
+    @Param('viajeId') viajeId: string,
+    @Query('query') query: string,
+  ) {
+    return this.iaService.obtenerContextoGrafo(viajeId, query);
   }
 }
