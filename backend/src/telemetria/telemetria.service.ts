@@ -44,8 +44,10 @@ export class TelemetriaService {
       const viajeResult = await client.query<{
         id: string;
         limite_max_temp: number;
+        ruta_waypoints?: any;
+        margen_desvio_km?: number;
       }>(
-        'SELECT id, limite_max_temp FROM viaje WHERE id = $1',
+        'SELECT id, limite_max_temp, ruta_waypoints, margen_desvio_km FROM viaje WHERE id = $1',
         [payload.viaje_id],
       );
 
@@ -74,7 +76,7 @@ export class TelemetriaService {
           payload.lon,
           payload.temp,
           payload.humedad ?? null,
-          payload.bateria ?? null,
+          payload.bateria == null ? null : Math.trunc(payload.bateria),
           payload.timestamp_sensor,
         ],
       );
@@ -87,6 +89,7 @@ export class TelemetriaService {
       }
 
       let incidente: IncidenteRow | null = null;
+      // Prioridad: temperatura alta > batería baja > fuera de ruta
       if (payload.temp > viaje.limite_max_temp) {
         incidente = await this.incidenteService.create({
           viaje_id: payload.viaje_id,
@@ -96,6 +99,64 @@ export class TelemetriaService {
           umbral_permitido: viaje.limite_max_temp,
           query: client.query.bind(client),
         });
+      } else if (payload.bateria != null && Number(payload.bateria) <= 10) {
+        incidente = await this.incidenteService.create({
+          viaje_id: payload.viaje_id,
+          telemetria_id: telemetria.id,
+          tipo_alerta: 'BATERIA_BAJA',
+          valor_detectado: Math.trunc(Number(payload.bateria)),
+          umbral_permitido: 10,
+          query: client.query.bind(client),
+        });
+      } else {
+        // Detectar si la telemetría está fuera de la ruta (si el viaje tiene geometría y margen definido)
+        try {
+          const margen = viaje.margen_desvio_km == null ? 0.5 : Number(viaje.margen_desvio_km);
+          const waypoints =
+            Array.isArray(viaje.ruta_waypoints) && viaje.ruta_waypoints.length
+              ? viaje.ruta_waypoints
+              : viaje.ruta_waypoints?.features?.[0]?.geometry?.coordinates?.map((c) => ({ lon: c[0], lat: c[1] })) ?? null;
+
+          if (Array.isArray(waypoints) && waypoints.length > 0 && margen >= 0) {
+            // calcular distancia mínima (km) entre telemetría y puntos de la ruta
+            const toRad = (deg: number) => (deg * Math.PI) / 180;
+            const haversineKm = (aLat: number, aLon: number, bLat: number, bLon: number) => {
+              const R = 6371; // km
+              const dLat = toRad(bLat - aLat);
+              const dLon = toRad(bLon - aLon);
+              const lat1 = toRad(aLat);
+              const lat2 = toRad(bLat);
+              const sinDlat = Math.sin(dLat / 2);
+              const sinDlon = Math.sin(dLon / 2);
+              const aa = sinDlat * sinDlat + sinDlon * sinDlon * Math.cos(lat1) * Math.cos(lat2);
+              const c = 2 * Math.atan2(Math.sqrt(aa), Math.sqrt(1 - aa));
+              return R * c;
+            };
+
+            const lat = Number(payload.lat);
+            const lon = Number(payload.lon);
+            let minKm = Infinity;
+            for (const p of waypoints) {
+              const pl = { lat: Number(p.lat ?? p[1] ?? p.latitude), lon: Number(p.lon ?? p[0] ?? p.longitude) };
+              if (!Number.isFinite(pl.lat) || !Number.isFinite(pl.lon)) continue;
+              const dist = haversineKm(lat, lon, pl.lat, pl.lon);
+              if (dist < minKm) minKm = dist;
+            }
+
+            if (minKm > margen) {
+              incidente = await this.incidenteService.create({
+                viaje_id: payload.viaje_id,
+                telemetria_id: telemetria.id,
+                tipo_alerta: 'FUERA_RUTA',
+                valor_detectado: Math.round(minKm * 1000), // metros
+                umbral_permitido: Math.round(margen * 1000),
+                query: client.query.bind(client),
+              });
+            }
+          }
+        } catch (err) {
+          // no bloquear inserción por fallo en detección de fuera de ruta
+        }
       }
 
       return {

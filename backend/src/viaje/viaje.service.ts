@@ -324,6 +324,44 @@ export class ViajeService {
     return result.rows;
   }
 
+  async findEnCurso() {
+    const result = await this.db.query(
+      `SELECT
+        v.id,
+        v.transporte_id,
+        v.limite_max_temp,
+        v.limite_min_temp,
+        v.tipo_producto,
+        v.valor_comercial,
+        v.peso_kg,
+        v.volumen_m3,
+        v.ruta_waypoints,
+        v.margen_desvio_km,
+        v.inicio_viaje,
+        v.final_viaje,
+        v.estado,
+        v.sucursal_origen_id,
+        v.sucursal_destino_id,
+        so.nombre AS origen_sucursal_nombre,
+        so.lat AS origen_lat,
+        so.lon AS origen_lon,
+        eo.nombre AS origen_empresa_nombre,
+        sd.nombre AS destino_sucursal_nombre,
+        sd.lat AS destino_lat,
+        sd.lon AS destino_lon,
+        ed.nombre AS destino_empresa_nombre
+      FROM viaje v
+      LEFT JOIN sucursal so ON so.id = v.sucursal_origen_id
+      LEFT JOIN empresa eo ON eo.id = so.empresa_id
+      LEFT JOIN sucursal sd ON sd.id = v.sucursal_destino_id
+      LEFT JOIN empresa ed ON ed.id = sd.empresa_id
+      WHERE v.estado = 'en_curso'
+      ORDER BY v.inicio_viaje DESC NULLS LAST`,
+    );
+
+    return result.rows;
+  }
+
   async findOne(id: string) {
     const result = await this.db.query(
       `SELECT

@@ -81,8 +81,11 @@ services:
       context: ./simulador
       dockerfile: Dockerfile
       target: development
+    ports:
+      - "4000:4000"
     environment:
       API_URL: ${SIMULADOR_API_URL:-http://backend:3000}
+      PORT: ${SIMULADOR_PORT:-4000}
     depends_on:
       - backend
     networks:

@@ -210,9 +210,9 @@ export default function RouteMap({
 
         if (bounds.isValid()) {
           if (routeToDraw && routeToDraw.length > 1) {
-            map.setView(bounds.getCenter(), Math.max(map.getZoom(), 12), { animate: true });
+            map.fitBounds(bounds.pad(0.15), { animate: false });
           } else if (waypoints.length === 1) {
-            map.setView([waypoints[0].lat, waypoints[0].lon], 16, { animate: true });
+            map.setView([waypoints[0].lat, waypoints[0].lon], 16, { animate: false });
           }
         }
       } catch (error) {

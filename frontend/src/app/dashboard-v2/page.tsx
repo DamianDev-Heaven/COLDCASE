@@ -5,6 +5,7 @@ import RouteMap from "@/components/RouteMap";
 import { ResponsiveContainer, ComposedChart, Line, XAxis, YAxis, Tooltip, ReferenceArea } from "recharts";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+const SIMULATOR_URL = process.env.NEXT_PUBLIC_SIMULADOR_URL || "http://localhost:4000";
 const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -249,6 +250,14 @@ export default function DashboardV2() {
         >
           Registrar Envío
         </button>
+        <a
+          href={SIMULATOR_URL}
+          target="_blank"
+          rel="noreferrer"
+          className="bg-slate-900 text-slate-100 border border-slate-700 hover:border-cyan-400/40 px-4 py-1.5 rounded-md text-xs font-bold flex items-center gap-1"
+        >
+          Abrir simulador
+        </a>
       </header>
 
       {/* WORKSPACE AREA */}
