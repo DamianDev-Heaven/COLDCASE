@@ -150,7 +150,6 @@ export default function RegisterPage() {
       setRol("Admin");
       setStatus({ type: "success", message: `Usuario ${data.user?.email ?? email} creado correctamente.` });
 
-      const token = getAccessToken();
       if (token) {
         await loadUsers(token);
       }

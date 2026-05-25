@@ -11,7 +11,7 @@ bootstrap:
 	./scripts/prepare-osrm.sh
 
 up:
-	docker compose up -d --build db backend frontend simulador osrm munin
+	docker compose up -d --build
 
 down:
 	docker compose down

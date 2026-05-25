@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DbService } from '../db/db.service';
+import { IaAnalysisService } from '../ia/ia-analysis.service';
 
 type Waypoint = { lat: number; lon: number };
 
@@ -18,6 +19,7 @@ export class ViajeService {
   constructor(
     private readonly db: DbService,
     private readonly config: ConfigService,
+    private readonly iaAnalysisService: IaAnalysisService,
   ) {}
 
   private async fetchOsrmRoute(
@@ -303,6 +305,7 @@ export class ViajeService {
         v.inicio_viaje,
         v.final_viaje,
         v.estado,
+        v.auditoria_ia,
         v.sucursal_origen_id,
         v.sucursal_destino_id,
         so.nombre AS origen_sucursal_nombre,
@@ -324,6 +327,47 @@ export class ViajeService {
     return result.rows;
   }
 
+  async findEnCurso() {
+    const result = await this.db.query(
+      `SELECT
+        v.id,
+        v.transporte_id,
+        v.limite_max_temp,
+        v.limite_min_temp,
+        v.tipo_producto,
+        v.valor_comercial,
+        v.peso_kg,
+        v.volumen_m3,
+        v.ruta_waypoints,
+        v.margen_desvio_km,
+        v.inicio_viaje,
+        v.final_viaje,
+        v.estado,
+        v.auditoria_ia,
+        v.sucursal_origen_id,
+        v.sucursal_destino_id,
+        so.nombre AS origen_sucursal_nombre,
+        so.lat AS origen_lat,
+        so.lon AS origen_lon,
+        eo.nombre AS origen_empresa_nombre,
+        sd.nombre AS destino_sucursal_nombre,
+        sd.lat AS destino_lat,
+        sd.lon AS destino_lon,
+        ed.nombre AS destino_empresa_nombre
+      FROM viaje v
+      LEFT JOIN sucursal so ON so.id = v.sucursal_origen_id
+      LEFT JOIN empresa eo ON eo.id = so.empresa_id
+      LEFT JOIN sucursal sd ON sd.id = v.sucursal_destino_id
+      LEFT JOIN empresa ed ON ed.id = sd.empresa_id
+      WHERE v.estado IN ('en_curso', 'pendiente')
+      ORDER BY
+        CASE v.estado WHEN 'en_curso' THEN 0 ELSE 1 END,
+        v.inicio_viaje DESC NULLS LAST`,
+    );
+
+    return result.rows;
+  }
+
   async findOne(id: string) {
     const result = await this.db.query(
       `SELECT
@@ -340,6 +384,7 @@ export class ViajeService {
         v.inicio_viaje,
         v.final_viaje,
         v.estado,
+        v.auditoria_ia,
         v.sucursal_origen_id,
         v.sucursal_destino_id,
         so.nombre AS origen_sucursal_nombre,
@@ -365,5 +410,23 @@ export class ViajeService {
     }
 
     return viaje;
+  }
+
+  async iniciar(id: string) {
+    const viaje = await this.findOne(id);
+    if (viaje.estado !== 'pendiente') {
+      throw new Error(`El viaje ${id} no está en estado pendiente (estado actual: ${viaje.estado}).`);
+    }
+    await this.db.query(
+      `UPDATE viaje SET estado = 'en_curso', inicio_viaje = NOW() WHERE id = $1`,
+      [id],
+    );
+    return this.findOne(id);
+  }
+
+  async finalizar(id: string) {
+    await this.findOne(id);
+    await this.iaAnalysisService.generateFinalAudit(id);
+    return this.findOne(id);
   }
 }

@@ -43,4 +43,32 @@ export class IaController {
   ) {
     return this.iaService.obtenerContextoGrafo(viajeId, query);
   }
+
+  /**
+   * POST /ia/queue/pause
+   * Pausa el worker de la cola de análisis de IA.
+   */
+  @Post('queue/pause')
+  pausarCola() {
+    return this.iaService.pauseQueue();
+  }
+
+  /**
+   * POST /ia/queue/resume
+   * Reanuda el worker de la cola de análisis de IA.
+   */
+  @Post('queue/resume')
+  reanudarCola() {
+    return this.iaService.resumeQueue();
+  }
+
+  /**
+   * GET /ia/queue/status
+   * Obtiene el estado actual de la cola.
+   */
+  @Get('queue/status')
+  obtenerEstadoCola() {
+    return this.iaService.getQueueStatus();
+  }
 }
+

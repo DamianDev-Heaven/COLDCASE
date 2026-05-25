@@ -13,6 +13,13 @@ services:
     networks:
       - coldcase_net
 
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
+    networks:
+      - coldcase_net
+
   backend:
     build:
       context: ./backend
@@ -33,10 +40,14 @@ services:
       ZEP_API_URL: ${ZEP_API_URL:-https://api.getzep.com/api/v2}
       ZEP_API_KEY: ${ZEP_API_KEY:-}
       OSRM_BASE_URL: "http://osrm:5000"
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
     ports:
       - "3000:3000"
     depends_on:
       db:
+        condition: service_started
+      redis:
         condition: service_started
     networks:
       - coldcase_net
@@ -81,8 +92,13 @@ services:
       context: ./simulador
       dockerfile: Dockerfile
       target: development
+    ports:
+      - "4000:4000"
+    volumes:
+      - ./simulador:/usr/src/app
     environment:
       API_URL: ${SIMULADOR_API_URL:-http://backend:3000}
+      PORT: ${SIMULADOR_PORT:-4000}
     depends_on:
       - backend
     networks:

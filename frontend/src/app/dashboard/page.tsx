@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+const SIMULADOR_URL = process.env.NEXT_PUBLIC_SIMULADOR_URL || "http://localhost:4000";
 
 const roles = ["Admin", "Operador", "Auditor"] as const;
 
@@ -275,6 +276,10 @@ export default function DashboardPage() {
               <span>Preparar ruta</span>
               <span className="text-slate-500">05</span>
             </Link>
+            <a href={SIMULADOR_URL} target="_blank" rel="noreferrer" className="flex items-center justify-between rounded-2xl border border-slate-800 bg-slate-900/70 px-4 py-3 text-slate-100 transition hover:border-cyan-400/40 hover:bg-slate-900">
+              <span>Simulador maestro</span>
+              <span className="text-slate-500">06</span>
+            </a>
           </nav>
 
           <button

@@ -74,16 +74,24 @@ export class ZepMemoryService {
    */
   async guardarInteraccion(
     viajeId: string,
-    mensajeSensor: string,
-    respuestaIA: string,
+    mensajeSensorOrSemanticText: string,
+    respuestaIA?: string | Record<string, unknown>,
     metadata?: Record<string, unknown>,
   ): Promise<ZepSaveResult> {
     const graphId = this.graphId;
     
-    // Concatenamos el viaje, mensaje y la respuesta para que el Grafo infiera relaciones
-    const graphData = `Viaje ID: ${viajeId}\nAlerta del Sensor: ${mensajeSensor}\nResolución de IA: ${respuestaIA}`;
+    let dataToSave = mensajeSensorOrSemanticText;
+    let actualMetadata = metadata;
 
-    return this.addDataToGraph(graphId, graphData, { viajeId, ...metadata });
+    if (typeof respuestaIA === 'string') {
+      // Comportamiento legado de múltiples parámetros
+      dataToSave = `Viaje ID: ${viajeId}\nAlerta del Sensor: ${mensajeSensorOrSemanticText}\nResolución de IA: ${respuestaIA}`;
+    } else if (respuestaIA && typeof respuestaIA === 'object') {
+      // Si el tercer parámetro era en realidad la metadata
+      actualMetadata = respuestaIA as Record<string, unknown>;
+    }
+
+    return this.addDataToGraph(graphId, dataToSave, { viajeId, ...actualMetadata });
   }
 
   /**
@@ -162,6 +170,19 @@ export class ZepMemoryService {
       );
       return { messages: '', messageCount: 0 };
     }
+  }
+
+  /**
+   * Realiza una búsqueda semántica por similitud en la memoria del viaje.
+   *
+   * @param viajeId - ID del viaje
+   * @param query   - Query o anomalía actual para buscar coincidencias
+   */
+  async searchMemory(
+    viajeId: string,
+    query: string,
+  ): Promise<ZepHistorialResult> {
+    return this.recuperarContextoGlobal(viajeId, query);
   }
 
   /**

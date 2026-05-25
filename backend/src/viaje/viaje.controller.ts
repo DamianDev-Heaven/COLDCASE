@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Patch } from '@nestjs/common';
 import { CreateViajeDto } from './dto/create-viaje.dto';
 import { ViajeService } from './viaje.service';
 
@@ -29,5 +29,15 @@ export class ViajeController {
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.viajeService.findOne(id);
+  }
+
+  @Patch(':id/iniciar')
+  iniciar(@Param('id') id: string) {
+    return this.viajeService.iniciar(id);
+  }
+
+  @Patch(':id/finalizar')
+  finalizar(@Param('id') id: string) {
+    return this.viajeService.finalizar(id);
   }
 }
