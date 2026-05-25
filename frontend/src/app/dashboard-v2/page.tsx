@@ -72,8 +72,13 @@ export default function DashboardV2() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  const [activeTab, setActiveTab] = useState<"overview" | "timeline">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "timeline" | "ai">("overview");
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [telemetryList, setTelemetryList] = useState<any[]>([]);
+
+  const aiDiagnostics = useMemo(() => {
+    return telemetryList.filter((point) => point.ia_diagnosis);
+  }, [telemetryList]);
 
   // Estados para el formulario real de nuevo envío (Modal con campos añadidos)
   const [transporteIdForm, setTransporteIdForm] = useState("");
@@ -223,6 +228,30 @@ export default function DashboardV2() {
     return () => clearInterval(interval);
   }, [viajeSeleccionado]);
 
+  useEffect(() => {
+    if (!viajeSeleccionado?.id) {
+      setTelemetryList([]);
+      return;
+    }
+
+    async function cargarTelemetria() {
+      try {
+        const res = await fetch(`${API_URL}/telemetria/viaje/${viajeSeleccionado.id}`);
+        if (res.ok) {
+          const data = await res.json();
+          const sorted = Array.isArray(data) ? data.sort((a: any, b: any) => new Date(a.timestamp_sensor).getTime() - new Date(b.timestamp_sensor).getTime()) : [];
+          setTelemetryList(sorted);
+        }
+      } catch (error) {
+        console.error("Error cargando telemetria del viaje:", error);
+      }
+    }
+
+    cargarTelemetria();
+    const interval = setInterval(cargarTelemetria, 3000);
+    return () => clearInterval(interval);
+  }, [viajeSeleccionado?.id]);
+
   if (isLoading) {
     return (
       <div className="h-screen w-full bg-[#0f1115] flex items-center justify-center text-white font-mono text-xs">
@@ -318,6 +347,7 @@ export default function DashboardV2() {
               <div className="flex border-b border-slate-800 px-4 bg-[#111319]">
                 <button onClick={() => setActiveTab("overview")} className={`px-4 py-2.5 text-xs font-bold uppercase tracking-wider border-b-2 transition-colors ${activeTab === "overview" ? "border-[#4cc9f0] text-white" : "border-transparent text-slate-400"}`}>Historial Térmico</button>
                 <button onClick={() => setActiveTab("timeline")} className={`px-4 py-2.5 text-xs font-bold uppercase tracking-wider border-b-2 transition-colors ${activeTab === "timeline" ? "border-[#4cc9f0] text-white" : "border-transparent text-slate-400"}`}>Ficha Despacho</button>
+                <button onClick={() => setActiveTab("ai")} className={`px-4 py-2.5 text-xs font-bold uppercase tracking-wider border-b-2 transition-colors ${activeTab === "ai" ? "border-sky-500 text-white" : "border-transparent text-slate-400"}`}>Diagnóstico de Incidentes (IA)</button>
               </div>
 
               <div className="flex-1 p-4 overflow-y-auto">
@@ -332,7 +362,7 @@ export default function DashboardV2() {
                     </div>
                     <div className="flex-1 w-full h-full flex items-center justify-center">
                       <TelemetryChart 
-                        telemetryData={telemetryDataQuery} 
+                        telemetryData={telemetryList.length > 0 ? telemetryList : telemetryDataQuery} 
                         limiteMin={Number(viajeSeleccionado.limite_min_temp || 1)} 
                         limiteMax={Number(viajeSeleccionado.limite_max_temp || 5)} 
                       />
@@ -351,18 +381,60 @@ export default function DashboardV2() {
                       </div>
                       <div className={`bg-[#0f1115] border p-3 rounded-lg ${viajeSeleccionado.id === "77777777-7777-4777-8777-777777777777" ? "border-red-900/60 text-red-400 animate-pulse" : "border-slate-800 text-emerald-400"}`}>
                         <span className="text-[9px] font-mono uppercase text-slate-400 block tracking-wider">Estado de Riesgo</span>
-                        <span className="text-base font-bold mt-0.5 block">{viajeSeleccionado.id === "77777777-7777-4777-8777-777777777777" ? "⚠️ CRÍTICO" : "✅ ESTABLE"}</span>
+                        <span className="text-base font-bold mt-0.5 block">{viajeSeleccionado.id === "77777777-7777-4777-8777-777777777777" || telemetryList.some((p) => p.temp > (viajeSeleccionado.limite_max_temp || 5) || p.temp < (viajeSeleccionado.limite_min_temp || 1)) ? "CRÍTICO" : "ESTABLE"}</span>
                       </div>
                       <div className="bg-[#0f1115] border border-slate-800 p-3 rounded-lg">
                         <span className="text-[9px] font-mono uppercase text-slate-400 block tracking-wider">Ocupación de Contenedor</span>
-                        <span className="text-base font-bold text-[#4cc9f0] mt-0.5 block">{((Number(viajeSeleccionado.peso_kg || 0) / 15000) * 100).toFixed(1)}%</span>
+                        <span className="text-base font-bold text-sky-400 mt-0.5 block">{((Number(viajeSeleccionado.peso_kg || 0) / 15000) * 100).toFixed(1)}%</span>
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-xs font-mono border-t border-slate-800/80 pt-3">
                       <div className="flex justify-between"><span className="text-slate-500">Categoría Producto:</span> <span className="text-white font-medium">{viajeSeleccionado.tipo_producto || "N/A"}</span></div>
-                      <div className="flex justify-between"><span className="text-slate-500">Volumen Ocupado:</span> <span className="text-[#4cc9f0] font-medium">{viajeSeleccionado.volumen_m3 || 0} m³</span></div>
+                      <div className="flex justify-between"><span className="text-slate-500">Volumen Ocupado:</span> <span className="text-sky-400 font-medium">{viajeSeleccionado.volumen_m3 || 0} m³</span></div>
                       <div className="flex justify-between"><span className="text-slate-500">Margen de Desvío:</span> <span className="text-white font-medium">{viajeSeleccionado.margen_desvio_km} Km</span></div>
                       <div className="flex justify-between"><span className="text-slate-500">ID Sucursal Destino:</span> <span className="text-slate-400 text-[11px] truncate w-40 text-right">{viajeSeleccionado.sucursal_destino_id || "N/A"}</span></div>
+                    </div>
+                  </div>
+                )}
+
+                {activeTab === "ai" && viajeSeleccionado && (
+                  <div className="flex flex-col h-full gap-2">
+                    <div className="flex justify-between items-center mb-1 shrink-0">
+                      <span className="text-[9px] font-mono uppercase text-slate-400 block tracking-wider">Análisis de Incidentes (Motor IA NestJS & Zep Vector Store)</span>
+                      <span className="text-[9px] px-2 py-0.5 rounded font-mono bg-slate-800 text-slate-300">{aiDiagnostics.length} Incidentes Registrados</span>
+                    </div>
+                    <div className="flex-1 overflow-y-auto space-y-3 pr-1 max-h-[175px] min-h-[175px]">
+                      {aiDiagnostics.length === 0 ? (
+                        <div className="bg-[#0f1115] border border-slate-800/60 p-4 rounded-lg flex items-center gap-3 justify-center h-full min-h-[120px]">
+                          <div className="text-center">
+                            <span className="text-xs text-emerald-400 font-bold block uppercase tracking-wider">[ ESTABLE · CANAL SEGURO ]</span>
+                            <span className="text-[10px] text-slate-500 font-mono block mt-1">No se han registrado desviaciones térmicas ni análisis de anomalías en este viaje.</span>
+                          </div>
+                        </div>
+                      ) : (
+                        aiDiagnostics.map((diag, index) => {
+                          const formattedTime = new Date(diag.timestamp_sensor).toLocaleString();
+                          return (
+                            <div key={diag.id || index} className="bg-slate-950 border border-slate-800 rounded-lg p-3 flex flex-col gap-2">
+                              <div className="flex justify-between items-center text-[10px] font-mono border-b border-slate-800 pb-1.5">
+                                <span className="text-red-500 font-bold">ALERTA: ANOMALÍA TÉRMICA DETECTADA</span>
+                                <span className="text-slate-500">{formattedTime}</span>
+                              </div>
+                              <div className="flex gap-4">
+                                <div className="text-[10px] font-mono bg-[#0f1115] border border-slate-800 p-2 rounded shrink-0 flex flex-col justify-center gap-0.5">
+                                  <div><span className="text-slate-500">Temp:</span> <span className="text-red-400 font-bold">{diag.temp}°C</span></div>
+                                  <div><span className="text-slate-500">Hum:</span> <span className="text-slate-300">{diag.humedad}%</span></div>
+                                  <div><span className="text-slate-500">Bat:</span> <span className="text-slate-400">{diag.bateria}%</span></div>
+                                </div>
+                                <div className="flex-1 bg-slate-900 border-l-2 border-slate-600 rounded p-2 text-xs text-slate-300 font-sans leading-relaxed whitespace-pre-wrap">
+                                  <div className="text-[9px] font-bold text-slate-400 tracking-wide uppercase mb-1">Diagnóstico Analítico (IA):</div>
+                                  {diag.ia_diagnosis}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
                     </div>
                   </div>
                 )}

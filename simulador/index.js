@@ -152,25 +152,46 @@ function buildSample(viaje, state) {
 	const limitMaxTemp = asNumber(viaje.limite_max_temp, 5);
 	const limitMinTemp = viaje.limite_min_temp == null ? limitMaxTemp - 3 : asNumber(viaje.limite_min_temp, limitMaxTemp - 3);
 
-	// Temperatura base del viaje
-	const baseTemp = limitMaxTemp - 1.2 + state.temperatureBias;
+	// Midpoint de la zona segura como temperatura objetivo
+	const targetTemp = (limitMinTemp + limitMaxTemp) / 2;
+	const ambientTemp = 28.0; // Temperatura exterior ambiental
 
-	// 1. Modelo de Random Walk térmico
-	// Extraer temperatura anterior del estado en memoria, o usar baseTemp al inicio
-	let temp = state.lastPayload ? state.lastPayload.temp : baseTemp;
+	// Extraer temperatura anterior del estado, o usar targetTemp al inicio
+	let temp = state.lastPayload ? state.lastPayload.temp : targetTemp;
 
-	// Fluctación de ruido ambiental aleatoria entre -0.5°C y +0.5°C
-	const noise = Math.random() * 1.0 - 0.5;
-	temp += noise;
+	// Inicializar contador de ticks de compuerta abierta en el estado si no existe
+	if (state.gateOpenTicks === undefined) {
+		state.gateOpenTicks = 0;
+	}
 
-	// 2. Simulación de Eventos Críticos Probabilísticos (Apertura de Compuerta)
-	if (runtimeState.gateOpeningEnabled !== false) {
+	// Evaluar probabilidad de apertura de compuerta (anomalía crítica) si está habilitada en UI
+	if (runtimeState.gateOpeningEnabled !== false && state.gateOpenTicks === 0) {
 		const rand = Math.random();
+		// 2% de probabilidad de que ocurra una apertura de compuerta
 		if (rand > 0.98) {
-			temp += 4.5;
-			logEvent('warn', `Simulador: Apertura de Compuerta detectada en viaje ${viaje.id}. Incremento súbito de 4.5°C.`, viaje.id);
+			state.gateOpenTicks = 4; // La compuerta se mantendrá abierta por 4 ciclos
+			logEvent('warn', `Simulador: Apertura de Compuerta detectada en viaje ${viaje.id}. Infiltración térmica externa activa.`, viaje.id);
 		}
 	}
+
+	// Coeficientes de transferencia térmica realistas
+	let heatTransferCoef = 0.02; // Coeficiente normal con contenedor sellado
+	let coolingPower = 0.18;     // Poder de enfriamiento del compresor refrigerante
+
+	if (state.gateOpenTicks > 0) {
+		// La compuerta está abierta: infiltración masiva de aire exterior cálido y compresor ineficiente
+		heatTransferCoef = 0.35;
+		coolingPower = 0.02;
+		state.gateOpenTicks -= 1;
+	}
+
+	// Ley de enfriamiento de Newton y balance termodinámico:
+	// CambioDeTemperatura = InfiltraciónCalorAmbiente + CapacidadRefrigeraciónCompresor + RuidoVibración
+	const heatLeakage = (ambientTemp - temp) * heatTransferCoef;
+	const coolingRestoration = (targetTemp - temp) * coolingPower;
+	const noise = (Math.random() - 0.5) * 0.3; // Pequeña vibración estocástica
+
+	temp += heatLeakage + coolingRestoration + noise;
 
 	// Redondear temperatura a 1 decimal
 	temp = Number(temp.toFixed(1));
@@ -502,33 +523,129 @@ function renderDashboardPage() {
 	<title>Simulador maestro</title>
 	<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
 	<style>
+		@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+
 		:root {
 			color-scheme: dark;
-			--bg: #0b0f14;
-			--panel: #131824;
-			--panel-2: #0f131b;
-			--line: #243042;
-			--text: #f8fafc;
-			--muted: #94a3b8;
-			--cyan: #4cc9f0;
-			--emerald: #22c55e;
+			--bg: #030712;
+			--panel: #0b111e;
+			--panel-2: #111827;
+			--line: #1f2937;
+			--text: #f9fafb;
+			--muted: #9ca3af;
+			--cyan: #06b6d4;
+			--emerald: #10b981;
 			--amber: #f59e0b;
-			--rose: #ef4444;
-			--violet: #8b5cf6;
+			--rose: #f43f5e;
+			--indigo: #6366f1;
 		}
 
 		* { box-sizing: border-box; }
+		
+		/* Custom scrollbar styles */
+		::-webkit-scrollbar {
+			width: 6px;
+			height: 6px;
+		}
+		::-webkit-scrollbar-track {
+			background: rgba(15, 23, 42, 0.3);
+		}
+		::-webkit-scrollbar-thumb {
+			background: rgba(148, 163, 184, 0.25);
+			border-radius: 999px;
+		}
+		::-webkit-scrollbar-thumb:hover {
+			background: var(--cyan);
+		}
+
 		body {
 			margin: 0;
 			min-height: 100vh;
 			background:
-				radial-gradient(circle at top left, rgba(76, 201, 240, 0.10), transparent 30%),
-				radial-gradient(circle at bottom right, rgba(139, 92, 246, 0.08), transparent 24%),
-				linear-gradient(180deg, #090c10, var(--bg));
+				radial-gradient(circle at 10% 20%, rgba(6, 182, 212, 0.08), transparent 40%),
+				radial-gradient(circle at 90% 80%, rgba(99, 102, 241, 0.06), transparent 40%),
+				#030712;
 			color: var(--text);
-			font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+			font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
 			overflow-x: hidden;
 			overflow-y: auto;
+			letter-spacing: -0.01em;
+		}
+
+		/* LED glow animation for active/inactive state */
+		@keyframes led-glow-green {
+			0% { box-shadow: 0 0 4px rgba(16, 185, 129, 0.4); opacity: 0.8; }
+			50% { box-shadow: 0 0 16px rgba(16, 185, 129, 0.9); opacity: 1; }
+			100% { box-shadow: 0 0 4px rgba(16, 185, 129, 0.4); opacity: 0.8; }
+		}
+		@keyframes led-glow-amber {
+			0% { box-shadow: 0 0 4px rgba(245, 158, 11, 0.4); opacity: 0.8; }
+			50% { box-shadow: 0 0 16px rgba(245, 158, 11, 0.9); opacity: 1; }
+			100% { box-shadow: 0 0 4px rgba(245, 158, 11, 0.4); opacity: 0.8; }
+		}
+		.led-indicator {
+			display: inline-block;
+			width: 10px;
+			height: 10px;
+			border-radius: 50%;
+			margin-right: 8px;
+			vertical-align: middle;
+		}
+		.led-indicator.active {
+			background: var(--emerald);
+			animation: led-glow-green 2s infinite;
+		}
+		.led-indicator.paused {
+			background: var(--amber);
+			animation: led-glow-amber 2s infinite;
+		}
+
+		/* AI Diagnostic card styles */
+		.ia-diagnosis-card {
+			margin-top: 12px;
+			padding: 14px 16px;
+			background: linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.95));
+			border-left: 4px solid var(--emerald);
+			border-top: 1px solid rgba(16, 185, 129, 0.15);
+			border-right: 1px solid rgba(16, 185, 129, 0.15);
+			border-bottom: 1px solid rgba(16, 185, 129, 0.15);
+			border-radius: 12px;
+			box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5), inset 0 0 12px rgba(16, 185, 129, 0.05);
+			color: #ffffff;
+			font-size: 13px;
+			line-height: 1.6;
+			position: relative;
+			overflow: hidden;
+		}
+		.ia-diagnosis-card::before {
+			content: "";
+			position: absolute;
+			top: 0;
+			right: 0;
+			width: 60px;
+			height: 60px;
+			background: radial-gradient(circle, rgba(16, 185, 129, 0.1), transparent 70%);
+			pointer-events: none;
+		}
+		.ia-diagnosis-header {
+			display: flex;
+			align-items: center;
+			gap: 8px;
+			color: #a7f3d0;
+			font-size: 11px;
+			font-weight: 800;
+			text-transform: uppercase;
+			letter-spacing: 0.12em;
+			margin-bottom: 8px;
+			border-bottom: 1px solid rgba(16, 185, 129, 0.15);
+			padding-bottom: 6px;
+		}
+		.ia-diagnosis-body {
+			font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+			font-weight: 400;
+			color: #f1f5f9;
+			white-space: pre-wrap;
+			word-wrap: break-word;
 		}
 
 		.topbar {
@@ -547,11 +664,11 @@ function renderDashboardPage() {
 
 		.shell {
 			width: 100%;
-			max-width: 1600px;
+			max-width: 1650px;
 			margin: 0 auto;
 			padding: 16px;
 			display: grid;
-			grid-template-columns: 320px minmax(0, 1fr);
+			grid-template-columns: 320px minmax(0, 1fr) 400px;
 			gap: 12px;
 			height: auto;
 			min-height: calc(100vh - 64px);
@@ -560,7 +677,8 @@ function renderDashboardPage() {
 		}
 
 		.sidebar,
-		.workspace {
+		.workspace-main,
+		.workspace-ai {
 			min-height: 0;
 			overflow: visible;
 		}
@@ -576,11 +694,18 @@ function renderDashboardPage() {
 			overflow: hidden;
 		}
 
-		.workspace {
-			display: grid;
-			grid-template-rows: auto auto auto;
+		.workspace-main {
+			display: flex;
+			flex-direction: column;
 			gap: 12px;
-			align-items: stretch;
+			min-width: 0;
+		}
+
+		.workspace-ai {
+			display: flex;
+			flex-direction: column;
+			gap: 12px;
+			min-width: 0;
 		}
 
 		.panel,
@@ -590,13 +715,32 @@ function renderDashboardPage() {
 			border: 1px solid rgba(148, 163, 184, 0.12);
 			border-radius: 22px;
 			box-shadow: 0 18px 40px rgba(2, 6, 23, 0.28);
+			backdrop-filter: blur(12px);
 		}
 
 		.panel { padding: 16px; min-height: 0; }
 		.stack { overflow: auto; padding: 0 10px 12px; display: grid; gap: 10px; min-height: 0; max-height: 100%; overscroll-behavior: contain; }
-		.stack-item { padding: 14px; cursor: pointer; transition: transform .16s ease, border-color .16s ease, background .16s ease; }
-		.stack-item:hover { transform: translateY(-1px); border-color: rgba(76, 201, 240, 0.28); }
-		.stack-item.active { border-color: rgba(76, 201, 240, 0.55); background: linear-gradient(180deg, rgba(76, 201, 240, 0.10), rgba(15, 19, 27, 0.96)); }
+		
+		.stack-item {
+			padding: 14px;
+			cursor: pointer;
+			transition: transform .2s cubic-bezier(0.4, 0, 0.2, 1), border-color .2s ease, background .2s ease, box-shadow .2s ease;
+			border-radius: 16px;
+			background: linear-gradient(180deg, rgba(20, 26, 40, 0.5), rgba(15, 20, 30, 0.7));
+			border: 1px solid rgba(148, 163, 184, 0.08);
+			position: relative;
+		}
+		.stack-item:hover {
+			transform: translateY(-2px);
+			border-color: rgba(6, 182, 212, 0.35);
+			background: linear-gradient(180deg, rgba(20, 26, 40, 0.7), rgba(15, 20, 30, 0.85));
+			box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+		}
+		.stack-item.active {
+			border-color: rgba(6, 182, 212, 0.6);
+			background: linear-gradient(180deg, rgba(6, 182, 212, 0.15), rgba(15, 20, 30, 0.95));
+			box-shadow: 0 0 20px rgba(6, 182, 212, 0.25);
+		}
 
 		.eyebrow {
 			text-transform: uppercase;
@@ -622,19 +766,48 @@ function renderDashboardPage() {
 		}
 
 		.btn {
-			border: 1px solid rgba(148, 163, 184, 0.18);
-			background: rgba(15, 19, 27, 0.9);
+			border: 1px solid rgba(255, 255, 255, 0.08);
+			background: rgba(17, 24, 39, 0.8);
 			color: var(--text);
-			border-radius: 14px;
-			padding: 12px 14px;
+			border-radius: 12px;
+			padding: 10px 16px;
 			font-weight: 700;
 			cursor: pointer;
-			transition: transform .16s ease, border-color .16s ease, background .16s ease;
+			transition: all .2s cubic-bezier(0.4, 0, 0.2, 1);
+			display: flex;
+			align-items: center;
+			gap: 6px;
+			font-size: 12px;
 		}
-
-		.btn:hover { transform: translateY(-1px); border-color: rgba(76, 201, 240, 0.38); }
-		.btn.primary { background: linear-gradient(135deg, #4cc9f0, #22c55e); color: #05131a; border-color: transparent; }
-		.btn.warn { background: rgba(239, 68, 68, 0.14); border-color: rgba(239, 68, 68, 0.28); }
+		.btn:hover {
+			transform: translateY(-2px);
+			border-color: var(--cyan);
+			background: rgba(17, 24, 39, 0.95);
+			box-shadow: 0 4px 12px rgba(6, 182, 212, 0.15);
+		}
+		.btn:active {
+			transform: translateY(0);
+		}
+		.btn.primary {
+			background: linear-gradient(135deg, var(--cyan), var(--indigo));
+			color: #ffffff;
+			border-color: transparent;
+			box-shadow: 0 4px 15px rgba(6, 182, 212, 0.2);
+		}
+		.btn.primary:hover {
+			background: linear-gradient(135deg, #22d3ee, #818cf8);
+			box-shadow: 0 6px 20px rgba(6, 182, 212, 0.3);
+		}
+		.btn.warn {
+			background: rgba(239, 68, 68, 0.1);
+			border-color: rgba(239, 68, 68, 0.3);
+			color: #fca5a5;
+		}
+		.btn.warn:hover {
+			background: rgba(239, 68, 68, 0.2);
+			border-color: #f87171;
+			box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
+		}
 
 		.tag {
 			display: inline-flex;
@@ -699,7 +872,6 @@ function renderDashboardPage() {
 
 		.two-cols > * { min-height: 0; }
 		.map-svg, .chart-svg { width: 100%; height: 100%; display: block; }
-		.map-wrap,
 		.map-wrap {
 			flex: 1;
 			min-height: 0;
@@ -815,11 +987,14 @@ function renderDashboardPage() {
 
 		.feed-card {
 			overflow: hidden;
-			max-height: calc(100vh - 260px);
+			min-height: 200px;
+			max-height: calc(100vh - 100px);
+			display: flex;
+			flex-direction: column;
 		}
 
 		.feed-list {
-			overflow: auto;
+			overflow-y: auto;
 			display: grid;
 			gap: 10px;
 			max-height: 100%;
@@ -827,7 +1002,18 @@ function renderDashboardPage() {
 			flex: 1;
 			overscroll-behavior: contain;
 		}
-		.feed-item { padding: 12px; border-radius: 16px; background: rgba(7, 10, 16, 0.42); border: 1px solid rgba(148, 163, 184, 0.10); }
+		.feed-item {
+			padding: 14px;
+			border-radius: 18px;
+			background: linear-gradient(135deg, rgba(15, 23, 42, 0.5), rgba(30, 41, 59, 0.4));
+			border: 1px solid rgba(148, 163, 184, 0.08);
+			box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+			transition: border-color 0.2s ease, box-shadow 0.2s ease;
+		}
+		.feed-item:hover {
+			border-color: rgba(148, 163, 184, 0.18);
+			box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+		}
 		.feed-item strong { display: block; font-size: 13px; }
 		.feed-item small { display: block; margin-top: 6px; color: var(--muted); }
 
@@ -859,6 +1045,18 @@ function renderDashboardPage() {
 			transform: translateX(20px);
 		}
 
+		/* Operational guide styles */
+		.operational-guide {
+			background: linear-gradient(180deg, rgba(19, 24, 36, 0.98), rgba(9, 13, 24, 0.98));
+			border: 1px solid rgba(6, 182, 212, 0.2);
+			box-shadow: 0 8px 32px rgba(6, 182, 212, 0.05);
+			transition: border-color 0.3s ease, box-shadow 0.3s ease;
+		}
+		.operational-guide:hover {
+			border-color: rgba(6, 182, 212, 0.35);
+			box-shadow: 0 8px 32px rgba(6, 182, 212, 0.1);
+		}
+
 		@media (max-width: 1400px) {
 			.shell { grid-template-columns: 300px minmax(0, 1fr); }
 		}
@@ -887,7 +1085,10 @@ function renderDashboardPage() {
 	<header class="topbar">
 		<div>
 			<div class="eyebrow">Simulador maestro</div>
-			<div class="muted" id="connectionState">Conectando con backend...</div>
+			<div class="muted" id="connectionState" style="display:flex; align-items:center;">
+				<span class="led-indicator active" id="ledStatus"></span>
+				<span id="connectionText">Conectando con backend...</span>
+			</div>
 		</div>
 		<div class="controls" style="grid-template-columns: repeat(4, auto); margin-top:0;">
 			<button id="toggleBtn" class="btn primary">Pausar</button>
@@ -926,68 +1127,103 @@ function renderDashboardPage() {
 			</div>
 		</aside>
 
-		<section class="workspace">
-			<section class="card">
+		<!-- COLUMNA 2: GEOMETRÍA Y TERMODINÁMICA (CENTRAL) -->
+		<section class="workspace-main" style="display:flex; flex-direction:column; gap:12px; min-width:0; flex:1;">
+			<!-- Banner de Viaje Seleccionado -->
+			<section class="card" style="padding:16px;">
 				<div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;">
 					<div>
-						<div class="eyebrow">Vista operativa</div>
-						<h2 style="margin:8px 0 0;font-size:2rem;" id="selectedTitle">Sin viaje seleccionado</h2>
-						<p class="muted" id="selectedSubtitle" style="margin:8px 0 0;">La telemetría aparecerá aquí cuando el simulador seleccione un viaje en curso.</p>
+						<div class="eyebrow" style="color:var(--cyan); font-weight:800; letter-spacing:0.25em;">Monitoreo de Geometría y Trayecto</div>
+						<h2 style="margin:8px 0 0;font-size:1.8rem; font-weight:800; color:#fff;" id="selectedTitle">Sin viaje seleccionado</h2>
+						<p class="muted" id="selectedSubtitle" style="margin:8px 0 0; font-size:12px;">La telemetría aparecerá aquí cuando el simulador seleccione un viaje en curso.</p>
 					</div>
 					<div style="display:flex;gap:8px;flex-wrap:wrap;">
 						<span class="tag osrm" id="previewTag">OSRM</span>
 						<span class="tag" id="stateTag">activo</span>
 					</div>
 				</div>
-				<div class="metrics">
-					<div class="metric"><span>Temp actual</span><strong id="tempNow">-</strong></div>
-					<div class="metric"><span>Humedad</span><strong id="humidityNow">-</strong></div>
-					<div class="metric"><span>Batería</span><strong id="batteryNow">-</strong></div>
-					<div class="metric"><span>Lecturas backend</span><strong id="telemetryCount">-</strong></div>
+			</section>
+
+			<!-- Mapa OSRM Leaflet -->
+			<section class="map-card" style="flex:1; min-height: 400px; max-height: 520px; display:flex; flex-direction:column;">
+				<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px;">
+					<div>
+						<div class="eyebrow">Mapa de Ruta Activa</div>
+						<div class="muted" style="font-size:11px;">Posicionamiento OSRM y avance en tiempo real</div>
+					</div>
+					<div class="tag" id="routeSourceTag">fallback</div>
+				</div>
+				<div class="map-wrap" id="mapWrap" style="flex:1; min-height:0;"><div class="empty">Selecciona un viaje para ver la ruta.</div></div>
+			</section>
+
+			<!-- Gráfica Térmica -->
+			<section class="chart-card" style="height: 290px; shrink: 0; display:flex; flex-direction:column;">
+				<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:8px;">
+					<div>
+						<div class="eyebrow">Gráfica Térmica del Sensor</div>
+						<div class="muted" style="font-size:11px;">Evolución de temperatura y zona segura de carga</div>
+					</div>
+					<div class="tag" id="rangeTag">Zona segura</div>
+				</div>
+				<div class="chart-wrap" id="chartWrap" style="flex:1; min-height:0;"><div class="empty">Sin datos todavía.</div></div>
+			</section>
+		</section>
+
+		<!-- COLUMNA 3: COGNICIÓN E INTEGRACIÓN IA (DERECHA) -->
+		<aside class="workspace-ai" style="width: 400px; display:flex; flex-direction:column; gap:12px; shrink: 0;">
+			<!-- Telemetría actual instantánea -->
+			<section class="card" style="padding:16px;">
+				<div class="eyebrow" style="color:var(--emerald); font-weight:800; letter-spacing:0.25em; margin-bottom:10px;">Análisis Analítico de Telemetría (IA)</div>
+				<div class="metrics" style="grid-template-columns: repeat(2, 1fr); gap: 10px;">
+					<div class="metric" style="padding:10px 12px; border-radius:14px;">
+						<span style="font-size:9px; letter-spacing:0.15em;">Temp actual</span>
+						<strong id="tempNow" style="font-size:1.3rem; margin-top:4px;">-</strong>
+					</div>
+					<div class="metric" style="padding:10px 12px; border-radius:14px;">
+						<span style="font-size:9px; letter-spacing:0.15em;">Humedad</span>
+						<strong id="humidityNow" style="font-size:1.3rem; margin-top:4px;">-</strong>
+					</div>
+					<div class="metric" style="padding:10px 12px; border-radius:14px;">
+						<span style="font-size:9px; letter-spacing:0.15em;">Batería</span>
+						<strong id="batteryNow" style="font-size:1.3rem; margin-top:4px;">-</strong>
+					</div>
+					<div class="metric" style="padding:10px 12px; border-radius:14px;">
+						<span style="font-size:9px; letter-spacing:0.15em;">Lecturas</span>
+						<strong id="telemetryCount" style="font-size:1.3rem; margin-top:4px;">-</strong>
+					</div>
 				</div>
 			</section>
 
-			<div class="main-grid">
-				<div class="main-stack">
-					<section class="map-card">
-						<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px;">
-							<div>
-								<div class="eyebrow">Mapa OSRM</div>
-								<div class="muted">Ruta, posición y avance del vehículo</div>
-							</div>
-							<div class="tag" id="routeSourceTag">fallback</div>
-						</div>
-						<div class="map-wrap" id="mapWrap"><div class="empty">Selecciona un viaje para ver la ruta.</div></div>
-					</section>
-
-					<section class="chart-card">
-						<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px;">
-							<div>
-								<div class="eyebrow">Gráfica térmica</div>
-								<div class="muted">Lecturas recibidas e interpretación del backend</div>
-							</div>
-							<div class="tag" id="rangeTag">Zona segura</div>
-						</div>
-						<div class="chart-wrap" id="chartWrap"><div class="empty">Sin datos todavía.</div></div>
-					</section>
-				</div>
-
-				<section class="feed-card">
-					<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;">
-						<div>
-							<div class="eyebrow">Telemetría interpretada</div>
-							<div class="muted" id="backendSummary">Sin información del backend.</div>
-						</div>
-						<div class="muted" id="lastTick">Sin tick aún.</div>
+			<!-- Alertas y diagnósticos de Zep & Groq -->
+			<section class="feed-card" style="flex:1; min-height: 480px; display:flex; flex-direction:column;">
+				<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap; margin-bottom:10px;">
+					<div>
+						<div class="eyebrow">Diagnósticos de Anomalía</div>
+						<div class="muted" id="backendSummary" style="font-size:11px;">Sin información del backend.</div>
 					</div>
-					<div class="feed-list" id="feedList"></div>
-				</section>
-			</div>
-		</section>
+					<div class="muted" id="lastTick" style="font-size:10px;">Sin tick aún.</div>
+				</div>
+				<div class="feed-list" id="feedList" style="flex:1; overflow-y:auto; min-height:0;"></div>
+			</section>
+		</aside>
 	</div>
 
 	<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 	<script>
+		function toggleGuide() {
+			const content = document.getElementById('guideContent');
+			const arrow = document.getElementById('guideArrow');
+			if (content && arrow) {
+				if (content.style.display === 'none') {
+					content.style.display = 'grid';
+					arrow.style.transform = 'rotate(180deg)';
+				} else {
+					content.style.display = 'none';
+					arrow.style.transform = 'rotate(0deg)';
+				}
+			}
+		}
+
 		const apiStateUrl = '/api/state';
 		const toggleBtn = document.getElementById('toggleBtn');
 		const gateToggle = document.getElementById('gateToggle');
@@ -1021,6 +1257,8 @@ function renderDashboardPage() {
 		let leafletTripId = null;
 		let leafletMapReady = false;
 		let renderedMapTripId = null;
+		let isUserInteractingMap = false;
+		let lastRoutePoints = [];
 
 		function escapeHtml(value) {
 			return String(value ?? '')
@@ -1133,12 +1371,13 @@ function renderDashboardPage() {
 				return '<div class="empty">No hay geometría suficiente para dibujar la ruta.</div>';
 			}
 			const status = simulation?.status || detail?.viaje?.estado || 'activo';
-			return '<div class="map-shell">'
+			return '<div class="map-shell" style="position: relative;">'
 				+ '<div class="map-hud">'
 				+ '<span class="tag osrm">Mapa real · Arrastra y haz zoom</span>'
 				+ '<span class="tag ' + (status === 'alerta' ? 'alerta' : 'activo') + '">' + escapeHtml(status) + '</span>'
 				+ '</div>'
 				+ '<div class="leaflet-map" id="leafletMap"></div>'
+				+ '<button id="resetMapCam" style="display: none; position: absolute; bottom: 80px; right: 10px; z-index: 1000; background: rgba(19, 24, 36, 0.9); border: 1px solid var(--cyan); backdrop-filter: blur(10px); color: var(--cyan); font-weight: 700; padding: 10px 14px; border-radius: 14px; cursor: pointer; font-size: 12px; transition: transform 0.15s ease, background 0.15s ease; box-shadow: 0 4px 12px rgba(0,0,0,0.5);" onmouseover="this.style.transform=\'translateY(-1px)\'" onmouseout="this.style.transform=\'none\'">Volver al camión</button>'
 				+ '<div class="map-banner" id="mapBanner"><strong>' + escapeHtml(status === 'alerta' ? 'Alerta térmica' : 'Ruta activa') + '.</strong> Usa la rueda o arrastra el mapa para inspeccionar la ruta.</div>'
 				+ '<div class="map-legend" aria-label="Leyenda del mapa">'
 				+ '<div class="legend-row"><span class="legend-dot route"></span>Ruta activa</div>'
@@ -1185,10 +1424,26 @@ function renderDashboardPage() {
 				leafletLayer = window.L.layerGroup().addTo(leafletMap);
 				leafletMapReady = true;
 				leafletTripId = null;
+
+				// Registrar listeners de interacción del usuario
+				leafletMap.on('dragstart', () => {
+					isUserInteractingMap = true;
+					const resetBtn = document.getElementById('resetMapCam');
+					if (resetBtn) resetBtn.style.display = 'block';
+				});
+
+				leafletMap.on('zoomstart', () => {
+					isUserInteractingMap = true;
+					const resetBtn = document.getElementById('resetMapCam');
+					if (resetBtn) resetBtn.style.display = 'block';
+				});
 			}
 
 			if (!leafletLayer) return;
 			leafletLayer.clearLayers();
+
+			// Actualizar última ruta para recentrar de forma manual
+			lastRoutePoints = route;
 
 			const bounds = window.L.latLngBounds(route);
 			window.L.polyline(route, {
@@ -1266,8 +1521,13 @@ function renderDashboardPage() {
 			if (selectedTripId && selectedTripId !== leafletTripId) {
 				leafletMap.fitBounds(bounds.pad(0.2), { animate: true });
 				leafletTripId = selectedTripId;
-			} else if (selectedTripId && leafletMapReady && !leafletMap.getBounds().contains(bounds)) {
-				leafletMap.fitBounds(bounds.pad(0.1), { animate: false });
+				isUserInteractingMap = false;
+				const resetBtn = document.getElementById('resetMapCam');
+				if (resetBtn) resetBtn.style.display = 'none';
+			} else if (selectedTripId && leafletMapReady && !isUserInteractingMap) {
+				if (!leafletMap.getBounds().contains(bounds)) {
+					leafletMap.fitBounds(bounds.pad(0.1), { animate: false });
+				}
 			}
 		}
 
@@ -1316,20 +1576,35 @@ function renderDashboardPage() {
 				return '<div class="empty">El backend aún no ha devuelto telemetría para este viaje.</div>';
 			}
 
+			// Utilidad para convertir saltos de línea \n en etiquetas <br/>
+			const formatNewlines = (text) => {
+				return String(text ?? '').replaceAll('\n', '<br/>');
+			};
+
 			return telemetry.slice(0, 8).map((point) => {
 				const breach = Number(point.temp) > Number(detail?.viaje?.limite_max_temp ?? 0) || Number(point.temp) < Number(detail?.viaje?.limite_min_temp ?? 0);
 				
+				const telemetryLine = '<div style="color: #94a3b8; font-size: 11px; margin-top: 4px; margin-bottom: 2px;">'
+					+ 'Temp: ' + formatNumber(point.temp) + '°C · Hum: ' + formatNumber(point.humedad) + '% · Bat: ' + formatNumber(point.bateria, 0) + '%'
+					+ '</div>';
+
 				const iaBlock = point.ia_diagnosis
-					? '<div style="margin-top: 8px; padding: 10px; background: rgba(139, 92, 246, 0.15); border-left: 3px solid #8b5cf6; border-radius: 6px; color: #e2e8f0; font-size: 12px; font-style: italic;">'
-						+ '<strong style="color: #c4b5fd; display: block; margin-bottom: 4px;">Zep & Groq Insight:</strong>'
-						+ escapeHtml(point.ia_diagnosis)
+					? '<div class="ia-diagnosis-card">'
+						+ '<div class="ia-diagnosis-header">'
+						+ '<span>DIAGNÓSTICO AUTOMATIZADO DE INCIDENTE (IA)</span>'
+						+ '</div>'
+						+ '<div class="ia-diagnosis-body">'
+						+ formatNewlines(escapeHtml(point.ia_diagnosis))
+						+ '</div>'
 						+ '</div>'
 					: '';
 
-				return '<div class="feed-item">'
+				return '<div class="feed-item" style="margin-bottom: 10px; padding: 14px;">'
+					+ '<div style="display:flex; justify-content:space-between; align-items: flex-start;">'
 					+ '<strong>' + (breach ? 'Incidente detectado' : 'Telemetría recibida') + '</strong>'
-					+ '<small>' + formatDate(point.timestamp_sensor) + '</small>'
-					+ '<small>Temp: ' + formatNumber(point.temp) + '°C · Hum: ' + formatNumber(point.humedad) + '% · Bat: ' + formatNumber(point.bateria, 0) + '%</small>'
+					+ '<small style="color: var(--muted); font-size: 11px;">' + formatDate(point.timestamp_sensor) + '</small>'
+					+ '</div>'
+					+ telemetryLine
 					+ iaBlock
 					+ '</div>';
 			}).join('');
@@ -1380,7 +1655,21 @@ function renderDashboardPage() {
 			lastSync.textContent = formatDate(state.lastSyncAt);
 			lastTick.textContent = state.lastTickAt ? 'Último tick: ' + formatDate(state.lastTickAt) : 'Sin tick aún.';
 			statusText.textContent = state.paused ? 'Simulación pausada' : 'Simulación activa';
-			connectionState.textContent = state.paused ? 'Worker detenido' : 'Worker ejecutándose';
+			
+			const led = document.getElementById('ledStatus');
+			const connText = document.getElementById('connectionText');
+			if (led && connText) {
+				if (state.paused) {
+					led.className = 'led-indicator paused';
+					connText.textContent = 'Worker detenido';
+				} else {
+					led.className = 'led-indicator active';
+					connText.textContent = 'Worker ejecutándose';
+				}
+			} else {
+				connectionState.textContent = state.paused ? 'Worker detenido' : 'Worker ejecutándose';
+			}
+			
 			toggleBtn.textContent = state.paused ? 'Reanudar' : 'Pausar';
 
 			tripList.innerHTML = renderTrips(state);
@@ -1454,6 +1743,17 @@ function renderDashboardPage() {
 			if (!tripId) return;
 			await postJson('/api/simulation/select', { viajeId: tripId });
 			await refreshState();
+		});
+
+		mapWrap.addEventListener('click', (event) => {
+			if (event.target.id === 'resetMapCam') {
+				isUserInteractingMap = false;
+				const btn = document.getElementById('resetMapCam');
+				if (btn) btn.style.display = 'none';
+				if (leafletMap && lastRoutePoints.length > 0) {
+					leafletMap.fitBounds(window.L.latLngBounds(lastRoutePoints), { animate: true });
+				}
+			}
 		});
 
 		toggleBtn.addEventListener('click', async () => {
