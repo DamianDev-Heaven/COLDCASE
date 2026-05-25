@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
+import { ZepGraphSearchResult } from './zep-memory.service';
 import {
   IaAnalysisService,
   AnalisisResultado,
@@ -98,7 +99,7 @@ export class IaService {
   /**
    * Realiza una búsqueda directa en el Grafo Global de Zep y retorna nodos y aristas.
    */
-  buscarEnGrafoGlobal(query: string): Promise<any> {
+  buscarEnGrafoGlobal(query: string): Promise<ZepGraphSearchResult> {
     return this.iaAnalysisService.buscarEnGrafoGlobal(query);
   }
 }

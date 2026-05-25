@@ -2,7 +2,7 @@ import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Groq from 'groq-sdk';
 import { DbService } from '../db/db.service';
-import { ZepMemoryService } from './zep-memory.service';
+import { ZepMemoryService, ZepGraphSearchResult } from './zep-memory.service';
 import type {
   AnalisisIaResultado,
   AnalisisIaRow,
@@ -1202,7 +1202,7 @@ Por favor, genera la auditoría del viaje en el JSON.`;
   /**
    * Realiza una búsqueda directa en el Grafo Global de Zep y retorna nodos y aristas.
    */
-  async buscarEnGrafoGlobal(query: string): Promise<any> {
+  async buscarEnGrafoGlobal(query: string): Promise<ZepGraphSearchResult> {
     try {
       return await this.zepMemory.buscarEnGrafoDirecto(query);
     } catch (error: unknown) {

@@ -1,17 +1,21 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, OnModuleDestroy } from '@nestjs/common';
 import { Pool, PoolClient, QueryResultRow } from 'pg';
 
 const DEFAULT_DB_HOST = 'localhost';
 const DEFAULT_DB_PORT = 5432;
 
 @Injectable()
-export class DbService {
+export class DbService implements OnModuleDestroy {
   private readonly pool: Pool;
 
   constructor() {
     this.pool = new Pool({
       connectionString: this.resolveConnectionString(),
     });
+  }
+
+  async onModuleDestroy() {
+    await this.pool.end();
   }
 
   query<T extends QueryResultRow = QueryResultRow>(

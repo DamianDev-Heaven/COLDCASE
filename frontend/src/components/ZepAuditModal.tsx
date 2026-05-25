@@ -14,8 +14,8 @@ interface ZepTelemetryItem {
   ia_diagnosis?: string | null;
   timestamp_sensor: string;
   temp?: number;
-  humedad?: number;
-  bateria?: number;
+  humedad?: number | null;
+  bateria?: number | null;
 }
 
 interface ZepAuditModalProps {
