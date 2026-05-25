@@ -1,9 +1,9 @@
-@import "tailwindcss";
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap");
 @import "leaflet/dist/leaflet.css";
-@import url("https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=optional");
+@import "tailwindcss";
 
 :root {
-  --background: #020617;
+  --background: #020408;
   --foreground: #e2e8f0;
 }
 
@@ -16,12 +16,13 @@
 
 body {
   background:
-    radial-gradient(circle at top, rgba(56, 189, 248, 0.08), transparent 30%),
-    radial-gradient(circle at bottom right, rgba(244, 114, 182, 0.08), transparent 25%),
+    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(34, 211, 238, 0.06), transparent),
+    radial-gradient(ellipse 60% 40% at 80% 100%, rgba(99, 102, 241, 0.05), transparent),
     var(--background);
   color: var(--foreground);
-  font-family: var(--font-geist-sans), sans-serif;
+  font-family: var(--font-geist-sans), 'Inter', sans-serif;
   text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
 }
 
 * {
@@ -44,34 +45,64 @@ textarea {
   font: inherit;
 }
 
-.material-symbols-outlined {
-  font-family: "Material Symbols Outlined";
-  font-weight: normal;
-  font-style: normal;
-  font-size: 24px;
-  line-height: 1;
-  letter-spacing: normal;
-  text-transform: none;
-  display: inline-block;
-  white-space: nowrap;
-  word-wrap: normal;
-  direction: ltr;
-  -webkit-font-feature-settings: "liga";
-  -webkit-font-smoothing: antialiased;
-  font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
-}
- /* NUEVA VERSION */
- 
 @layer utilities {
-  .bg-app-main { background-color: #0f1115; }
-  .bg-app-panel { background-color: #161920; }
-  .bg-app-map { background-color: #12141a; }
-  .border-app-border { border-color: rgba(30, 41, 59, 0.8); }
-  .text-app-primary { color: #f1f5f9; }
-  .text-app-secondary { color: #94a3b8; }
-  .text-app-accent { color: #4cc9f0; }
-  .bg-app-accent { background-color: #4cc9f0; }
-  .border-app-accent { border-color: #4cc9f0; }
+  /* Scrollbar */
   .no-scrollbar::-webkit-scrollbar { display: none; }
   .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+  /* Design tokens */
+  .bg-app-main { background-color: #020408; }
+  .bg-app-panel { background-color: rgba(15, 23, 42, 0.4); }
+  .border-app { border-color: rgba(255, 255, 255, 0.05); }
+  .text-app-primary { color: #f1f5f9; }
+  .text-app-secondary { color: #94a3b8; }
+  .text-app-accent { color: #22d3ee; }
+
+  /* Form controls */
+  .form-input {
+    width: 100%;
+    background-color: rgba(2, 4, 20, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 10px;
+    padding: 9px 12px;
+    font-size: 11px;
+    color: #e2e8f0;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    font-family: var(--font-geist-mono), monospace;
+  }
+  .form-input:focus {
+    border-color: rgba(34, 211, 238, 0.3);
+    box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.06);
+  }
+  .form-input::placeholder {
+    color: #475569;
+  }
+
+  .form-select {
+    width: 100%;
+    background-color: rgba(2, 4, 20, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 10px;
+    padding: 9px 12px;
+    font-size: 11px;
+    color: #e2e8f0;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2364748b' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 16px;
+    padding-right: 32px;
+  }
+  .form-select:focus {
+    border-color: rgba(34, 211, 238, 0.3);
+    box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.06);
+  }
+  .form-select option {
+    background-color: #0f1923;
+    color: #e2e8f0;
+  }
 }
