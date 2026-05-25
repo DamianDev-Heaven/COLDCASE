@@ -29,6 +29,24 @@ export interface ZepHistorialResult {
   messageCount: number;
 }
 
+export interface ZepGraphNode {
+  name: string;
+  type: string;
+  properties?: Record<string, unknown>;
+}
+
+export interface ZepGraphEdge {
+  fact: string;
+  source: string;
+  target: string;
+  type: string;
+}
+
+export interface ZepGraphSearchResult {
+  nodes: ZepGraphNode[];
+  edges: ZepGraphEdge[];
+}
+
 @Injectable()
 export class ZepMemoryService {
   private readonly logger = new Logger(ZepMemoryService.name);
@@ -207,6 +225,35 @@ export class ZepMemoryService {
       viajeId,
       'Anomalías y fallas previas en este viaje',
     );
+  }
+
+  /**
+   * Realiza una búsqueda directa en el Grafo de Zep retornando la respuesta en bruto (nodos y aristas).
+   */
+  async buscarEnGrafoDirecto(query: string): Promise<ZepGraphSearchResult> {
+    if (!this.zepClient) {
+      return { nodes: [], edges: [] };
+    }
+    const graphId = this.graphId;
+    try {
+      await this.ensureGraph(graphId);
+      const response = (await this.withTimeout(
+        this.zepClient.graph.search({
+          graphId,
+          query: query || 'anomalía',
+        }),
+      )) as unknown as ZepGraphSearchResult;
+      return {
+        nodes: response?.nodes || [],
+        edges: response?.edges || [],
+      };
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : String(error);
+      this.logger.warn(
+        `Zep: Fallo al realizar búsqueda directa en el grafo ${graphId}: ${msg}`,
+      );
+      return { nodes: [], edges: [] };
+    }
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

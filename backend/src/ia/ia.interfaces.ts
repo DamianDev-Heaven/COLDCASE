@@ -14,7 +14,7 @@ export type FuenteAnalisis = 'groq_llm' | 'reglas_fallback';
 // ── Entrada: datos de telemetría para el motor IA ─
 
 export interface TelemetriaInput {
-  id: number;
+  id?: number | null;
   viaje_id: string;
   lat: number | string;
   lon: number | string;
@@ -22,6 +22,10 @@ export interface TelemetriaInput {
   humedad?: number | null;
   bateria?: number | null;
   timestamp_sensor: string;
+  incidente_id?: string | null;
+  valor_pico?: number | null;
+  duracion_segundos?: number | null;
+  umbral_permitido?: number | null;
 }
 
 // ── Salida: resultado persistido en analisis_ia ───
@@ -29,7 +33,8 @@ export interface TelemetriaInput {
 export interface AnalisisIaResultado {
   id: string;
   viaje_id: string;
-  telemetria_id: number;
+  telemetria_id?: number | null;
+  incidente_id?: string | null;
   nivel_riesgo: NivelRiesgo;
   diagnostico_tecnico: string;
   accion_mitigacion: string;
@@ -43,7 +48,8 @@ export interface AnalisisIaResultado {
 export interface AnalisisIaRow {
   id: string;
   viaje_id: string;
-  telemetria_id: number;
+  telemetria_id?: number | null;
+  incidente_id?: string | null;
   nivel_riesgo: string;
   diagnostico_tecnico: string;
   accion_mitigacion: string;

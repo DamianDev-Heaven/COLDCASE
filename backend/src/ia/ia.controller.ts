@@ -78,4 +78,13 @@ export class IaController {
   obtenerEstadoCola() {
     return this.iaService.getQueueStatus();
   }
+
+  /**
+   * GET /ia/grafo/buscar
+   * Realiza una búsqueda directa en el Grafo Global de Zep y retorna nodos y aristas.
+   */
+  @Get('grafo/buscar')
+  buscarEnGrafo(@Query('query') query: string) {
+    return this.iaService.buscarEnGrafoGlobal(query);
+  }
 }

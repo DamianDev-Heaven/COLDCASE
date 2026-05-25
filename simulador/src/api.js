@@ -136,9 +136,10 @@ async function buildDashboardSnapshot(API_URL, runtimeState, simulationMap, seri
 
 	const selectedDetail = await buildTripDetail(selectedTripId, API_URL);
 
-	let queueMetrics = { isPaused: false, waiting: 0, active: 0, completed: 0, failed: 0 };
+	let queueMetrics = { isPaused: false, waiting: 0, active: 0, completed: 0, failed: 0, redisConnected: false };
 	try {
 		const statusRes = await fetch(`${API_URL}/ia/queue/status`);
+		if (!statusRes.ok) throw new Error('Status request failed');
 		const status = await statusRes.json();
 		queueMetrics = {
 			isPaused: !!status.isPaused,
@@ -146,9 +147,10 @@ async function buildDashboardSnapshot(API_URL, runtimeState, simulationMap, seri
 			active: Number(status.active ?? 0),
 			completed: Number(status.completed ?? 0),
 			failed: Number(status.failed ?? 0),
+			redisConnected: true,
 		};
 	} catch (err) {
-		// Ignorar si el backend no está disponible todavía
+		queueMetrics.redisConnected = false;
 	}
 
 	return {

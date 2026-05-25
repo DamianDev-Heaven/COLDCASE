@@ -21,12 +21,14 @@ interface AiInsightsPanelProps {
   viaje: ZepAuditViaje | null;
   telemetryList: TelemetryPoint[];
   apiUrl: string;
+  onOpenZepModal?: () => void;
 }
 
 export default function AiInsightsPanel({
   viaje,
   telemetryList,
   apiUrl,
+  onOpenZepModal,
 }: AiInsightsPanelProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -163,7 +165,7 @@ export default function AiInsightsPanel({
         {/* PARTE INFERIOR: ACCIONES */}
         <div className="pt-4 border-t border-white/5 shrink-0">
           <button
-            onClick={() => setIsModalOpen(true)}
+            onClick={onOpenZepModal || (() => setIsModalOpen(true))}
             className="w-full bg-slate-900/60 hover:bg-slate-950 border border-white/10 hover:border-cyan-500/40 text-white py-2 px-4 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition-all duration-300 shadow cursor-pointer"
           >
             <Search className="w-3.5 h-3.5" />
@@ -175,7 +177,7 @@ export default function AiInsightsPanel({
 
       {/* EMBEDDED MODAL */}
       <ZepAuditModal
-        isOpen={isModalOpen}
+        isOpen={onOpenZepModal ? false : isModalOpen}
         onClose={() => setIsModalOpen(false)}
         viaje={viaje}
         telemetryList={telemetryList}

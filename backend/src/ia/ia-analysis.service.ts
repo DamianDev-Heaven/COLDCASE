@@ -2,7 +2,7 @@ import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Groq from 'groq-sdk';
 import { DbService } from '../db/db.service';
-import { ZepMemoryService } from './zep-memory.service';
+import { ZepMemoryService, ZepGraphSearchResult } from './zep-memory.service';
 import type {
   AnalisisIaResultado,
   AnalisisIaRow,
@@ -69,7 +69,7 @@ type Point = { lat: number; lon: number };
 interface SemanticTelemetryInput {
   viaje_id?: string;
   viajeId?: string;
-  id?: string | number;
+  id?: string | number | null;
   temp?: string | number;
   temperaturaActual?: string | number;
   limite_max_temp?: string | number;
@@ -82,6 +82,10 @@ interface SemanticTelemetryInput {
   longitudActual?: string | number;
   timestamp_sensor?: string | number;
   received_at?: string | number;
+  incidente_id?: string | null;
+  valor_pico?: number | string | null;
+  duracion_segundos?: number | string | null;
+  umbral_permitido?: number | string | null;
 }
 
 @Injectable()
@@ -668,7 +672,8 @@ export class IaAnalysisService {
 
     const registro = await this.persistirAnalisis({
       viaje_id: viajeId,
-      telemetria_id: telemetriaActual.id,
+      telemetria_id: telemetriaActual.id ?? null,
+      incidente_id: telemetriaActual.incidente_id ?? null,
       nivel_riesgo,
       diagnostico_tecnico,
       accion_mitigacion,
@@ -684,7 +689,8 @@ export class IaAnalysisService {
     this.zepMemory
       .guardarInteraccion(viajeId, semanticText, {
         viaje_id: viajeId,
-        telemetria_id: telemetriaActual.id,
+        telemetria_id: telemetriaActual.id ?? null,
+        incidente_id: telemetriaActual.incidente_id ?? null,
         fuente,
       })
       .catch((err: unknown) => {
@@ -823,6 +829,16 @@ export class IaAnalysisService {
       `Coordenadas GPS: ${coordenadas}`,
       `Diagnóstico emitido por IA: ${iaDiagnosis}`,
     ];
+
+    if (telemetry.incidente_id) {
+      partes.push(
+        `[DETALLES DE LA EXCURSIÓN TÉRMICA]`,
+        `Incidente ID: ${telemetry.incidente_id}`,
+        `Temperatura Pico: ${telemetry.valor_pico ?? temp}°C`,
+        `Umbral Permitido: ${telemetry.umbral_permitido ?? limiteMax}°C`,
+        `Duración de la Excursión: ${telemetry.duracion_segundos ?? 'N/A'} segundos`,
+      );
+    }
 
     return partes.join('\n');
   }
@@ -999,7 +1015,8 @@ export class IaAnalysisService {
 
   private async persistirAnalisis(data: {
     viaje_id: string;
-    telemetria_id: number;
+    telemetria_id?: number | null;
+    incidente_id?: string | null;
     nivel_riesgo: NivelRiesgo;
     diagnostico_tecnico: string;
     accion_mitigacion: string;
@@ -1012,13 +1029,14 @@ export class IaAnalysisService {
 
     const result = await this.db.query<AnalisisIaRow>(
       `INSERT INTO analisis_ia
-         (viaje_id, telemetria_id, nivel_riesgo, diagnostico_tecnico, accion_mitigacion, fuente, version_modelo)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
-       RETURNING id, viaje_id, telemetria_id, nivel_riesgo, diagnostico_tecnico,
+         (viaje_id, telemetria_id, incidente_id, nivel_riesgo, diagnostico_tecnico, accion_mitigacion, fuente, version_modelo)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       RETURNING id, viaje_id, telemetria_id, incidente_id, nivel_riesgo, diagnostico_tecnico,
                  accion_mitigacion, fuente, version_modelo, created_at`,
       [
         data.viaje_id,
-        data.telemetria_id,
+        data.telemetria_id ?? null,
+        data.incidente_id ?? null,
         data.nivel_riesgo,
         data.diagnostico_tecnico,
         data.accion_mitigacion,
@@ -1179,5 +1197,18 @@ Por favor, genera la auditoría del viaje en el JSON.`;
     // únicamente hechos relevantes para este trayecto específico.
     const enrichedQuery = `Viaje ${viajeId}: ${query ?? 'anomalías térmicas y alertas operativas'}`;
     return this.zepMemory.recuperarContextoGlobal(viajeId, enrichedQuery);
+  }
+
+  /**
+   * Realiza una búsqueda directa en el Grafo Global de Zep y retorna nodos y aristas.
+   */
+  async buscarEnGrafoGlobal(query: string): Promise<ZepGraphSearchResult> {
+    try {
+      return await this.zepMemory.buscarEnGrafoDirecto(query);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Error en búsqueda de grafo global: ${message}`);
+      return { nodes: [], edges: [] };
+    }
   }
 }

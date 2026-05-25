@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import RouteMap from "@/components/RouteMap";
 import AiInsightsPanel from "@/components/AiInsightsPanel";
 import TelemetryChart from "@/components/TelemetryChart";
+import ZepAuditModal from "@/components/ZepAuditModal";
 import {
   Activity,
   History,
@@ -16,6 +17,7 @@ import {
   X,
   Truck,
   ChevronDown,
+  Network,
 } from "lucide-react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
@@ -86,6 +88,7 @@ interface UserSession {
 }
 
 export default function DashboardV2() {
+  const hasSelectedManually = useRef(false);
   const [viajes, setViajes] = useState<Viaje[]>([]);
   const [sucursales, setSucursales] = useState<Sucursal[]>([]);
   const [transportes, setTransportes] = useState<Transporte[]>([]);
@@ -96,10 +99,11 @@ export default function DashboardV2() {
 
   const [activeTab, setActiveTab] = useState<"overview" | "timeline">("overview");
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isZepModalOpen, setIsZepModalOpen] = useState(false);
   const [telemetryList, setTelemetryList] = useState<TelemetryPoint[]>([]);
 
   const [sidebarExpanded, setSidebarExpanded] = useState(false);
-  const [currentView, setCurrentView] = useState<"overview" | "compliance">("overview");
+  const [currentView, setCurrentView] = useState<"overview" | "compliance" | "graph-explorer">("overview");
   const [searchQuery, setSearchQuery] = useState("");
   const [isTelemetryLoading, setIsTelemetryLoading] = useState(false);
   const [currentUser, setCurrentUser] = useState<UserSession | null>(null);
@@ -410,6 +414,7 @@ export default function DashboardV2() {
       if (!response.ok) throw new Error("Error en la respuesta del servidor NestJS");
       const nuevoViaje = await response.json();
       setViajes((current) => [nuevoViaje, ...current]);
+      hasSelectedManually.current = true;
       setViajeSeleccionado(nuevoViaje);
       setIsModalOpen(false);
       resetModalForm();
@@ -430,6 +435,7 @@ export default function DashboardV2() {
       }
       const actualizado = await res.json();
       setViajes((cur) => cur.map((v) => (v.id === actualizado.id ? actualizado : v)));
+      hasSelectedManually.current = true;
       setViajeSeleccionado(actualizado);
     } catch (error) {
       console.error("Error iniciando viaje:", error);
@@ -453,8 +459,14 @@ export default function DashboardV2() {
         setViajes(data);
         setTransportes(transportesData);
         setSucursales(Array.isArray(sucursalesData) ? sucursalesData : []);
-        if (data.length > 0 && !viajeSeleccionado) {
-          setViajeSeleccionado(data[0]);
+        if (data.length > 0) {
+          setViajeSeleccionado((current) => {
+            if (current) {
+              const updated = data.find((v: Viaje) => v.id === current.id);
+              return updated || current;
+            }
+            return hasSelectedManually.current ? current : data[0];
+          });
         }
       } catch (error) {
         console.error("Error cargando variables reales:", error);
@@ -465,7 +477,6 @@ export default function DashboardV2() {
     cargarViajes();
     const interval = setInterval(cargarViajes, 5000);
     return () => clearInterval(interval);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -522,7 +533,7 @@ export default function DashboardV2() {
 
       {/* ── TOPBAR ─────────────────────────────────────────────────────────── */}
       <header
-        className={`bg-slate-950/80 backdrop-blur-2xl border-b border-white/[0.05] fixed top-0 right-0 z-20 flex justify-between items-center px-5 h-14 transition-all duration-300 ease-in-out ${
+        className={`bg-[#0d0f14] border-b border-white/[0.05] fixed top-0 right-0 z-20 flex justify-between items-center px-5 h-14 transition-[left] duration-300 ease-in-out ${
           sidebarExpanded ? "left-[240px]" : "left-[64px]"
         }`}
       >
@@ -564,7 +575,7 @@ export default function DashboardV2() {
         <nav
           onMouseEnter={() => setSidebarExpanded(true)}
           onMouseLeave={() => setSidebarExpanded(false)}
-          className={`bg-slate-950/90 backdrop-blur-2xl border-r border-white/[0.05] fixed left-0 top-0 h-full z-30 flex flex-col pt-14 pb-4 transition-all duration-300 ease-in-out ${
+          className={`bg-[#0d0f14] border-r border-white/[0.05] fixed left-0 top-0 h-full z-30 flex flex-col pt-14 pb-4 transition-[width,padding] duration-300 ease-in-out ${
             sidebarExpanded ? "w-[240px] px-3" : "w-[64px] px-2.5 items-center"
           }`}
         >
@@ -590,6 +601,7 @@ export default function DashboardV2() {
             )}
             <NavItem icon={Activity} label="Monitoreo Activo" view="overview" currentView={currentView} sidebarExpanded={sidebarExpanded} onNavigate={setCurrentView} />
             <NavItem icon={History} label="Historial y Compliance" view="compliance" currentView={currentView} sidebarExpanded={sidebarExpanded} onNavigate={setCurrentView} />
+            <NavItem icon={Network} label="Explorador de Grafo" view="graph-explorer" currentView={currentView} sidebarExpanded={sidebarExpanded} onNavigate={setCurrentView} />
           </div>
 
           {/* Session profile */}
@@ -631,7 +643,7 @@ export default function DashboardV2() {
 
         {/* ── CONTENT AREA ─────────────────────────────────────────────────── */}
         {currentView === "overview" ? (
-          <main className={`flex-1 flex p-3 gap-3 overflow-hidden h-full transition-all duration-300 ease-in-out ${sidebarExpanded ? "ml-[240px]" : "ml-[64px]"}`}>
+          <main className={`flex-1 flex p-3 gap-3 overflow-hidden h-full transition-[margin-left] duration-300 ease-in-out ${sidebarExpanded ? "ml-[240px]" : "ml-[64px]"}`}>
 
             {/* Lista lateral activos */}
             <aside className="w-[290px] h-full flex flex-col bg-slate-900/30 backdrop-blur-xl border border-white/[0.05] hover:border-cyan-500/10 rounded-2xl overflow-hidden shrink-0 shadow-2xl transition-colors duration-500">
@@ -643,7 +655,7 @@ export default function DashboardV2() {
               </div>
               <div className="flex-1 overflow-y-auto p-2.5 space-y-2 no-scrollbar">
                 {viajesActivos.map((viaje) => (
-                  <ViajeCard key={viaje.id} viaje={viaje} isSelected={viajeSeleccionado?.id === viaje.id} isSubmitting={isSubmitting} onSelect={setViajeSeleccionado} onIniciar={handleIniciarViaje} />
+                  <ViajeCard key={viaje.id} viaje={viaje} isSelected={viajeSeleccionado?.id === viaje.id} isSubmitting={isSubmitting} onSelect={(v) => { hasSelectedManually.current = true; setViajeSeleccionado(v); }} onIniciar={handleIniciarViaje} />
                 ))}
                 {viajesActivos.length === 0 && (
                   <div className="text-center p-8 text-slate-600 text-[11px] font-mono leading-relaxed">
@@ -736,13 +748,13 @@ export default function DashboardV2() {
 
             {/* Columna derecha: IA */}
             <aside className="w-[330px] h-full shrink-0">
-              <AiInsightsPanel viaje={viajeSeleccionado} telemetryList={telemetryList} apiUrl={API_URL} />
+              <AiInsightsPanel viaje={viajeSeleccionado} telemetryList={telemetryList} apiUrl={API_URL} onOpenZepModal={() => setIsZepModalOpen(true)} />
             </aside>
           </main>
 
-        ) : (
+        ) : currentView === "compliance" ? (
           /* ── COMPLIANCE VIEW ─────────────────────────────────────────────── */
-          <main className={`flex-1 flex p-3 gap-3 overflow-hidden h-full transition-all duration-300 ease-in-out ${sidebarExpanded ? "ml-[240px]" : "ml-[64px]"}`}>
+          <main className={`flex-1 flex p-3 gap-3 overflow-hidden h-full transition-[margin-left] duration-300 ease-in-out ${sidebarExpanded ? "ml-[240px]" : "ml-[64px]"}`}>
 
             {/* Lista lateral histórica */}
             <aside className="w-[290px] h-full flex flex-col bg-slate-900/30 backdrop-blur-xl border border-white/[0.05] hover:border-cyan-500/10 rounded-2xl overflow-hidden shrink-0 shadow-2xl transition-colors duration-500">
@@ -764,7 +776,7 @@ export default function DashboardV2() {
               </div>
               <div className="flex-1 overflow-y-auto p-2.5 space-y-2 no-scrollbar">
                 {viajesHistoricos.map((viaje) => (
-                  <ViajeCard key={viaje.id} viaje={viaje} isHistorico isSelected={viajeSeleccionado?.id === viaje.id} isSubmitting={isSubmitting} onSelect={setViajeSeleccionado} onIniciar={handleIniciarViaje} />
+                  <ViajeCard key={viaje.id} viaje={viaje} isHistorico isSelected={viajeSeleccionado?.id === viaje.id} isSubmitting={isSubmitting} onSelect={(v) => { hasSelectedManually.current = true; setViajeSeleccionado(v); }} onIniciar={handleIniciarViaje} />
                 ))}
                 {viajesHistoricos.length === 0 && (
                   <div className="text-center p-8 text-slate-600 text-[11px] font-mono leading-relaxed">
@@ -842,13 +854,26 @@ export default function DashboardV2() {
               </div>
             </div>
 
-            {/* Columna derecha: IA */}
             <aside className="w-[330px] h-full shrink-0">
-              <AiInsightsPanel viaje={viajeSeleccionado} telemetryList={telemetryList} apiUrl={API_URL} />
+              <AiInsightsPanel viaje={viajeSeleccionado} telemetryList={telemetryList} apiUrl={API_URL} onOpenZepModal={() => setIsZepModalOpen(true)} />
             </aside>
+          </main>
+        ) : (
+          <main className={`flex-1 flex p-3 gap-3 overflow-hidden h-full transition-[margin-left] duration-300 ease-in-out ${sidebarExpanded ? "ml-[240px]" : "ml-[64px]"}`}>
+            <GraphExplorer apiUrl={API_URL} />
           </main>
         )}
       </div>
+
+      {viajeSeleccionado && (
+        <ZepAuditModal
+          isOpen={isZepModalOpen}
+          onClose={() => setIsZepModalOpen(false)}
+          viaje={viajeSeleccionado}
+          telemetryList={telemetryList}
+          apiUrl={API_URL}
+        />
+      )}
 
       {/* ── MODAL DE REGISTRO ── */}
       {isModalOpen && (() => {
@@ -1347,6 +1372,206 @@ function StatusPill({ label }: { label: string }) {
   );
 }
 
+interface ZepNode {
+  name: string;
+  type: string;
+  properties?: Record<string, unknown>;
+}
+
+interface ZepEdge {
+  fact: string;
+  source: string;
+  target: string;
+  type: string;
+}
+
+function GraphExplorer({ apiUrl }: { apiUrl: string }) {
+  const [query, setQuery] = useState("");
+  const [nodes, setNodes] = useState<ZepNode[]>([]);
+  const [edges, setEdges] = useState<ZepEdge[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
+
+  const handleSearch = async (searchTerm: string) => {
+    setIsLoading(true);
+    setHasSearched(true);
+    try {
+      const res = await fetch(`${apiUrl}/ia/grafo/buscar?query=${encodeURIComponent(searchTerm)}`);
+      if (res.ok) {
+        const data = await res.json();
+        setNodes(data.nodes || []);
+        setEdges(data.edges || []);
+      }
+    } catch (err) {
+      console.error("Error al buscar en el grafo de Zep:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const quickSearch = (term: string) => {
+    setQuery(term);
+    handleSearch(term);
+  };
+
+  return (
+    <div className="flex-grow flex flex-col h-full overflow-hidden p-6 gap-6 bg-[#080a0f]">
+      {/* HEADER */}
+      <div className="flex flex-col gap-1.5 border-b border-white/[0.05] pb-4">
+        <h2 className="text-base font-bold text-white uppercase tracking-wider flex items-center gap-2">
+          <Network className="w-5 h-5 text-cyan-400" />
+          Explorador de Grafo de Conocimiento IA (Zep Memory)
+        </h2>
+        <p className="text-[11px] text-slate-400 font-mono">
+          Consulta y busca en la red de conocimiento semántico que la IA aprende a partir de las telemetrías y alertas del sistema.
+        </p>
+      </div>
+
+      {/* SEARCH BAR & CHIPS */}
+      <div className="flex flex-col gap-3 bg-slate-900/30 border border-white/[0.05] p-4 rounded-2xl shrink-0 shadow-xl">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleSearch(query);
+          }}
+          className="flex gap-2"
+        >
+          <div className="relative flex-1">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-600" />
+            <input
+              type="text"
+              placeholder="Buscar en el grafo semántico... (ej. falla, compresor, desvío, viaje)"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              className="w-full bg-slate-950/50 border border-white/[0.07] rounded-xl pl-9 pr-3 py-2.5 text-xs text-white placeholder-slate-600 outline-none focus:border-cyan-500/30 focus:ring-1 focus:ring-cyan-500/15 font-mono"
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={isLoading}
+            className="bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold px-6 py-2.5 rounded-xl text-xs uppercase tracking-wider transition-all duration-150 cursor-pointer disabled:opacity-40"
+          >
+            {isLoading ? "Buscando..." : "Buscar"}
+          </button>
+        </form>
+
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-[9px] font-mono uppercase text-slate-500 tracking-wider">Sugerencias:</span>
+          {["falla", "temperatura", "batería", "camión", "incidente", "excursión"].map((term) => (
+            <button
+              key={term}
+              onClick={() => quickSearch(term)}
+              className="bg-slate-950/60 hover:bg-cyan-500/10 border border-white/[0.05] hover:border-cyan-500/20 text-slate-400 hover:text-cyan-400 px-2.5 py-1 rounded-lg text-[10px] font-mono transition-colors"
+            >
+              {term}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* RESULTS WORKSPACE */}
+      <div className="flex-1 flex gap-6 overflow-hidden min-h-0">
+        {isLoading ? (
+          <div className="flex-grow flex items-center justify-center border border-dashed border-white/[0.05] rounded-2xl p-12 bg-slate-950/20">
+            <div className="text-center font-mono">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-400 mx-auto mb-4" />
+              <p className="text-xs text-slate-500 uppercase tracking-widest">Interrogando Grafo Semántico de Zep...</p>
+            </div>
+          </div>
+        ) : !hasSearched ? (
+          <div className="flex-grow flex items-center justify-center border border-dashed border-white/[0.05] rounded-2xl p-12 bg-slate-950/20 text-center">
+            <div className="max-w-md">
+              <Network className="w-10 h-10 text-cyan-500/30 mx-auto mb-4" />
+              <span className="text-xs text-slate-400 font-bold uppercase tracking-wider block">Búsqueda Semántica de Grafo</span>
+              <p className="text-[10px] text-slate-500 font-mono mt-2 leading-relaxed">
+                Ingresa una consulta arriba para interrogar al grafo Standalone de Zep. Se recuperarán relaciones e incidentes previos correlacionados vectorialmente.
+              </p>
+            </div>
+          </div>
+        ) : edges.length === 0 && nodes.length === 0 ? (
+          <div className="flex-grow flex items-center justify-center border border-dashed border-white/[0.05] rounded-2xl p-12 bg-slate-950/20 text-center">
+            <div className="max-w-md">
+              <Network className="w-10 h-10 text-rose-500/30 mx-auto mb-4" />
+              <span className="text-xs text-rose-400 font-bold uppercase tracking-wider block">Sin resultados encontrados</span>
+              <p className="text-[10px] text-slate-500 font-mono mt-2 leading-relaxed">
+                No se encontraron hechos semánticos ni nodos coincidentes con la palabra &quot;{query}&quot; en el grafo de conocimiento global.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* EDGES / SEMANTIC FACTS COLUMN */}
+            <div className="flex-grow flex flex-col min-w-0 h-full border border-white/[0.05] bg-slate-950/20 rounded-2xl overflow-hidden p-4">
+              <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider mb-4 shrink-0 flex justify-between items-center">
+                <span>Relaciones Semánticas Detectadas ({edges.length})</span>
+                <span className="text-[9px] text-slate-500 font-mono normal-case">Hechos de Grafo</span>
+              </h3>
+              <div className="flex-grow overflow-y-auto pr-1 space-y-3.5 no-scrollbar">
+                {edges.map((edge, index) => (
+                  <div
+                    key={index}
+                    className="bg-[#111319]/80 border border-slate-800/80 rounded-xl p-4 flex flex-col gap-3 shadow-md hover:border-cyan-500/20 transition-all duration-200"
+                  >
+                    <div className="flex items-center gap-2 text-[9px] font-mono uppercase tracking-wider flex-wrap">
+                      <span className="text-sky-400 font-bold px-2 py-0.5 rounded bg-sky-500/5 border border-sky-500/10 truncate max-w-[150px]">
+                        {edge.source}
+                      </span>
+                      <span className="text-slate-500 font-bold">
+                        → [{edge.type || "RELACIÓN"}] →
+                      </span>
+                      <span className="text-indigo-400 font-bold px-2 py-0.5 rounded bg-indigo-500/5 border border-indigo-500/10 truncate max-w-[150px]">
+                        {edge.target}
+                      </span>
+                    </div>
+                    <div className="bg-slate-950/60 border border-slate-800/40 rounded-lg p-3 text-[11px] text-slate-300 font-mono leading-relaxed">
+                      <div className="text-[8px] font-bold text-cyan-400 uppercase tracking-wider mb-1 font-sans">Hecho Semántico Extraído por Zep:</div>
+                      {edge.fact}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* NODES / ENTITIES COLUMN */}
+            <div className="w-[340px] shrink-0 h-full border border-white/[0.05] bg-slate-950/20 rounded-2xl overflow-hidden p-4 flex flex-col">
+              <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider mb-4 shrink-0">
+                Entidades del Grafo ({nodes.length})
+              </h3>
+              <div className="flex-1 overflow-y-auto pr-1 space-y-2.5 no-scrollbar">
+                {nodes.map((node, index) => (
+                  <div
+                    key={index}
+                    className="bg-slate-900/40 border border-white/[0.04] rounded-xl p-3 flex flex-col gap-2 shadow-sm hover:bg-slate-900/60 transition-colors"
+                  >
+                    <div className="flex justify-between items-center">
+                      <span className="text-[11px] font-bold text-slate-200 truncate pr-2 font-mono">
+                        {node.name}
+                      </span>
+                      <span className="text-[8px] font-bold uppercase font-sans px-1.5 py-0.5 rounded bg-cyan-950/70 text-cyan-400 border border-cyan-800/30">
+                        {node.type}
+                      </span>
+                    </div>
+                    {node.properties && Object.keys(node.properties).length > 0 && (
+                      <div className="text-[9px] font-mono text-slate-500 bg-slate-950/30 p-2 rounded border border-white/[0.02] space-y-1">
+                        {Object.entries(node.properties).map(([key, val]) => (
+                          <div key={key} className="flex justify-between gap-2">
+                            <span className="text-slate-600 uppercase tracking-wider">{key}:</span>
+                            <span className="text-slate-400 truncate max-w-[180px]">{String(val)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function StatCard({ label, value, valueClass = "text-white" }: { label: string; value: string; valueClass?: string }) {
   return (
     <div className="bg-slate-950/40 border border-white/[0.05] p-3 rounded-xl">
@@ -1377,10 +1602,10 @@ function NavItem({
 }: {
   icon: React.ElementType;
   label: string;
-  view: "overview" | "compliance";
-  currentView: "overview" | "compliance";
+  view: "overview" | "compliance" | "graph-explorer";
+  currentView: "overview" | "compliance" | "graph-explorer";
   sidebarExpanded: boolean;
-  onNavigate: (v: "overview" | "compliance") => void;
+  onNavigate: (v: "overview" | "compliance" | "graph-explorer") => void;
 }) {
   const isActive = currentView === view;
   return (
@@ -1430,7 +1655,7 @@ function ViajeCard({ viaje, isHistorico = false, isSelected, isSubmitting, onSel
   return (
     <div
       onClick={() => onSelect(viaje)}
-      className={`border rounded-xl p-3.5 cursor-pointer transition-all duration-300 ${
+      className={`border rounded-xl p-3.5 cursor-pointer transition-colors duration-300 ${
         isSelected
           ? "border-cyan-500/40 bg-gradient-to-br from-cyan-950/20 to-indigo-950/10 shadow-[0_0_20px_rgba(34,211,238,0.07)]"
           : "border-white/[0.05] bg-slate-950/20 hover:border-white/10 hover:bg-slate-900/30"

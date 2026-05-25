@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { DbService } from '../db/db.service';
@@ -28,6 +32,9 @@ type IncidenteRow = {
   valor_detectado: number;
   umbral_permitido: number;
   timestamp_bd: string;
+  timestamp_fin?: string | null;
+  valor_pico?: number | null;
+  resuelta?: boolean;
 };
 
 type TelemetriaRow = {
@@ -61,13 +68,15 @@ export class TelemetriaService {
     timestamp_sensor: string;
   }) {
     const result = await this.db.transaction(async (client) => {
+      // 1. Validar que el viaje exista y esté 'en_curso'
       const viajeResult = await client.query<{
         id: string;
         limite_max_temp: number;
         ruta_waypoints?: unknown;
         margen_desvio_km?: number;
+        estado: string;
       }>(
-        'SELECT id, limite_max_temp, ruta_waypoints, margen_desvio_km FROM viaje WHERE id = $1',
+        'SELECT id, limite_max_temp, ruta_waypoints, margen_desvio_km, estado FROM viaje WHERE id = $1',
         [payload.viaje_id],
       );
 
@@ -75,6 +84,12 @@ export class TelemetriaService {
       if (!viaje) {
         throw new NotFoundException(
           'Viaje no encontrado para registrar telemetria.',
+        );
+      }
+
+      if (viaje.estado !== 'en_curso') {
+        throw new BadRequestException(
+          `El viaje no está en curso para recibir telemetría (estado actual: ${viaje.estado}).`,
         );
       }
 
@@ -109,103 +124,187 @@ export class TelemetriaService {
       }
 
       let incidente: IncidenteRow | null = null;
-      // Prioridad: temperatura alta > batería baja > fuera de ruta
-      if (payload.temp > viaje.limite_max_temp) {
-        incidente = await this.incidenteService.create({
-          viaje_id: payload.viaje_id,
-          telemetria_id: telemetria.id,
-          tipo_alerta: 'TEMP_ALTA',
-          valor_detectado: payload.temp,
-          umbral_permitido: viaje.limite_max_temp,
-          query: (text, params) => client.query(text, params),
-        });
-      } else if (payload.bateria != null && Number(payload.bateria) <= 10) {
-        incidente = await this.incidenteService.create({
-          viaje_id: payload.viaje_id,
-          telemetria_id: telemetria.id,
-          tipo_alerta: 'BATERIA_BAJA',
-          valor_detectado: Math.trunc(Number(payload.bateria)),
-          umbral_permitido: 10,
-          query: (text, params) => client.query(text, params),
-        });
+      let encolarIa = false;
+      let incidenteParaIa: IncidenteRow | null = null;
+
+      // 2. Consultar Excursión Activa (TEMP_ALTA)
+      const activeIncidentResult = await client.query<IncidenteRow>(
+        "SELECT id, viaje_id, telemetria_id, tipo_alerta, valor_detectado, umbral_permitido, timestamp_bd, valor_pico, resuelta FROM incidente WHERE viaje_id = $1 AND tipo_alerta = 'TEMP_ALTA' AND resuelta = false LIMIT 1",
+        [payload.viaje_id],
+      );
+      const activeIncident = activeIncidentResult.rows[0];
+
+      const tempAlta = payload.temp > viaje.limite_max_temp;
+
+      if (tempAlta) {
+        // MÁQUINA DE ESTADOS: Temperatura ALTA
+        if (!activeIncident) {
+          // Caso Alta + No Activa: Crear incidente abierto
+          incidente = await this.incidenteService.create({
+            viaje_id: payload.viaje_id,
+            telemetria_id: telemetria.id,
+            tipo_alerta: 'TEMP_ALTA',
+            valor_detectado: payload.temp,
+            umbral_permitido: viaje.limite_max_temp,
+            valor_pico: payload.temp,
+            resuelta: false,
+            query: (text, params) => client.query(text, params),
+          });
+        } else {
+          // Caso Alta + Activa: Actualizar valor_pico si la nueva lectura es mayor
+          const currentPico =
+            activeIncident.valor_pico != null
+              ? Number(activeIncident.valor_pico)
+              : Number(activeIncident.valor_detectado);
+          if (payload.temp > currentPico) {
+            await client.query(
+              'UPDATE incidente SET valor_pico = $1 WHERE id = $2',
+              [payload.temp, activeIncident.id],
+            );
+            activeIncident.valor_pico = payload.temp;
+          }
+          incidente = activeIncident;
+        }
       } else {
-        // Detectar si la telemetría está fuera de la ruta (si el viaje tiene geometría y margen definido)
-        try {
-          const margen =
-            viaje.margen_desvio_km == null
-              ? 0.5
-              : Number(viaje.margen_desvio_km);
-          const waypoints =
-            Array.isArray(viaje.ruta_waypoints) && viaje.ruta_waypoints.length
-              ? (viaje.ruta_waypoints as WaypointPoint[])
-              : ((
-                  viaje.ruta_waypoints as WaypointGeoJSON
-                )?.features?.[0]?.geometry?.coordinates?.map(
-                  (c: [number, number]) => ({ lon: c[0], lat: c[1] }),
-                ) ?? null);
+        // MÁQUINA DE ESTADOS: Temperatura NORMAL
+        if (activeIncident) {
+          // Caso Normal + Activa (Histéresis): consultar los últimos 3 pings para el viaje
+          const lastPingsResult = await client.query<{ temp: number }>(
+            'SELECT temp FROM telemetria WHERE viaje_id = $1 ORDER BY timestamp_sensor DESC, id DESC LIMIT 3',
+            [payload.viaje_id],
+          );
+          const lastPings = lastPingsResult.rows;
 
-          if (Array.isArray(waypoints) && waypoints.length > 0 && margen >= 0) {
-            // calcular distancia mínima (km) entre telemetría y puntos de la ruta
-            const toRad = (deg: number) => (deg * Math.PI) / 180;
-            const haversineKm = (
-              aLat: number,
-              aLon: number,
-              bLat: number,
-              bLon: number,
-            ) => {
-              const R = 6371; // km
-              const dLat = toRad(bLat - aLat);
-              const dLon = toRad(bLon - aLon);
-              const lat1 = toRad(aLat);
-              const lat2 = toRad(bLat);
-              const sinDlat = Math.sin(dLat / 2);
-              const sinDlon = Math.sin(dLon / 2);
-              const aa =
-                sinDlat * sinDlat +
-                sinDlon * sinDlon * Math.cos(lat1) * Math.cos(lat2);
-              const c = 2 * Math.atan2(Math.sqrt(aa), Math.sqrt(1 - aa));
-              return R * c;
-            };
+          // Si hay al menos 3 pings y todos son normales (<= limite_max_temp)
+          const gracePeriodMet =
+            lastPings.length >= 3 &&
+            lastPings.every((p) => Number(p.temp) <= viaje.limite_max_temp);
 
-            const lat = Number(payload.lat);
-            const lon = Number(payload.lon);
-            let minKm = Infinity;
-            const waypointsList = waypoints as Array<
-              WaypointPoint | [number, number]
-            >;
-            for (const p of waypointsList) {
-              let pLat: number | undefined;
-              let pLon: number | undefined;
-              if (Array.isArray(p)) {
-                pLon = p[0];
-                pLat = p[1];
-              } else if (p && typeof p === 'object') {
-                pLat = p.lat ?? p.latitude;
-                pLon = p.lon ?? p.longitude;
+          if (gracePeriodMet) {
+            // Resolver excursión activa
+            const updateResult = await client.query<IncidenteRow>(
+              'UPDATE incidente SET resuelta = true, timestamp_fin = NOW() WHERE id = $1 RETURNING id, viaje_id, telemetria_id, tipo_alerta, valor_detectado, umbral_permitido, timestamp_bd, timestamp_fin, valor_pico, resuelta',
+              [activeIncident.id],
+            );
+            const resolvedIncidente = updateResult.rows[0];
+            incidente = resolvedIncidente;
+
+            // Marcar para encolar en BullMQ después de completar la transacción
+            encolarIa = true;
+            incidenteParaIa = resolvedIncidente;
+          } else {
+            incidente = activeIncident;
+          }
+        } else {
+          // Caso Normal + No Activa (Fast-Path):
+          // Solo evaluamos BATERIA_BAJA y FUERA_RUTA si la temperatura es normal y no hay alertas activas de temperatura
+          if (payload.bateria != null && Number(payload.bateria) <= 10) {
+            incidente = await this.incidenteService.create({
+              viaje_id: payload.viaje_id,
+              telemetria_id: telemetria.id,
+              tipo_alerta: 'BATERIA_BAJA',
+              valor_detectado: Math.trunc(Number(payload.bateria)),
+              umbral_permitido: 10,
+              query: (text, params) => client.query(text, params),
+            });
+          } else {
+            // Detectar si la telemetría está fuera de la ruta
+            try {
+              const margen =
+                viaje.margen_desvio_km == null
+                  ? 0.5
+                  : Number(viaje.margen_desvio_km);
+              const waypoints =
+                Array.isArray(viaje.ruta_waypoints) &&
+                viaje.ruta_waypoints.length
+                  ? (viaje.ruta_waypoints as WaypointPoint[])
+                  : ((
+                      viaje.ruta_waypoints as WaypointGeoJSON
+                    )?.features?.[0]?.geometry?.coordinates?.map(
+                      (c: [number, number]) => ({ lon: c[0], lat: c[1] }),
+                    ) ?? null);
+
+              if (
+                Array.isArray(waypoints) &&
+                waypoints.length > 0 &&
+                margen >= 0
+              ) {
+                let waypointsList = waypoints as Array<
+                  WaypointPoint | [number, number]
+                >;
+
+                // DOWNSAMPLING UNIFORME: Limitar a máximo 30 puntos distribuidos uniformemente para evitar el Efecto Avalancha
+                if (waypointsList.length > 30) {
+                  const step = (waypointsList.length - 1) / 29;
+                  const downsampled: Array<WaypointPoint | [number, number]> =
+                    [];
+                  for (let i = 0; i < 30; i++) {
+                    const index = Math.round(i * step);
+                    downsampled.push(waypointsList[index]);
+                  }
+                  waypointsList = downsampled;
+                }
+
+                // calcular distancia mínima (km) entre telemetría y puntos de la ruta
+                const toRad = (deg: number) => (deg * Math.PI) / 180;
+                const haversineKm = (
+                  aLat: number,
+                  aLon: number,
+                  bLat: number,
+                  bLon: number,
+                ) => {
+                  const R = 6371; // km
+                  const dLat = toRad(bLat - aLat);
+                  const dLon = toRad(bLon - aLon);
+                  const lat1 = toRad(aLat);
+                  const lat2 = toRad(bLat);
+                  const sinDlat = Math.sin(dLat / 2);
+                  const sinDlon = Math.sin(dLon / 2);
+                  const aa =
+                    sinDlat * sinDlat +
+                    sinDlon * sinDlon * Math.cos(lat1) * Math.cos(lat2);
+                  const c = 2 * Math.atan2(Math.sqrt(aa), Math.sqrt(1 - aa));
+                  return R * c;
+                };
+
+                const lat = Number(payload.lat);
+                const lon = Number(payload.lon);
+                let minKm = Infinity;
+                for (const p of waypointsList) {
+                  let pLat: number | undefined;
+                  let pLon: number | undefined;
+                  if (Array.isArray(p)) {
+                    pLon = p[0];
+                    pLat = p[1];
+                  } else if (p && typeof p === 'object') {
+                    pLat = p.lat ?? p.latitude;
+                    pLon = p.lon ?? p.longitude;
+                  }
+                  const pl = {
+                    lat: Number(pLat),
+                    lon: Number(pLon),
+                  };
+                  if (!Number.isFinite(pl.lat) || !Number.isFinite(pl.lon))
+                    continue;
+                  const dist = haversineKm(lat, lon, pl.lat, pl.lon);
+                  if (dist < minKm) minKm = dist;
+                }
+
+                if (minKm > margen) {
+                  incidente = await this.incidenteService.create({
+                    viaje_id: payload.viaje_id,
+                    telemetria_id: telemetria.id,
+                    tipo_alerta: 'FUERA_RUTA',
+                    valor_detectado: Math.round(minKm * 1000), // metros
+                    umbral_permitido: Math.round(margen * 1000),
+                    query: (text, params) => client.query(text, params),
+                  });
+                }
               }
-              const pl = {
-                lat: Number(pLat),
-                lon: Number(pLon),
-              };
-              if (!Number.isFinite(pl.lat) || !Number.isFinite(pl.lon))
-                continue;
-              const dist = haversineKm(lat, lon, pl.lat, pl.lon);
-              if (dist < minKm) minKm = dist;
-            }
-
-            if (minKm > margen) {
-              incidente = await this.incidenteService.create({
-                viaje_id: payload.viaje_id,
-                telemetria_id: telemetria.id,
-                tipo_alerta: 'FUERA_RUTA',
-                valor_detectado: Math.round(minKm * 1000), // metros
-                umbral_permitido: Math.round(margen * 1000),
-                query: (text, params) => client.query(text, params),
-              });
+            } catch {
+              // no bloquear inserción por fallo en detección de fuera de ruta
             }
           }
-        } catch {
-          // no bloquear inserción por fallo en detección de fuera de ruta
         }
       }
 
@@ -216,25 +315,37 @@ export class TelemetriaService {
         valor_detectado: incidente?.valor_detectado ?? null,
         umbral_permitido: incidente?.umbral_permitido ?? null,
         timestamp_bd: incidente?.timestamp_bd ?? null,
+        encolarIa,
+        incidenteParaIa,
       };
     });
 
     let ia_diagnosis: string | null = null;
 
-    if (result.tipo_alerta === 'TEMP_ALTA') {
+    if (result.encolarIa && result.incidenteParaIa) {
       try {
-        // Encolar el análisis en BullMQ para procesarse en segundo plano con concurrencia limitada
+        const inc = result.incidenteParaIa;
+        const durationMs =
+          new Date(inc.timestamp_fin || '').getTime() -
+          new Date(inc.timestamp_bd || '').getTime();
+        const duracionSegundos = Math.max(0, Math.round(durationMs / 1000));
+
+        // Encolar el análisis en BullMQ consolidando la excursión completa
         await this.iaQueue.add('analyze-incident', {
           viajeId: payload.viaje_id,
           incidenteData: {
             id: result.id,
-            viaje_id: result.viaje_id,
+            viaje_id: payload.viaje_id,
             lat: Number(result.lat),
             lon: Number(result.lon),
             temp: Number(result.temp),
             humedad: result.humedad,
             bateria: result.bateria,
             timestamp_sensor: result.timestamp_sensor,
+            incidente_id: inc.id,
+            valor_pico: Number(inc.valor_pico ?? inc.valor_detectado),
+            duracion_segundos: duracionSegundos,
+            umbral_permitido: Number(inc.umbral_permitido),
           },
         });
         ia_diagnosis = 'Análisis encolado para procesamiento en lote';
