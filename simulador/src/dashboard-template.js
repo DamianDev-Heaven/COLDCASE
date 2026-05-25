@@ -670,7 +670,7 @@ function renderDashboardPage() {
 			<!-- NUEVO PANEL: SIMULACIÓN DE CONECTIVIDAD Y RESILIENCIA (SIN EMOJIS, PREMIUM) -->
 			<div class="panel" style="shrink: 0; background: rgba(10, 15, 29, 0.4);">
 				<div class="eyebrow" style="margin-bottom: 2px;">Resiliencia & Fallas</div>
-				<h2 class="title" style="font-size: 1rem; margin-bottom: 8px; color: #fff;">Simulación de Red</h2>
+				<h2 class="title" style="font-size: 1rem; margin-bottom: 8px; color: #fff;">Control de Infraestructura & Fallas</h2>
 				
 				<!-- Fallo IoT Toggle -->
 				<div style="padding: 10px 12px; border-radius: 10px; background: rgba(15, 23, 42, 0.3); border: 1px solid rgba(255, 255, 255, 0.04); display: flex; align-items: center; justify-content: space-between; gap: 10px;">
@@ -705,12 +705,6 @@ function renderDashboardPage() {
 				<span style="font-size: 11px; color: var(--muted); display: block; margin-bottom: 8px;">Selecciona una ruta en curso para auditar</span>
 				<div class="stack" id="tripList"></div>
 			</div>
-			
-			<div class="panel" style="padding: 10px 14px; shrink: 0; background: rgba(15, 23, 42, 0.25);">
-				<div class="muted font-mono" id="statusText" style="font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 6px;">
-					Esperando estado...
-				</div>
-			</div>
 		</aside>
 
 		<!-- COLUMNA 2: GEOMETRÍA Y TERMODINÁMICA (CENTRAL - FLEX-1) -->
@@ -724,7 +718,6 @@ function renderDashboardPage() {
 						<p class="muted" id="selectedSubtitle" style="margin:4px 0 0; font-size:11px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">La telemetría aparecerá aquí al seleccionar un viaje activo.</p>
 					</div>
 					<div style="display:flex; gap:6px; flex-shrink: 0;">
-						<span class="tag osrm" id="previewTag">OSRM</span>
 						<span class="tag" id="stateTag">activo</span>
 					</div>
 				</div>
@@ -1257,9 +1250,16 @@ function renderDashboardPage() {
 					+ 'Temp: ' + formatNumber(point.temp) + '°C · Hum: ' + formatNumber(point.humedad) + '% · Bat: ' + formatNumber(point.bateria, 0) + '%'
 					+ '</div>';
 
+				const iaCardStyle = breach
+					? 'background: rgba(239, 68, 68, 0.04); border-color: rgba(239, 68, 68, 0.25); border-left-color: var(--rose);'
+					: '';
+				const iaHeaderStyle = breach
+					? 'color: #fca5a5; border-bottom-color: rgba(239, 68, 68, 0.15);'
+					: '';
+
 				const iaBlock = point.ia_diagnosis
-					? '<div class="ia-diagnosis-card">'
-						+ '<div class="ia-diagnosis-header">'
+					? '<div class="ia-diagnosis-card" style="' + iaCardStyle + '">'
+						+ '<div class="ia-diagnosis-header" style="' + iaHeaderStyle + '">'
 						+ '<span>DIAGNÓSTICO AUTOMATIZADO DE INCIDENTE (IA)</span>'
 						+ '</div>'
 						+ '<div class="ia-diagnosis-body">'
@@ -1268,9 +1268,20 @@ function renderDashboardPage() {
 						+ '</div>'
 					: '';
 
-				return '<div class="feed-item" style="margin-bottom: 10px; padding: 14px;">'
+				const feedItemStyle = breach
+					? 'margin-bottom: 10px; padding: 14px; background: linear-gradient(135deg, rgba(239, 68, 68, 0.08) 0%, rgba(5, 7, 15, 0.95) 100%); border: 1px solid rgba(239, 68, 68, 0.2); border-left: 3px solid var(--rose);'
+					: 'margin-bottom: 10px; padding: 14px;';
+
+				const badge = breach
+					? '<span class="tag" style="background: rgba(239, 68, 68, 0.12); color: var(--rose); border: 1px solid rgba(239, 68, 68, 0.3); font-size: 8px; font-weight: 800; text-transform: uppercase; margin-left: 8px;">ANOMALÍA DETECTADA</span>'
+					: '';
+
+				return '<div class="feed-item" style="' + feedItemStyle + '">'
 					+ '<div style="display:flex; justify-content:space-between; align-items: flex-start;">'
+					+ '<div style="display:flex; align-items: center;">'
 					+ '<strong>' + (breach ? 'Incidente detectado' : 'Telemetría recibida') + '</strong>'
+					+ badge
+					+ '</div>'
 					+ '<small style="color: var(--muted); font-size: 11px;">' + formatDate(point.timestamp_sensor) + '</small>'
 					+ '</div>'
 					+ telemetryLine
@@ -1351,12 +1362,25 @@ function renderDashboardPage() {
 			if (queueActive) queueActive.textContent = state.queueMetrics?.active ?? 0;
 			if (queueCompleted) queueCompleted.textContent = state.queueMetrics?.completed ?? 0;
 			if (queueFailed) queueFailed.textContent = state.queueMetrics?.failed ?? 0;
+			if (redisConnTag) {
+				if (state.queueMetrics?.redisConnected) {
+					redisConnTag.textContent = 'REDIS OK';
+					redisConnTag.style.background = 'rgba(16, 185, 129, 0.08)';
+					redisConnTag.style.color = 'var(--emerald)';
+					redisConnTag.style.borderColor = 'rgba(16, 185, 129, 0.15)';
+				} else {
+					redisConnTag.textContent = 'REDIS OFFLINE';
+					redisConnTag.style.background = 'rgba(239, 68, 68, 0.08)';
+					redisConnTag.style.color = 'var(--rose)';
+					redisConnTag.style.borderColor = 'rgba(239, 68, 68, 0.15)';
+				}
+			}
 			activeTrips.textContent = state.activeTrips ?? 0;
 			sentTrips.textContent = state.totalSent ?? 0;
 			incidentTrips.textContent = state.totalIncidents ?? 0;
 			lastSync.textContent = formatDate(state.lastSyncAt);
 			lastTick.textContent = state.lastTickAt ? 'Último tick: ' + formatDate(state.lastTickAt) : 'Sin tick aún.';
-			statusText.textContent = state.paused ? 'Simulación pausada' : 'Simulación activa';
+			if (statusText) statusText.textContent = state.paused ? 'Simulación pausada' : 'Simulación activa';
 			
 			const led = document.getElementById('ledStatus');
 			const connText = document.getElementById('connectionText');
@@ -1392,7 +1416,7 @@ function renderDashboardPage() {
 				telemetryCount.textContent = '-';
 				stateTag.textContent = 'sin datos';
 				routeSourceTag.textContent = 'fallback';
-				previewTag.textContent = 'OSRM';
+				if (previewTag) previewTag.textContent = 'OSRM';
 				
 				if (compressorToggle) {
 					compressorToggle.checked = false;
@@ -1420,8 +1444,10 @@ function renderDashboardPage() {
 			stateTag.className = badgeClass(simulation?.status || viaje.estado || 'activo');
 			routeSourceTag.textContent = interp.previewMode === 'osrm' ? 'OSRM' : 'fallback';
 			routeSourceTag.className = interp.previewMode === 'osrm' ? 'tag osrm' : 'tag';
-			previewTag.textContent = interp.previewMode === 'osrm' ? 'Ruta OSRM' : 'Ruta fallback';
-			previewTag.className = interp.previewMode === 'osrm' ? 'tag osrm' : 'tag';
+			if (previewTag) {
+				previewTag.textContent = interp.previewMode === 'osrm' ? 'Ruta OSRM' : 'Ruta fallback';
+				previewTag.className = interp.previewMode === 'osrm' ? 'tag osrm' : 'tag';
+			}
 			rangeTag.textContent = 'Zona ' + formatNumber(viaje.limite_min_temp) + '°C a ' + formatNumber(viaje.limite_max_temp) + '°C';
 
 			if (compressorToggle) {

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import RouteMap from "@/components/RouteMap";
 import AiInsightsPanel from "@/components/AiInsightsPanel";
 import TelemetryChart from "@/components/TelemetryChart";
+import ZepAuditModal from "@/components/ZepAuditModal";
 import {
   Activity,
   History,
@@ -86,6 +87,7 @@ interface UserSession {
 }
 
 export default function DashboardV2() {
+  const hasSelectedManually = useRef(false);
   const [viajes, setViajes] = useState<Viaje[]>([]);
   const [sucursales, setSucursales] = useState<Sucursal[]>([]);
   const [transportes, setTransportes] = useState<Transporte[]>([]);
@@ -96,6 +98,7 @@ export default function DashboardV2() {
 
   const [activeTab, setActiveTab] = useState<"overview" | "timeline">("overview");
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isZepModalOpen, setIsZepModalOpen] = useState(false);
   const [telemetryList, setTelemetryList] = useState<TelemetryPoint[]>([]);
 
   const [sidebarExpanded, setSidebarExpanded] = useState(false);
@@ -410,6 +413,7 @@ export default function DashboardV2() {
       if (!response.ok) throw new Error("Error en la respuesta del servidor NestJS");
       const nuevoViaje = await response.json();
       setViajes((current) => [nuevoViaje, ...current]);
+      hasSelectedManually.current = true;
       setViajeSeleccionado(nuevoViaje);
       setIsModalOpen(false);
       resetModalForm();
@@ -430,6 +434,7 @@ export default function DashboardV2() {
       }
       const actualizado = await res.json();
       setViajes((cur) => cur.map((v) => (v.id === actualizado.id ? actualizado : v)));
+      hasSelectedManually.current = true;
       setViajeSeleccionado(actualizado);
     } catch (error) {
       console.error("Error iniciando viaje:", error);
@@ -453,8 +458,14 @@ export default function DashboardV2() {
         setViajes(data);
         setTransportes(transportesData);
         setSucursales(Array.isArray(sucursalesData) ? sucursalesData : []);
-        if (data.length > 0 && !viajeSeleccionado) {
-          setViajeSeleccionado(data[0]);
+        if (data.length > 0) {
+          setViajeSeleccionado((current) => {
+            if (current) {
+              const updated = data.find((v: Viaje) => v.id === current.id);
+              return updated || current;
+            }
+            return hasSelectedManually.current ? current : data[0];
+          });
         }
       } catch (error) {
         console.error("Error cargando variables reales:", error);
@@ -522,7 +533,7 @@ export default function DashboardV2() {
 
       {/* ── TOPBAR ─────────────────────────────────────────────────────────── */}
       <header
-        className={`bg-slate-950/80 backdrop-blur-2xl border-b border-white/[0.05] fixed top-0 right-0 z-20 flex justify-between items-center px-5 h-14 transition-all duration-300 ease-in-out ${
+        className={`bg-[#0d0f14] border-b border-white/[0.05] fixed top-0 right-0 z-20 flex justify-between items-center px-5 h-14 transition-[left] duration-300 ease-in-out ${
           sidebarExpanded ? "left-[240px]" : "left-[64px]"
         }`}
       >
@@ -564,7 +575,7 @@ export default function DashboardV2() {
         <nav
           onMouseEnter={() => setSidebarExpanded(true)}
           onMouseLeave={() => setSidebarExpanded(false)}
-          className={`bg-slate-950/90 backdrop-blur-2xl border-r border-white/[0.05] fixed left-0 top-0 h-full z-30 flex flex-col pt-14 pb-4 transition-all duration-300 ease-in-out ${
+          className={`bg-[#0d0f14] border-r border-white/[0.05] fixed left-0 top-0 h-full z-30 flex flex-col pt-14 pb-4 transition-[width,padding] duration-300 ease-in-out ${
             sidebarExpanded ? "w-[240px] px-3" : "w-[64px] px-2.5 items-center"
           }`}
         >
@@ -631,7 +642,7 @@ export default function DashboardV2() {
 
         {/* ── CONTENT AREA ─────────────────────────────────────────────────── */}
         {currentView === "overview" ? (
-          <main className={`flex-1 flex p-3 gap-3 overflow-hidden h-full transition-all duration-300 ease-in-out ${sidebarExpanded ? "ml-[240px]" : "ml-[64px]"}`}>
+          <main className={`flex-1 flex p-3 gap-3 overflow-hidden h-full transition-[margin-left] duration-300 ease-in-out ${sidebarExpanded ? "ml-[240px]" : "ml-[64px]"}`}>
 
             {/* Lista lateral activos */}
             <aside className="w-[290px] h-full flex flex-col bg-slate-900/30 backdrop-blur-xl border border-white/[0.05] hover:border-cyan-500/10 rounded-2xl overflow-hidden shrink-0 shadow-2xl transition-colors duration-500">
@@ -643,7 +654,7 @@ export default function DashboardV2() {
               </div>
               <div className="flex-1 overflow-y-auto p-2.5 space-y-2 no-scrollbar">
                 {viajesActivos.map((viaje) => (
-                  <ViajeCard key={viaje.id} viaje={viaje} isSelected={viajeSeleccionado?.id === viaje.id} isSubmitting={isSubmitting} onSelect={setViajeSeleccionado} onIniciar={handleIniciarViaje} />
+                  <ViajeCard key={viaje.id} viaje={viaje} isSelected={viajeSeleccionado?.id === viaje.id} isSubmitting={isSubmitting} onSelect={(v) => { hasSelectedManually.current = true; setViajeSeleccionado(v); }} onIniciar={handleIniciarViaje} />
                 ))}
                 {viajesActivos.length === 0 && (
                   <div className="text-center p-8 text-slate-600 text-[11px] font-mono leading-relaxed">
@@ -736,13 +747,13 @@ export default function DashboardV2() {
 
             {/* Columna derecha: IA */}
             <aside className="w-[330px] h-full shrink-0">
-              <AiInsightsPanel viaje={viajeSeleccionado} telemetryList={telemetryList} apiUrl={API_URL} />
+              <AiInsightsPanel viaje={viajeSeleccionado} telemetryList={telemetryList} apiUrl={API_URL} onOpenZepModal={() => setIsZepModalOpen(true)} />
             </aside>
           </main>
 
         ) : (
           /* ── COMPLIANCE VIEW ─────────────────────────────────────────────── */
-          <main className={`flex-1 flex p-3 gap-3 overflow-hidden h-full transition-all duration-300 ease-in-out ${sidebarExpanded ? "ml-[240px]" : "ml-[64px]"}`}>
+          <main className={`flex-1 flex p-3 gap-3 overflow-hidden h-full transition-[margin-left] duration-300 ease-in-out ${sidebarExpanded ? "ml-[240px]" : "ml-[64px]"}`}>
 
             {/* Lista lateral histórica */}
             <aside className="w-[290px] h-full flex flex-col bg-slate-900/30 backdrop-blur-xl border border-white/[0.05] hover:border-cyan-500/10 rounded-2xl overflow-hidden shrink-0 shadow-2xl transition-colors duration-500">
@@ -764,7 +775,7 @@ export default function DashboardV2() {
               </div>
               <div className="flex-1 overflow-y-auto p-2.5 space-y-2 no-scrollbar">
                 {viajesHistoricos.map((viaje) => (
-                  <ViajeCard key={viaje.id} viaje={viaje} isHistorico isSelected={viajeSeleccionado?.id === viaje.id} isSubmitting={isSubmitting} onSelect={setViajeSeleccionado} onIniciar={handleIniciarViaje} />
+                  <ViajeCard key={viaje.id} viaje={viaje} isHistorico isSelected={viajeSeleccionado?.id === viaje.id} isSubmitting={isSubmitting} onSelect={(v) => { hasSelectedManually.current = true; setViajeSeleccionado(v); }} onIniciar={handleIniciarViaje} />
                 ))}
                 {viajesHistoricos.length === 0 && (
                   <div className="text-center p-8 text-slate-600 text-[11px] font-mono leading-relaxed">
@@ -844,11 +855,21 @@ export default function DashboardV2() {
 
             {/* Columna derecha: IA */}
             <aside className="w-[330px] h-full shrink-0">
-              <AiInsightsPanel viaje={viajeSeleccionado} telemetryList={telemetryList} apiUrl={API_URL} />
+              <AiInsightsPanel viaje={viajeSeleccionado} telemetryList={telemetryList} apiUrl={API_URL} onOpenZepModal={() => setIsZepModalOpen(true)} />
             </aside>
           </main>
         )}
       </div>
+
+      {viajeSeleccionado && (
+        <ZepAuditModal
+          isOpen={isZepModalOpen}
+          onClose={() => setIsZepModalOpen(false)}
+          viaje={viajeSeleccionado}
+          telemetryList={telemetryList}
+          apiUrl={API_URL}
+        />
+      )}
 
       {/* ── MODAL DE REGISTRO ── */}
       {isModalOpen && (() => {
@@ -1430,7 +1451,7 @@ function ViajeCard({ viaje, isHistorico = false, isSelected, isSubmitting, onSel
   return (
     <div
       onClick={() => onSelect(viaje)}
-      className={`border rounded-xl p-3.5 cursor-pointer transition-all duration-300 ${
+      className={`border rounded-xl p-3.5 cursor-pointer transition-colors duration-300 ${
         isSelected
           ? "border-cyan-500/40 bg-gradient-to-br from-cyan-950/20 to-indigo-950/10 shadow-[0_0_20px_rgba(34,211,238,0.07)]"
           : "border-white/[0.05] bg-slate-950/20 hover:border-white/10 hover:bg-slate-900/30"

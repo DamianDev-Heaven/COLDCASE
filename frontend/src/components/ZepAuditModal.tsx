@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { X, Database, Network, Clock, AlertTriangle } from "lucide-react";
 
 interface ZepAuditViaje {
@@ -34,6 +35,12 @@ export default function ZepAuditModal({
 }: ZepAuditModalProps) {
   const [zepFacts, setZepFacts] = useState<string[]>([]);
   const [isLoadingZep, setIsLoadingZep] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (!isOpen || !viaje?.id) return;
@@ -85,7 +92,7 @@ export default function ZepAuditModal({
         new Date(a.timestamp_sensor).getTime()
     );
 
-  return (
+  const modalMarkup = (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
       <div className="bg-[#111319] border border-slate-800 rounded-xl w-full max-w-5xl h-[85vh] flex flex-col overflow-hidden shadow-2xl">
         
@@ -111,10 +118,10 @@ export default function ZepAuditModal({
         </header>
 
         {/* WORKSPACE */}
-        <div className="flex-1 flex overflow-hidden min-h-0 bg-[#0f1115]">
+        <div className="flex-1 flex flex-col md:flex-row overflow-hidden min-h-0 bg-[#0f1115]">
           
           {/* COLUMNA IZQUIERDA: TIMELINE DE DIAGNÓSTICOS IA */}
-          <section className="flex-1 border-r border-slate-800 p-6 overflow-y-auto flex flex-col">
+          <section className="flex-1 border-b md:border-b-0 md:border-r border-slate-800 p-5 md:p-6 flex flex-col min-h-0 overflow-hidden">
             <div className="flex items-center gap-2 mb-4 shrink-0">
               <Clock className="w-4 h-4 text-sky-400" />
               <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider">
@@ -150,7 +157,7 @@ export default function ZepAuditModal({
                         <span className="text-slate-500">{formattedTime}</span>
                       </div>
                       
-                      <div className="flex gap-4 items-start">
+                      <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 items-stretch sm:items-start">
                         <div className="text-[10px] font-mono bg-[#111319] border border-slate-800 p-3 rounded shrink-0 flex flex-col gap-1 text-slate-400">
                           <div>
                             Métrica: <span className="text-red-400 font-bold">{diag.temp}°C</span>
@@ -178,7 +185,7 @@ export default function ZepAuditModal({
           </section>
 
           {/* COLUMNA DERECHA: GRAFO SEMÁNTICO ZEP */}
-          <section className="w-[380px] p-6 overflow-y-auto flex flex-col bg-[#111319] shrink-0">
+          <section className="w-full md:w-[380px] h-[35vh] md:h-full p-5 md:p-6 flex flex-col bg-[#111319] shrink-0 min-h-0 overflow-hidden">
             <div className="flex items-center gap-2 mb-4 shrink-0">
               <Network className="w-4 h-4 text-sky-400" />
               <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider">
@@ -235,4 +242,7 @@ export default function ZepAuditModal({
       </div>
     </div>
   );
+
+  return mounted ? createPortal(modalMarkup, document.body) : null;
 }
+

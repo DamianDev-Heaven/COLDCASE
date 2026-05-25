@@ -1,5 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
 import { DbService } from '../db/db.service';
 import { IaAnalysisService } from '../ia/ia-analysis.service';
 
@@ -20,6 +22,7 @@ export class ViajeService {
     private readonly db: DbService,
     private readonly config: ConfigService,
     private readonly iaAnalysisService: IaAnalysisService,
+    @InjectQueue('pdf-queue') private readonly pdfQueue: Queue,
   ) {}
 
   private async fetchOsrmRoute(
@@ -428,7 +431,23 @@ export class ViajeService {
 
   async finalizar(id: string) {
     await this.findOne(id);
-    await this.iaAnalysisService.generateFinalAudit(id);
+    
+    // 1. Actualizar el estado en la DB
+    await this.db.query(
+      `UPDATE viaje SET estado = 'finalizado', final_viaje = NOW() WHERE id = $1`,
+      [id],
+    );
+
+    // 2. Cerrar Excursiones Huérfanas
+    await this.db.query(
+      `UPDATE incidente SET resuelta = true, timestamp_fin = NOW() WHERE viaje_id = $1 AND resuelta = false`,
+      [id],
+    );
+
+    // 3. Desacoplar la Auditoría y el PDF encolando el trabajo asíncrono
+    await this.pdfQueue.add('generate-trip-pdf', { viajeId: id });
+
+    // 4. Retorno Inmediato del estado del viaje actualizado
     return this.findOne(id);
   }
 }

@@ -126,6 +126,8 @@ CREATE TABLE IF NOT EXISTS incidente (
     valor_detectado FLOAT NOT NULL,
     umbral_permitido FLOAT NOT NULL,
     timestamp_bd TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    timestamp_fin TIMESTAMP,
+    valor_pico FLOAT,
 
     CONSTRAINT fk_incidente_viaje
         FOREIGN KEY (viaje_id) REFERENCES viaje(id)
@@ -222,7 +224,8 @@ ALTER TABLE incidente ADD COLUMN IF NOT EXISTS resuelta BOOLEAN DEFAULT FALSE;
 CREATE TABLE IF NOT EXISTS analisis_ia (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     viaje_id UUID NOT NULL REFERENCES viaje(id) ON DELETE CASCADE,
-    telemetria_id BIGINT NOT NULL REFERENCES telemetria(id) ON DELETE CASCADE,
+    telemetria_id BIGINT REFERENCES telemetria(id) ON DELETE CASCADE,
+    incidente_id UUID REFERENCES incidente(id) ON DELETE CASCADE,
     nivel_riesgo VARCHAR(30) NOT NULL,       -- 'bajo', 'medio', 'alto', 'critico'
     diagnostico_tecnico TEXT NOT NULL,
     accion_mitigacion TEXT NOT NULL,
@@ -366,3 +369,9 @@ INSERT INTO incidente (
 ) VALUES
     ('99999999-9999-4999-8999-999999999999', '77777777-7777-4777-8777-777777777777', 1001, 'TEMP_ALTA', 6.2, 5.0, CURRENT_TIMESTAMP - INTERVAL '18 minutes', false)
 ON CONFLICT (id) DO NOTHING;
+
+-- Migración de esquema para bases de datos ya inicializadas:
+ALTER TABLE incidente ADD COLUMN IF NOT EXISTS timestamp_fin TIMESTAMP;
+ALTER TABLE incidente ADD COLUMN IF NOT EXISTS valor_pico FLOAT;
+ALTER TABLE analisis_ia ALTER COLUMN telemetria_id DROP NOT NULL;
+ALTER TABLE analisis_ia ADD COLUMN IF NOT EXISTS incidente_id UUID REFERENCES incidente(id) ON DELETE CASCADE;
