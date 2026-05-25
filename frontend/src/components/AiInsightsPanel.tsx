@@ -1,12 +1,25 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Sparkles, Bot, Shield, CheckCircle, Search, HelpCircle } from "lucide-react";
+import { Sparkles, Bot, Shield, CheckCircle, Search } from "lucide-react";
 import ZepAuditModal from "./ZepAuditModal";
 
+interface ZepAuditViaje {
+  id: string;
+  estado?: string;
+  auditoria_ia?: string | null;
+  tipo_producto?: string;
+}
+
+interface TelemetryPoint {
+  timestamp_sensor: string;
+  temp: number;
+  ia_diagnosis?: string | null;
+}
+
 interface AiInsightsPanelProps {
-  viaje: any;
-  telemetryList: any[];
+  viaje: ZepAuditViaje | null;
+  telemetryList: TelemetryPoint[];
   apiUrl: string;
 }
 

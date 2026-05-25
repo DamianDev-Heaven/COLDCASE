@@ -7,8 +7,6 @@ import TelemetryChart from "@/components/TelemetryChart";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
 const SIMULATOR_URL = process.env.NEXT_PUBLIC_SIMULADOR_URL || "http://localhost:4000";
-const UUID_REGEX =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 type Sucursal = {
   id: string;
@@ -20,25 +18,70 @@ type Sucursal = {
   lon: number;
 };
 
+interface Viaje {
+  id: string;
+  estado: string;
+  tipo_producto: string;
+  valor_comercial: number;
+  peso_kg: number;
+  volumen_m3: number;
+  limite_max_temp: number;
+  limite_min_temp?: number;
+  inicio_viaje?: string | null;
+  final_viaje?: string | null;
+  auditoria_ia?: string | null;
+  transporte_id: string;
+  transporte_placa: string;
+  origen_id: string;
+  origen_nombre: string;
+  destino_id: string;
+  destino_nombre: string;
+  sucursal_origen_id?: string;
+  sucursal_destino_id?: string;
+  ruta_waypoints?: unknown;
+  margen_desvio_km?: number;
+}
+
+interface Transporte {
+  id: string;
+  placa: string;
+  capacidad_carga_kg: number;
+  empresa_nombre: string;
+  empresa_id: string;
+  iot_id: string;
+  estado: string;
+}
+
+interface TelemetryPoint {
+  id?: string | number;
+  viaje_id: string;
+  lat: number | string;
+  lon: number | string;
+  temp: number;
+  humedad?: number | null;
+  bateria?: number | null;
+  timestamp_sensor: string;
+  received_at?: string;
+  ia_diagnosis?: string | null;
+}
+
 // ========================================================
 // COMPONENTE PRINCIPAL (DASHBOARD V2)
 // ========================================================
 export default function DashboardV2() {
-  const [viajes, setViajes] = useState<any[]>([]);
+  const [viajes, setViajes] = useState<Viaje[]>([]);
   const [sucursales, setSucursales] = useState<Sucursal[]>([]);
-  const [transportes, setTransportes] = useState<any[]>([]);
-  const [viajeSeleccionado, setViajeSeleccionado] = useState<any>(null);
+  const [transportes, setTransportes] = useState<Transporte[]>([]);
+  const [viajeSeleccionado, setViajeSeleccionado] = useState<Viaje | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   const [activeTab, setActiveTab] = useState<"overview" | "timeline">("overview");
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [telemetryList, setTelemetryList] = useState<any[]>([]);
+  const [telemetryList, setTelemetryList] = useState<TelemetryPoint[]>([]);
 
-  const aiDiagnostics = useMemo(() => {
-    return telemetryList.filter((point) => point.ia_diagnosis);
-  }, [telemetryList]);
+
 
   // Estados para el formulario real de nuevo envío (Modal con campos añadidos)
   const [transporteIdForm, setTransporteIdForm] = useState("");
@@ -91,10 +134,7 @@ export default function DashboardV2() {
     ];
   }, [sucursales, sucursalOrigenIdForm, sucursalDestinoIdForm]);
 
-  const transporteSeleccionado = useMemo(
-    () => transportes.find((t) => t.id === transporteIdForm) ?? null,
-    [transportes, transporteIdForm]
-  );
+
 
   // Telemetría simulada en base al ID estático de la BD
   const telemetryDataQuery = useMemo(() => {
@@ -208,16 +248,24 @@ export default function DashboardV2() {
 
   useEffect(() => {
     if (!viajeSeleccionado?.id) {
-      setTelemetryList([]);
-      return;
+      const timer = setTimeout(() => {
+        setTelemetryList([]);
+      }, 0);
+      return () => clearTimeout(timer);
     }
 
+    const viajeId = viajeSeleccionado.id;
     async function cargarTelemetria() {
       try {
-        const res = await fetch(`${API_URL}/telemetria/viaje/${viajeSeleccionado.id}`);
+        const res = await fetch(`${API_URL}/telemetria/viaje/${viajeId}`);
         if (res.ok) {
           const data = await res.json();
-          const sorted = Array.isArray(data) ? data.sort((a: any, b: any) => new Date(a.timestamp_sensor).getTime() - new Date(b.timestamp_sensor).getTime()) : [];
+          const sorted = Array.isArray(data)
+            ? (data as TelemetryPoint[]).sort(
+                (a: TelemetryPoint, b: TelemetryPoint) =>
+                  new Date(a.timestamp_sensor).getTime() - new Date(b.timestamp_sensor).getTime(),
+              )
+            : [];
           setTelemetryList(sorted);
         }
       } catch (error) {
@@ -319,7 +367,7 @@ export default function DashboardV2() {
             
             {/* MAPA INTERACTIVO CON RUTA PUNTO A PUNTO ACTIVA */}
             <div className="flex-1 bg-[#0a0f1d] rounded-xl border border-white/5 relative overflow-hidden z-10">
-              {waypointsViajeActivo.length === 2 ? (
+              {viajeSeleccionado && waypointsViajeActivo.length === 2 ? (
                 <RouteMap 
                   viajeId={viajeSeleccionado.id} 
                   waypoints={waypointsViajeActivo} 
@@ -480,7 +528,7 @@ export default function DashboardV2() {
                     </div>
                     <div className="flex-grow flex-1 flex flex-col gap-1">
                       <label className="text-[9px] uppercase font-mono text-slate-400">Estado</label>
-                      <select value={estadoForm} onChange={(e) => setEstadoForm(e.target.value as any)} className="w-full bg-[#05070f] border border-white/5 text-xs text-slate-200 p-2 rounded-md outline-none">
+                      <select value={estadoForm} onChange={(e) => setEstadoForm(e.target.value as "pendiente" | "en_curso")} className="w-full bg-[#05070f] border border-white/5 text-xs text-slate-200 p-2 rounded-md outline-none">
                         <option value="pendiente">pendiente</option>
                         <option value="en_curso">en_curso</option>
                       </select>

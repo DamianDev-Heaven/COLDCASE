@@ -90,12 +90,15 @@ export default function SetupPage() {
   };
 
   useEffect(() => {
-    loadAll().catch(() => {
-      setStatus({
-        type: "error",
-        message: "No se pudo cargar la informacion. Verifica el backend.",
+    const timer = setTimeout(() => {
+      loadAll().catch(() => {
+        setStatus({
+          type: "error",
+          message: "No se pudo cargar la informacion. Verifica el backend.",
+        });
       });
-    });
+    }, 0);
+    return () => clearTimeout(timer);
   }, []);
 
   const handleEmpresa = async (event: FormEvent<HTMLFormElement>) => {

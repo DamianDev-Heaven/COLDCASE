@@ -115,13 +115,19 @@ export default function TelemetriaPage() {
   };
 
   useEffect(() => {
-    loadData();
+    const timer = setTimeout(() => {
+      loadData();
+    }, 0);
+    return () => clearTimeout(timer);
   }, []);
 
   useEffect(() => {
     if (!selectedViajeId && viajes.length > 0) {
-      setSelectedViajeId(viajes[0].id);
-      setViajeId(viajes[0].id);
+      const timer = setTimeout(() => {
+        setSelectedViajeId(viajes[0].id);
+        setViajeId(viajes[0].id);
+      }, 0);
+      return () => clearTimeout(timer);
     }
   }, [selectedViajeId, viajes]);
 
@@ -129,8 +135,13 @@ export default function TelemetriaPage() {
 
   const selectedWaypoints = useMemo(() => {
     if (!selectedViaje) return [];
-    if (Array.isArray(selectedViaje.ruta_waypoints)) return selectedViaje.ruta_waypoints.map((p: any) => ({ lat: p.lat, lon: p.lon }));
-    const coordinates = selectedViaje.ruta_waypoints.features?.[0]?.geometry?.coordinates ?? [];
+    if (Array.isArray(selectedViaje.ruta_waypoints)) {
+      return (selectedViaje.ruta_waypoints as Array<{ lat: number; lon: number }>).map((p) => ({
+        lat: p.lat,
+        lon: p.lon,
+      }));
+    }
+    const coordinates = (selectedViaje.ruta_waypoints as { features?: Array<{ geometry?: { coordinates?: Array<[number, number]> } }> })?.features?.[0]?.geometry?.coordinates ?? [];
     return coordinates.map(([lon, lat]: [number, number]) => ({ lat, lon }));
   }, [selectedViaje]);
 
