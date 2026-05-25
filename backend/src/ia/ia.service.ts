@@ -1,4 +1,6 @@
 import { Injectable } from '@nestjs/common';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
 import {
   IaAnalysisService,
   AnalisisResultado,
@@ -8,7 +10,10 @@ import type { AnalisisIaResultado, AnalisisIaRow, TelemetriaInput } from './ia.i
 
 @Injectable()
 export class IaService {
-  constructor(private readonly iaAnalysisService: IaAnalysisService) {}
+  constructor(
+    private readonly iaAnalysisService: IaAnalysisService,
+    @InjectQueue('ia-analysis-queue') private readonly iaQueue: Queue,
+  ) {}
 
   analizarEvento(payload: AnalisisViajeInput): Promise<AnalisisResultado> {
     return this.iaAnalysisService.analizarEvento(payload);
@@ -53,4 +58,34 @@ export class IaService {
   obtenerContextoGrafo(viajeId: string, query: string) {
     return this.iaAnalysisService.obtenerContextoGrafo(viajeId, query);
   }
+
+  /**
+   * Pausa la ejecución de la cola BullMQ.
+   */
+  async pauseQueue() {
+    await this.iaQueue.pause();
+    return { status: 'paused', isPaused: await this.iaQueue.isPaused() };
+  }
+
+  /**
+   * Reanuda la ejecución de la cola BullMQ.
+   */
+  async resumeQueue() {
+    await this.iaQueue.resume();
+    return { status: 'active', isPaused: await this.iaQueue.isPaused() };
+  }
+
+  /**
+   * Obtiene el estado actual de la cola BullMQ con métricas en tiempo real.
+   */
+  async getQueueStatus() {
+    return {
+      isPaused: await this.iaQueue.isPaused(),
+      waiting: await this.iaQueue.getWaitingCount(),
+      active: await this.iaQueue.getActiveCount(),
+      completed: await this.iaQueue.getCompletedCount(),
+      failed: await this.iaQueue.getFailedCount(),
+    };
+  }
 }
+

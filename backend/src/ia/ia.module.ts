@@ -2,17 +2,25 @@ import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Groq from 'groq-sdk';
 import { ZepClient } from '@getzep/zep-cloud';
+import { BullModule } from '@nestjs/bullmq';
 import { IaController } from './ia.controller';
 import { IaAnalysisService } from './ia-analysis.service';
 import { IaService } from './ia.service';
 import { ZepMemoryService } from './zep-memory.service';
+import { IaProcessor } from './ia.processor';
 
 @Module({
+  imports: [
+    BullModule.registerQueue({
+      name: 'ia-analysis-queue',
+    }),
+  ],
   controllers: [IaController],
   providers: [
     IaService,
     IaAnalysisService,
     ZepMemoryService,
+    IaProcessor,
     {
       provide: 'GROQ_CLIENT',
       useFactory: (config: ConfigService): Groq | null => {
@@ -43,6 +51,6 @@ import { ZepMemoryService } from './zep-memory.service';
       inject: [ConfigService],
     },
   ],
-  exports: [IaAnalysisService, ZepMemoryService],
+  exports: [IaAnalysisService, ZepMemoryService, BullModule],
 })
 export class IaModule {}

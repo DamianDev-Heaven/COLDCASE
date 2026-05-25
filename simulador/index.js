@@ -19,6 +19,7 @@ const runtimeState = {
 	logs: [],
 	gateOpeningEnabled: true,
 	turboMode: false,
+	iotFailure: false,
 };
 
 const simulationMap = new Map();
@@ -249,6 +250,9 @@ function buildSample(viaje, state) {
 }
 
 async function postTelemetry(payload) {
+	if (runtimeState.iotFailure) {
+		throw new Error('ERR_SIGNAL_LOST: Sensores fuera de línea (Pérdida de señal celular/IoT simulada).');
+	}
 	const response = await fetch(`${API_URL}/telemetria`, {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
@@ -436,10 +440,26 @@ async function buildDashboardSnapshot() {
 
 	const selectedDetail = await buildTripDetail(selectedTripId);
 
+	let queueMetrics = { isPaused: false, waiting: 0, active: 0, completed: 0, failed: 0 };
+	try {
+		const statusRes = await fetch(`${API_URL}/ia/queue/status`);
+		const status = await statusRes.json();
+		queueMetrics = {
+			isPaused: !!status.isPaused,
+			waiting: Number(status.waiting ?? 0),
+			active: Number(status.active ?? 0),
+			completed: Number(status.completed ?? 0),
+			failed: Number(status.failed ?? 0),
+		};
+	} catch (err) {
+		// Ignorar si el backend o redis no están listos todavía
+	}
+
 	return {
 		...runtime,
 		selectedTripId,
 		selectedDetail,
+		queueMetrics,
 	};
 }
 
@@ -1227,6 +1247,39 @@ function renderDashboardPage() {
 				</div>
 			</div>
 			
+			<!-- NUEVO PANEL: SIMULACIÓN DE CONECTIVIDAD Y RESILIENCIA (SIN EMOJIS, PREMIUM) -->
+			<div class="panel" style="shrink: 0; background: rgba(10, 15, 29, 0.4);">
+				<div class="eyebrow" style="margin-bottom: 2px;">Resiliencia & Fallas</div>
+				<h2 class="title" style="font-size: 1rem; margin-bottom: 8px; color: #fff;">Simulación de Red</h2>
+				
+				<!-- Fallo IoT Toggle -->
+				<div style="padding: 10px 12px; border-radius: 10px; background: rgba(15, 23, 42, 0.3); border: 1px solid rgba(255, 255, 255, 0.04); display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+					<div>
+						<div style="font-size: 11px; font-weight: 700; color: #e2e8f0;">Falla de Señal IoT</div>
+						<div style="font-size: 9px; color: var(--muted); margin-top: 1px;">Simula desconexión celular del camión</div>
+					</div>
+					<label class="switch">
+						<input type="checkbox" id="iotFailureToggle">
+						<span class="slider"></span>
+					</label>
+				</div>
+				
+				<!-- Worker Cola IA Toggle -->
+				<div style="margin-top: 6px; padding: 10px 12px; border-radius: 10px; background: rgba(15, 23, 42, 0.3); border: 1px solid rgba(255, 255, 255, 0.04); display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+					<div>
+						<div style="font-size: 11px; font-weight: 700; color: #e2e8f0;">Worker de Diagnóstico IA</div>
+						<div style="font-size: 9px; color: var(--muted); margin-top: 1px; display: flex; align-items: center; gap: 4px;">
+							<span class="led-indicator" id="workerLed" style="width:6px; height:6px; margin-right:4px;"></span>
+							<span id="workerStatusText">Cargando...</span>
+						</div>
+					</div>
+					<label class="switch">
+						<input type="checkbox" id="queueToggle" checked>
+						<span class="slider"></span>
+					</label>
+				</div>
+			</div>
+			
 			<div class="panel" style="flex: 1; display: flex; flex-direction: column; min-height: 0; padding-bottom: 12px;">
 				<div class="eyebrow" style="margin-bottom: 4px;">Monitoreo de Flota</div>
 				<span style="font-size: 11px; color: var(--muted); display: block; margin-bottom: 8px;">Selecciona una ruta en curso para auditar</span>
@@ -1311,6 +1364,37 @@ function renderDashboardPage() {
 				</div>
 			</section>
 
+			<!-- NUEVO PANEL: AUDITOR EN VIVO DE REDIS & BULLMQ (SIN EMOJIS, PREMIUM) -->
+			<section class="card" style="padding:14px; shrink: 0; border: 1px solid rgba(14, 165, 233, 0.15); background: linear-gradient(135deg, rgba(10, 15, 29, 0.8) 0%, rgba(5, 7, 15, 0.95) 100%);">
+				<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+					<div class="eyebrow" style="color:var(--cyan); font-size: 9px; letter-spacing: 0.15em; margin-bottom: 0;">Auditor en Vivo de Redis & BullMQ</div>
+					<span class="tag" id="redisConnTag" style="font-size: 8px; font-weight: 800; background: rgba(16, 185, 129, 0.08); color: var(--emerald); border: 1px solid rgba(16, 185, 129, 0.15);">REDIS OK</span>
+				</div>
+				
+				<div class="metrics" style="grid-template-columns: repeat(2, 1fr); gap: 6px; margin-top: 4px;">
+					<div class="metric" style="padding: 6px 8px; background: rgba(15, 23, 42, 0.35);">
+						<span style="font-size: 8px; color: var(--muted);">En Espera (Waiting)</span>
+						<strong id="queueWaiting" style="color: var(--amber); font-size: 1rem; margin-top: 2px;">0</strong>
+					</div>
+					<div class="metric" style="padding: 6px 8px; background: rgba(15, 23, 42, 0.35);">
+						<span style="font-size: 8px; color: var(--muted);">Procesando (Active)</span>
+						<strong id="queueActive" style="color: var(--cyan); font-size: 1rem; margin-top: 2px;">0</strong>
+					</div>
+					<div class="metric" style="padding: 6px 8px; background: rgba(15, 23, 42, 0.35);">
+						<span style="font-size: 8px; color: var(--muted);">Completados (Done)</span>
+						<strong id="queueCompleted" style="color: var(--emerald); font-size: 1rem; margin-top: 2px;">0</strong>
+					</div>
+					<div class="metric" style="padding: 6px 8px; background: rgba(15, 23, 42, 0.35);">
+						<span style="font-size: 8px; color: var(--muted);">Fallidos (Failed)</span>
+						<strong id="queueFailed" style="color: var(--rose); font-size: 1rem; margin-top: 2px;">0</strong>
+					</div>
+				</div>
+				
+				<div style="font-size: 9px; color: var(--muted); margin-top: 8px; text-align: center; border-top: 1px solid rgba(255,255,255,0.03); padding-top: 6px; font-family: monospace;">
+					Canal IA: ia-analysis-queue (Concurrencia: 1)
+				</div>
+			</section>
+
 			<!-- Selected Trip Manual Incident Triggers -->
 			<div class="panel" style="shrink: 0; padding: 14px;">
 				<div class="eyebrow" style="margin-bottom: 8px; font-size: 9px; letter-spacing: 0.2em;">Inyector de Anomalías</div>
@@ -1373,6 +1457,15 @@ function renderDashboardPage() {
 		const toggleBtn = document.getElementById('toggleBtn');
 		const gateToggle = document.getElementById('gateToggle');
 		const turboToggle = document.getElementById('turboToggle');
+		const iotFailureToggle = document.getElementById('iotFailureToggle');
+		const queueToggle = document.getElementById('queueToggle');
+		const workerLed = document.getElementById('workerLed');
+		const workerStatusText = document.getElementById('workerStatusText');
+		const redisConnTag = document.getElementById('redisConnTag');
+		const queueWaiting = document.getElementById('queueWaiting');
+		const queueActive = document.getElementById('queueActive');
+		const queueCompleted = document.getElementById('queueCompleted');
+		const queueFailed = document.getElementById('queueFailed');
 		const compressorToggle = document.getElementById('compressorToggle');
 		const deviationToggle = document.getElementById('deviationToggle');
 		const forceGateBtn = document.getElementById('forceGateBtn');
@@ -1408,6 +1501,7 @@ function renderDashboardPage() {
 		let renderedMapTripId = null;
 		let isUserInteractingMap = false;
 		let lastRoutePoints = [];
+		let lastTruckPosition = null;
 
 		function escapeHtml(value) {
 			return String(value ?? '')
@@ -1593,6 +1687,7 @@ function renderDashboardPage() {
 
 			// Actualizar última ruta para recentrar de forma manual
 			lastRoutePoints = route;
+			lastTruckPosition = [progressPoint.lat, progressPoint.lon];
 
 			const bounds = window.L.latLngBounds(route);
 			window.L.polyline(route, {
@@ -1807,6 +1902,27 @@ function renderDashboardPage() {
 			if (turboToggle) {
 				turboToggle.checked = !!state.turboMode;
 			}
+			if (iotFailureToggle) {
+				iotFailureToggle.checked = !!state.iotFailure;
+			}
+			if (queueToggle) {
+				queueToggle.checked = !state.queueMetrics?.isPaused;
+			}
+			if (workerLed && workerStatusText) {
+				if (state.queueMetrics?.isPaused) {
+					workerLed.style.backgroundColor = 'var(--amber)';
+					workerLed.style.boxShadow = '0 0 8px var(--amber)';
+					workerStatusText.textContent = 'Worker: OFFLINE (Cola Pausada)';
+				} else {
+					workerLed.style.backgroundColor = 'var(--emerald)';
+					workerLed.style.boxShadow = '0 0 8px var(--emerald)';
+					workerStatusText.textContent = 'Worker: ONLINE';
+				}
+			}
+			if (queueWaiting) queueWaiting.textContent = state.queueMetrics?.waiting ?? 0;
+			if (queueActive) queueActive.textContent = state.queueMetrics?.active ?? 0;
+			if (queueCompleted) queueCompleted.textContent = state.queueMetrics?.completed ?? 0;
+			if (queueFailed) queueFailed.textContent = state.queueMetrics?.failed ?? 0;
 			activeTrips.textContent = state.activeTrips ?? 0;
 			sentTrips.textContent = state.totalSent ?? 0;
 			incidentTrips.textContent = state.totalIncidents ?? 0;
@@ -1947,7 +2063,9 @@ function renderDashboardPage() {
 				isUserInteractingMap = false;
 				const btn = document.getElementById('resetMapCam');
 				if (btn) btn.style.display = 'none';
-				if (leafletMap && lastRoutePoints.length > 0) {
+				if (leafletMap && lastTruckPosition) {
+					leafletMap.setView(lastTruckPosition, 16, { animate: true });
+				} else if (leafletMap && lastRoutePoints.length > 0) {
 					leafletMap.fitBounds(window.L.latLngBounds(lastRoutePoints), { animate: true });
 				}
 			}
@@ -2009,6 +2127,32 @@ function renderDashboardPage() {
 					console.error(error);
 				} finally {
 					turboToggle.disabled = false;
+				}
+			});
+		}
+
+		if (iotFailureToggle) {
+			iotFailureToggle.addEventListener('change', async () => {
+				iotFailureToggle.disabled = true;
+				try {
+					await postJson('/api/simulation/toggle-iot-link', { enabled: iotFailureToggle.checked });
+				} catch (error) {
+					console.error(error);
+				} finally {
+					iotFailureToggle.disabled = false;
+				}
+			});
+		}
+
+		if (queueToggle) {
+			queueToggle.addEventListener('change', async () => {
+				queueToggle.disabled = true;
+				try {
+					await postJson('/api/simulation/toggle-queue');
+				} catch (error) {
+					console.error(error);
+				} finally {
+					queueToggle.disabled = false;
 				}
 			});
 		}
@@ -2197,6 +2341,68 @@ async function handleApiRequest(req, res, pathname) {
 
 		res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
 		res.end(JSON.stringify({ turboMode: runtimeState.turboMode }));
+		return true;
+	}
+
+	if (req.method === 'POST' && pathname === '/api/simulation/toggle-iot-link') {
+		let body = '';
+		for await (const chunk of req) {
+			body += chunk;
+		}
+		let payload = {};
+		try {
+			payload = body ? JSON.parse(body) : {};
+		} catch {
+			payload = {};
+		}
+
+		runtimeState.iotFailure = payload.enabled !== undefined ? !!payload.enabled : !runtimeState.iotFailure;
+		logEvent('info', runtimeState.iotFailure 
+			? 'Simulador: Enlace de sensores IoT APAGADO (Pérdida de señal celular activa).' 
+			: 'Simulador: Enlace de sensores IoT ENCENDIDO (Señal celular normal).'
+		);
+		res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+		res.end(JSON.stringify({ iotFailure: runtimeState.iotFailure }));
+		return true;
+	}
+
+	if (req.method === 'POST' && pathname === '/api/simulation/toggle-queue') {
+		let isPaused = false;
+		try {
+			// Consultar estado actual
+			const statusRes = await fetch(`${API_URL}/ia/queue/status`);
+			const status = await statusRes.json();
+			const action = status.isPaused ? 'resume' : 'pause';
+			
+			// Alternar estado en backend
+			const toggleRes = await fetch(`${API_URL}/ia/queue/${action}`, { method: 'POST' });
+			const toggle = await toggleRes.json();
+			isPaused = toggle.isPaused;
+			
+			logEvent('info', isPaused 
+				? 'Simulador: Worker IA fuera de línea (Cola de Redis BullMQ PAUSADA).' 
+				: 'Simulador: Worker IA en línea (Cola de Redis BullMQ REANUDADA).'
+			);
+		} catch (err) {
+			logEvent('error', `Error al comunicar con la cola de Redis: ${err.message}`);
+		}
+		
+		res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+		res.end(JSON.stringify({ queuePaused: isPaused }));
+		return true;
+	}
+
+	if (req.method === 'GET' && pathname === '/api/simulation/queue-status') {
+		let isPaused = false;
+		try {
+			const statusRes = await fetch(`${API_URL}/ia/queue/status`);
+			const status = await statusRes.json();
+			isPaused = status.isPaused;
+		} catch (err) {
+			// Ignorar o registrar silencioso
+		}
+		res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+		res.end(JSON.stringify({ queuePaused: isPaused }));
 		return true;
 	}
 

@@ -1,4 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
 import { DbService } from '../db/db.service';
 import { IncidenteService } from '../incidente/incidente.service';
 import { IaAnalysisService } from '../ia/ia-analysis.service';
@@ -31,6 +33,7 @@ export class TelemetriaService {
     private readonly db: DbService,
     private readonly incidenteService: IncidenteService,
     private readonly iaAnalysisService: IaAnalysisService,
+    @InjectQueue('ia-analysis-queue') private readonly iaQueue: Queue,
   ) {}
 
   async create(payload: {
@@ -175,9 +178,10 @@ export class TelemetriaService {
 
     if (result.tipo_alerta === 'TEMP_ALTA') {
       try {
-        const iaResult = await this.iaAnalysisService.analizarEventoEnTiempoReal(
-          payload.viaje_id,
-          {
+        // Encolar el análisis en BullMQ para procesarse en segundo plano con concurrencia limitada
+        await this.iaQueue.add('analyze-incident', {
+          viajeId: payload.viaje_id,
+          incidenteData: {
             id: result.id,
             viaje_id: result.viaje_id,
             lat: Number(result.lat),
@@ -187,11 +191,11 @@ export class TelemetriaService {
             bateria: result.bateria,
             timestamp_sensor: result.timestamp_sensor,
           },
-        );
-        ia_diagnosis = iaResult.diagnostico_tecnico;
+        });
+        ia_diagnosis = 'Análisis encolado para procesamiento en lote';
       } catch (err: any) {
         const msg = err instanceof Error ? err.message : String(err);
-        console.warn(`Error de diagnóstico IA no bloqueante: ${msg}`);
+        console.warn(`Error al encolar análisis IA en tiempo real: ${msg}`);
       }
     }
 
@@ -210,8 +214,12 @@ export class TelemetriaService {
   }
 
   async findByViaje(viajeId: string) {
-    const result = await this.db.query<TelemetriaRow>(
-      'SELECT id, viaje_id, lat, lon, temp, humedad, bateria, timestamp_sensor, received_at FROM telemetria WHERE viaje_id = $1 ORDER BY received_at ASC, id ASC',
+    const result = await this.db.query<TelemetriaRow & { ia_diagnosis?: string }>(
+      `SELECT t.id, t.viaje_id, t.lat, t.lon, t.temp, t.humedad, t.bateria, t.timestamp_sensor, t.received_at, a.diagnostico_tecnico AS ia_diagnosis
+       FROM telemetria t
+       LEFT JOIN analisis_ia a ON a.telemetria_id = t.id
+       WHERE t.viaje_id = $1
+       ORDER BY t.received_at ASC, t.id ASC`,
       [viajeId],
     );
 
