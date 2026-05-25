@@ -94,4 +94,11 @@ export class IaService {
       failed: await this.iaQueue.getFailedCount(),
     };
   }
+
+  /**
+   * Realiza una búsqueda directa en el Grafo Global de Zep y retorna nodos y aristas.
+   */
+  buscarEnGrafoGlobal(query: string): Promise<any> {
+    return this.iaAnalysisService.buscarEnGrafoGlobal(query);
+  }
 }

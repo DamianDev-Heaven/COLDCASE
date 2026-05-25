@@ -209,6 +209,32 @@ export class ZepMemoryService {
     );
   }
 
+  /**
+   * Realiza una búsqueda directa en el Grafo de Zep retornando la respuesta en bruto (nodos y aristas).
+   */
+  async buscarEnGrafoDirecto(query: string): Promise<any> {
+    if (!this.zepClient) {
+      return { nodes: [], edges: [] };
+    }
+    const graphId = this.graphId;
+    try {
+      await this.ensureGraph(graphId);
+      const response = await this.withTimeout(
+        this.zepClient.graph.search({
+          graphId,
+          query: query || 'anomalía',
+        }),
+      );
+      return response;
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : String(error);
+      this.logger.warn(
+        `Zep: Fallo al realizar búsqueda directa en el grafo ${graphId}: ${msg}`,
+      );
+      return { nodes: [], edges: [] };
+    }
+  }
+
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   // MÉTODOS PRIVADOS
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

@@ -431,7 +431,7 @@ export class ViajeService {
 
   async finalizar(id: string) {
     await this.findOne(id);
-    
+
     // 1. Actualizar el estado en la DB
     await this.db.query(
       `UPDATE viaje SET estado = 'finalizado', final_viaje = NOW() WHERE id = $1`,

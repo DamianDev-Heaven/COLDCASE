@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { DbService } from '../db/db.service';
@@ -28,6 +32,9 @@ type IncidenteRow = {
   valor_detectado: number;
   umbral_permitido: number;
   timestamp_bd: string;
+  timestamp_fin?: string | null;
+  valor_pico?: number | null;
+  resuelta?: boolean;
 };
 
 type TelemetriaRow = {
@@ -116,12 +123,12 @@ export class TelemetriaService {
         );
       }
 
-      let incidente: any = null;
+      let incidente: IncidenteRow | null = null;
       let encolarIa = false;
-      let incidenteParaIa: any = null;
+      let incidenteParaIa: IncidenteRow | null = null;
 
       // 2. Consultar Excursión Activa (TEMP_ALTA)
-      const activeIncidentResult = await client.query<any>(
+      const activeIncidentResult = await client.query<IncidenteRow>(
         "SELECT id, viaje_id, telemetria_id, tipo_alerta, valor_detectado, umbral_permitido, timestamp_bd, valor_pico, resuelta FROM incidente WHERE viaje_id = $1 AND tipo_alerta = 'TEMP_ALTA' AND resuelta = false LIMIT 1",
         [payload.viaje_id],
       );
@@ -145,7 +152,10 @@ export class TelemetriaService {
           });
         } else {
           // Caso Alta + Activa: Actualizar valor_pico si la nueva lectura es mayor
-          const currentPico = activeIncident.valor_pico != null ? Number(activeIncident.valor_pico) : Number(activeIncident.valor_detectado);
+          const currentPico =
+            activeIncident.valor_pico != null
+              ? Number(activeIncident.valor_pico)
+              : Number(activeIncident.valor_detectado);
           if (payload.temp > currentPico) {
             await client.query(
               'UPDATE incidente SET valor_pico = $1 WHERE id = $2',
@@ -166,12 +176,14 @@ export class TelemetriaService {
           const lastPings = lastPingsResult.rows;
 
           // Si hay al menos 3 pings y todos son normales (<= limite_max_temp)
-          const gracePeriodMet = lastPings.length >= 3 && lastPings.every(p => Number(p.temp) <= viaje.limite_max_temp);
+          const gracePeriodMet =
+            lastPings.length >= 3 &&
+            lastPings.every((p) => Number(p.temp) <= viaje.limite_max_temp);
 
           if (gracePeriodMet) {
             // Resolver excursión activa
-            const updateResult = await client.query<any>(
-              "UPDATE incidente SET resuelta = true, timestamp_fin = NOW() WHERE id = $1 RETURNING id, viaje_id, telemetria_id, tipo_alerta, valor_detectado, umbral_permitido, timestamp_bd, timestamp_fin, valor_pico, resuelta",
+            const updateResult = await client.query<IncidenteRow>(
+              'UPDATE incidente SET resuelta = true, timestamp_fin = NOW() WHERE id = $1 RETURNING id, viaje_id, telemetria_id, tipo_alerta, valor_detectado, umbral_permitido, timestamp_bd, timestamp_fin, valor_pico, resuelta',
               [activeIncident.id],
             );
             const resolvedIncidente = updateResult.rows[0];
@@ -203,7 +215,8 @@ export class TelemetriaService {
                   ? 0.5
                   : Number(viaje.margen_desvio_km);
               const waypoints =
-                Array.isArray(viaje.ruta_waypoints) && viaje.ruta_waypoints.length
+                Array.isArray(viaje.ruta_waypoints) &&
+                viaje.ruta_waypoints.length
                   ? (viaje.ruta_waypoints as WaypointPoint[])
                   : ((
                       viaje.ruta_waypoints as WaypointGeoJSON
@@ -211,7 +224,11 @@ export class TelemetriaService {
                       (c: [number, number]) => ({ lon: c[0], lat: c[1] }),
                     ) ?? null);
 
-              if (Array.isArray(waypoints) && waypoints.length > 0 && margen >= 0) {
+              if (
+                Array.isArray(waypoints) &&
+                waypoints.length > 0 &&
+                margen >= 0
+              ) {
                 let waypointsList = waypoints as Array<
                   WaypointPoint | [number, number]
                 >;
@@ -219,7 +236,8 @@ export class TelemetriaService {
                 // DOWNSAMPLING UNIFORME: Limitar a máximo 30 puntos distribuidos uniformemente para evitar el Efecto Avalancha
                 if (waypointsList.length > 30) {
                   const step = (waypointsList.length - 1) / 29;
-                  const downsampled: Array<WaypointPoint | [number, number]> = [];
+                  const downsampled: Array<WaypointPoint | [number, number]> =
+                    [];
                   for (let i = 0; i < 30; i++) {
                     const index = Math.round(i * step);
                     downsampled.push(waypointsList[index]);
@@ -307,7 +325,9 @@ export class TelemetriaService {
     if (result.encolarIa && result.incidenteParaIa) {
       try {
         const inc = result.incidenteParaIa;
-        const durationMs = new Date(inc.timestamp_fin).getTime() - new Date(inc.timestamp_bd).getTime();
+        const durationMs =
+          new Date(inc.timestamp_fin || '').getTime() -
+          new Date(inc.timestamp_bd || '').getTime();
         const duracionSegundos = Math.max(0, Math.round(durationMs / 1000));
 
         // Encolar el análisis en BullMQ consolidando la excursión completa

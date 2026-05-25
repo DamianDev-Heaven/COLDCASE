@@ -1198,4 +1198,17 @@ Por favor, genera la auditoría del viaje en el JSON.`;
     const enrichedQuery = `Viaje ${viajeId}: ${query ?? 'anomalías térmicas y alertas operativas'}`;
     return this.zepMemory.recuperarContextoGlobal(viajeId, enrichedQuery);
   }
+
+  /**
+   * Realiza una búsqueda directa en el Grafo Global de Zep y retorna nodos y aristas.
+   */
+  async buscarEnGrafoGlobal(query: string): Promise<any> {
+    try {
+      return await this.zepMemory.buscarEnGrafoDirecto(query);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Error en búsqueda de grafo global: ${message}`);
+      return { nodes: [], edges: [] };
+    }
+  }
 }
