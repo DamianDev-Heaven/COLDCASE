@@ -17,6 +17,7 @@ const runtimeState = {
 	activeTrips: 0,
 	simulations: [],
 	logs: [],
+	gateOpeningEnabled: true,
 };
 
 const simulationMap = new Map();
@@ -150,8 +151,30 @@ function buildSample(viaje, state) {
 	const routePosition = getRoutePosition(state);
 	const limitMaxTemp = asNumber(viaje.limite_max_temp, 5);
 	const limitMinTemp = viaje.limite_min_temp == null ? limitMaxTemp - 3 : asNumber(viaje.limite_min_temp, limitMaxTemp - 3);
-	const routeVariation = Math.sin((state.telemetryCount + state.routeSeed) / 2.8) * 2.2;
-	const temp = Number((limitMaxTemp - 1.2 + state.temperatureBias + routeVariation).toFixed(1));
+
+	// Temperatura base del viaje
+	const baseTemp = limitMaxTemp - 1.2 + state.temperatureBias;
+
+	// 1. Modelo de Random Walk térmico
+	// Extraer temperatura anterior del estado en memoria, o usar baseTemp al inicio
+	let temp = state.lastPayload ? state.lastPayload.temp : baseTemp;
+
+	// Fluctación de ruido ambiental aleatoria entre -0.5°C y +0.5°C
+	const noise = Math.random() * 1.0 - 0.5;
+	temp += noise;
+
+	// 2. Simulación de Eventos Críticos Probabilísticos (Apertura de Compuerta)
+	if (runtimeState.gateOpeningEnabled !== false) {
+		const rand = Math.random();
+		if (rand > 0.98) {
+			temp += 4.5;
+			logEvent('warn', `Simulador: Apertura de Compuerta detectada en viaje ${viaje.id}. Incremento súbito de 4.5°C.`, viaje.id);
+		}
+	}
+
+	// Redondear temperatura a 1 decimal
+	temp = Number(temp.toFixed(1));
+
 	const humidity = Number(clamp(66 + Math.cos((state.telemetryCount + state.routeSeed) / 3.2) * 7, 35, 94).toFixed(1));
 	const batteryDrain = state.routeSeed % 3 === 0 ? 1.8 : 0.9;
 	const battery = Math.max(0, Math.min(100, Math.round(state.battery - batteryDrain)));
@@ -177,7 +200,7 @@ function buildSample(viaje, state) {
 		routePosition,
 		limitMaxTemp,
 		limitMinTemp,
-		alertaTemperatura: temp > limitMaxTemp,
+		alertaTemperatura: temp > limitMaxTemp || temp < limitMinTemp,
 		bateriaCritica: battery <= 10,
 	};
 }
@@ -815,6 +838,26 @@ function renderDashboardPage() {
 			background: rgba(7, 10, 16, 0.35);
 		}
 
+		/* Estilos para el switch de toggle premium */
+		.switch input:checked + .slider {
+			background-color: var(--cyan);
+		}
+		.slider:before {
+			position: absolute;
+			content: "";
+			height: 16px;
+			width: 16px;
+			left: 4px;
+			bottom: 4px;
+			background-color: #ffffff;
+			transition: .3s ease;
+			border-radius: 50%;
+			box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+		}
+		.switch input:checked + .slider:before {
+			transform: translateX(20px);
+		}
+
 		@media (max-width: 1400px) {
 			.shell { grid-template-columns: 300px minmax(0, 1fr); }
 		}
@@ -864,6 +907,16 @@ function renderDashboardPage() {
 					<div class="metric"><span>Enviados</span><strong id="sentTrips">0</strong></div>
 					<div class="metric"><span>Incidentes</span><strong id="incidentTrips">0</strong></div>
 					<div class="metric"><span>Sync</span><strong id="lastSync">-</strong></div>
+				</div>
+				<div style="margin-top: 14px; padding: 12px 14px; border-radius: 18px; background: rgba(7, 10, 16, 0.45); border: 1px solid rgba(148, 163, 184, 0.12); display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+					<div>
+						<div style="font-size: 13px; font-weight: 700; color: var(--text);">Apertura de Compuerta</div>
+						<div style="font-size: 11px; color: var(--muted); margin-top: 2px;">Eventos críticos (2% prob. +4.5°C)</div>
+					</div>
+					<label class="switch" style="position: relative; display: inline-block; width: 44px; height: 24px; flex: 0 0 auto;">
+						<input type="checkbox" id="gateToggle" checked style="opacity: 0; width: 0; height: 0;">
+						<span class="slider" style="position: absolute; cursor: pointer; inset: 0; background-color: rgba(148, 163, 184, 0.28); transition: .3s; border-radius: 24px;"></span>
+					</label>
 				</div>
 			</div>
 			<div class="stack" id="tripList"></div>
@@ -936,6 +989,7 @@ function renderDashboardPage() {
 	<script>
 		const apiStateUrl = '/api/state';
 		const toggleBtn = document.getElementById('toggleBtn');
+		const gateToggle = document.getElementById('gateToggle');
 		const stepBtn = document.getElementById('stepBtn');
 		const syncBtn = document.getElementById('syncBtn');
 		const openDashboardBtn = document.getElementById('openDashboardBtn');
@@ -1306,6 +1360,9 @@ function renderDashboardPage() {
 		}
 
 		function updatePage(state) {
+			if (gateToggle) {
+				gateToggle.checked = state.gateOpeningEnabled !== false;
+			}
 			activeTrips.textContent = state.activeTrips ?? 0;
 			sentTrips.textContent = state.totalSent ?? 0;
 			incidentTrips.textContent = state.totalIncidents ?? 0;
@@ -1422,6 +1479,19 @@ function renderDashboardPage() {
 			window.open('http://localhost:3001/dashboard-v2', '_blank', 'noreferrer');
 		});
 
+		if (gateToggle) {
+			gateToggle.addEventListener('change', async () => {
+				gateToggle.disabled = true;
+				try {
+					await postJson('/api/simulation/toggle-gate-opening', { enabled: gateToggle.checked });
+				} catch (error) {
+					console.error(error);
+				} finally {
+					gateToggle.disabled = false;
+				}
+			});
+		}
+
 		refreshState();
 		setInterval(refreshState, 3000);
 	</script>
@@ -1464,6 +1534,25 @@ async function handleApiRequest(req, res, pathname) {
 		logEvent('info', runtimeState.paused ? 'Simulación pausada manualmente.' : 'Simulación reanudada manualmente.');
 		res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
 		res.end(JSON.stringify({ paused: runtimeState.paused }));
+		return true;
+	}
+
+	if (req.method === 'POST' && pathname === '/api/simulation/toggle-gate-opening') {
+		let body = '';
+		for await (const chunk of req) {
+			body += chunk;
+		}
+		let payload = {};
+		try {
+			payload = body ? JSON.parse(body) : {};
+		} catch {
+			payload = {};
+		}
+
+		runtimeState.gateOpeningEnabled = payload.enabled !== undefined ? !!payload.enabled : !runtimeState.gateOpeningEnabled;
+		logEvent('info', runtimeState.gateOpeningEnabled ? 'Eventos probabilísticos de apertura de compuerta ACTIVADOS.' : 'Eventos probabilísticos de apertura de compuerta DESACTIVADOS.');
+		res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+		res.end(JSON.stringify({ gateOpeningEnabled: runtimeState.gateOpeningEnabled }));
 		return true;
 	}
 

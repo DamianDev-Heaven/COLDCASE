@@ -33,6 +33,7 @@ const mockGroqClient = {
 const mockZepMemoryService = {
   recuperarHistorial: jest.fn(),
   recuperarContextoGlobal: jest.fn(),
+  searchMemory: jest.fn(),
   guardarInteraccion: jest.fn(),
   guardarMensajeUsuario: jest.fn(),
   guardarRespuestaLLM: jest.fn(),
@@ -59,6 +60,7 @@ async function createTestService(options?: {
           guardarInteraccion: jest.fn().mockResolvedValue({ success: true }),
           recuperarHistorial: jest.fn().mockResolvedValue({ messages: '', messageCount: 0 }),
           recuperarContextoGlobal: jest.fn().mockResolvedValue({ messages: '', messageCount: 0 }),
+          searchMemory: jest.fn().mockResolvedValue({ messages: '', messageCount: 0 }),
         },
       },
     ],
@@ -288,6 +290,7 @@ describe('IaAnalysisService', () => {
       mockZepMemoryService.guardarInteraccion.mockRejectedValueOnce(
         new Error('Zep connection refused'),
       );
+      mockZepMemoryService.searchMemory.mockResolvedValueOnce({ messages: '', messageCount: 0 });
       mockZepMemoryService.recuperarContextoGlobal.mockResolvedValueOnce({ messages: '', messageCount: 0 });
 
       service = await createTestService({

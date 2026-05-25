@@ -46,6 +46,7 @@ export interface AnalisisViajeInput {
 
 type ViajeContext = {
   limite_max_temp: number;
+  limite_min_temp?: number | null;
   margen_desvio_km?: number | null;
   ruta_waypoints: { waypoints?: Waypoint[] } | Waypoint[];
 };
@@ -142,20 +143,20 @@ export class IaAnalysisService {
 
     // 1. Recuperar contexto de anomalías previas desde el Grafo Global (Zep)
     const mensajeSensorCorto = `Temp=${payload.temperaturaActual}°C, Batería=${payload.bateriaActual}%, Desvío=${routeMetrics.desvioKm}km`;
-    const { messages: historialZep } = await this.zepMemory.recuperarContextoGlobal(
+    const { messages: historialZep } = await this.zepMemory.searchMemory(
       payload.viaje_id || '',
-      mensajeSensorCorto, // Query de búsqueda en el grafo
+      mensajeSensorCorto, // Query de búsqueda semántica en el grafo
     );
 
     try {
-      const prompt = this.buildPrompt({
-        iotId: payload.iot_id,
-        temperaturaActual: payload.temperaturaActual,
-        bateriaActual: payload.bateriaActual,
+      const limiteMinTemp = viajeContext?.limite_min_temp ?? (limiteMaxTemp - 3);
+      const currentTelemetryNarrative = this.formatTelemetryToSemantic(payload, 'Pendiente');
+      const systemPrompt = this.buildSystemPromptAnalisisEvento(
+        limiteMinTemp,
         limiteMaxTemp,
-        margenDesvioKm,
-        routeMetrics,
-      });
+        historialZep,
+        currentTelemetryNarrative,
+      );
 
       const controller = new AbortController();
       const abortTimeoutId = setTimeout(() => controller.abort(), 6000);
@@ -164,9 +165,8 @@ export class IaAnalysisService {
         const completion = await this.groqClient.chat.completions.create(
           {
             messages: [
-              { role: 'system', content: 'Eres un experto en logística de cadena de frío.' },
-              { role: 'system', content: `Contexto Base de Conocimiento Global (Grafo):\n${historialZep || 'Ninguno.'}` },
-              { role: 'user', content: prompt }
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: `Analiza la telemetría del IoT ${payload.iot_id} y genera tu diagnóstico en formato JSON.` }
             ],
             model: this.defaultModelName,
             response_format: { type: 'json_object' },
@@ -187,17 +187,11 @@ export class IaAnalysisService {
           contexto: deterministic.contexto,
         };
 
-        // 2. Guardar la nueva interacción de forma asíncrona en Zep
-        const mensajeSensor = `Viaje=${payload.viaje_id}. Sensor: Temp=${payload.temperaturaActual}°C, Batería=${payload.bateriaActual}%, Desvío=${routeMetrics.desvioKm}km`;
-        const respuestaIA = JSON.stringify({
-          nivel_riesgo: respuestaFinal.nivel_riesgo,
-          diagnostico_tecnico: respuestaFinal.diagnostico_tecnico,
-          accion_mitigacion: respuestaFinal.accion_mitigacion,
-        });
-
+        // 2. Guardar la nueva interacción de forma semántica y asíncrona en Zep
         if (payload.viaje_id) {
+          const semanticText = this.formatTelemetryToSemantic(payload, respuestaFinal.diagnostico_tecnico);
           this.zepMemory
-            .guardarInteraccion(payload.viaje_id, mensajeSensor, respuestaIA)
+            .guardarInteraccion(payload.viaje_id, semanticText)
             .catch((err: unknown) => {
               const msg = err instanceof Error ? err.message : String(err);
               this.logger.warn(`Zep: guardado no bloqueante falló (analizarEvento): ${msg}`);
@@ -566,10 +560,11 @@ export class IaAnalysisService {
 
     const result = await this.db.query<{
       limite_max_temp: number;
+      limite_min_temp: number | null;
       margen_desvio_km: number | null;
       ruta_waypoints: { waypoints?: Waypoint[] } | Waypoint[];
     }>(
-      'SELECT limite_max_temp, margen_desvio_km, ruta_waypoints FROM viaje WHERE id = $1',
+      'SELECT limite_max_temp, limite_min_temp, margen_desvio_km, ruta_waypoints FROM viaje WHERE id = $1',
       [viajeId],
     );
 
@@ -605,7 +600,7 @@ export class IaAnalysisService {
   ): Promise<AnalisisIaResultado> {
     const viajeMeta = await this.loadViajeMetadata(viajeId);
     const queryGrafo = `Anomalía actual: Temperatura ${telemetriaActual.temp}°C, Batería ${telemetriaActual.bateria ?? 'N/A'}%`;
-    const { messages: historialZep } = await this.zepMemory.recuperarContextoGlobal(viajeId, queryGrafo);
+    const { messages: historialZep } = await this.zepMemory.searchMemory(viajeId, queryGrafo);
 
     let nivel_riesgo: NivelRiesgo;
     let diagnostico_tecnico: string;
@@ -649,11 +644,10 @@ export class IaAnalysisService {
     });
 
     // Guardar en Zep de forma asíncrona — nunca bloquea ni crashea
-    const mensajeSensor = `Telemetría: temp=${telemetriaActual.temp}°C, humedad=${telemetriaActual.humedad ?? 'N/A'}%, batería=${telemetriaActual.bateria ?? 'N/A'}%, ubicación=(${telemetriaActual.lat}, ${telemetriaActual.lon}), timestamp=${telemetriaActual.timestamp_sensor}`;
-    const respuestaIA = JSON.stringify({ nivel_riesgo, diagnostico_tecnico, accion_mitigacion });
+    const semanticText = this.formatTelemetryToSemantic(telemetriaActual, diagnostico_tecnico);
 
     this.zepMemory
-      .guardarInteraccion(viajeId, mensajeSensor, respuestaIA, {
+      .guardarInteraccion(viajeId, semanticText, {
         viaje_id: viajeId,
         telemetria_id: telemetriaActual.id,
         fuente,
@@ -695,12 +689,14 @@ export class IaAnalysisService {
     diagnostico_tecnico: string;
     accion_mitigacion: string;
   }> {
-    const systemPrompt = this.buildSystemPromptTiempoReal();
-    const userPrompt = this.buildUserPromptTiempoReal(
-      viajeMeta,
-      telemetria,
+    const currentTelemetryNarrative = this.formatTelemetryToSemantic(telemetria, 'Pendiente');
+    const systemPrompt = this.buildSystemPromptTiempoReal(
+      viajeMeta.limite_min_temp,
+      viajeMeta.limite_max_temp,
       historialZep,
+      currentTelemetryNarrative,
     );
+    const userPrompt = `Analiza la situación y proporciona la evaluación de riesgo para el viaje ${telemetria.viaje_id} en formato JSON.`;
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 8000);
@@ -746,24 +742,67 @@ export class IaAnalysisService {
     }
   }
 
-  private buildSystemPromptTiempoReal(): string {
+  private formatTelemetryToSemantic(telemetry: any, iaDiagnosis: string): string {
+    const sessionId = telemetry.viaje_id ?? telemetry.viajeId ?? '';
+    const temp = telemetry.temp !== undefined ? telemetry.temp : telemetry.temperaturaActual;
+    const hum = telemetry.humedad !== undefined && telemetry.humedad !== null ? telemetry.humedad : 'N/A';
+    const bat = telemetry.bateria !== undefined && telemetry.bateria !== null ? telemetry.bateria : (telemetry.bateriaActual !== undefined ? telemetry.bateriaActual : 'N/A');
+    return `Alerta en Viaje ${sessionId}: La temperatura registró ${temp}°C, excediendo el rango. Humedad: ${hum}%. Batería: ${bat}%. Diagnóstico IA previo: ${iaDiagnosis}`;
+  }
+
+  private buildSystemPromptAnalisisEvento(
+    minTemp: number,
+    maxTemp: number,
+    historialZep: string,
+    currentTelemetryNarrative: string,
+  ): string {
     return [
-      'Eres un sistema experto de análisis de riesgo para cadena de frío en transporte de mercancías perecederas.',
+      'Eres el sistema de diagnóstico experto de la cadena de frío.',
       '',
-      'REGLA ABSOLUTA: Responde ÚNICAMENTE con un objeto JSON válido. Sin texto adicional, sin explicaciones fuera del JSON, sin markdown.',
+      '[REGLAS DEL PRODUCTO]',
+      `- Rango seguro térmico: ${minTemp}°C a ${maxTemp}°C.`,
       '',
-      'El JSON DEBE tener exactamente estas tres llaves:',
+      '[MEMORIA HISTÓRICA RELEVANTE DEL VIAJE]',
+      historialZep || 'No hay memoria histórica relevante disponible.',
+      '',
+      '[SITUACIÓN ACTUAL]',
+      currentTelemetryNarrative,
+      '',
+      'Determina la causa raíz de la situación actual basándote en el historial proporcionado.',
+      '',
+      'REGLA ABSOLUTA: Responde ÚNICAMENTE con un objeto JSON válido con las siguientes tres propiedades exactas:',
+      '  "nivel_riesgo": uno de "CRITICO", "ALTO", "MODERADO", "DESCONOCIDO"',
+      '  "diagnostico_tecnico": análisis técnico conciso de la situación',
+      '  "accion_mitigacion": acción concreta recomendada',
+      'No incluyas explicaciones en texto plano fuera del JSON, ni bloques de código markdown como ```json.'
+    ].join('\n');
+  }
+
+  private buildSystemPromptTiempoReal(
+    minTemp: number,
+    maxTemp: number,
+    historialZep: string,
+    currentTelemetryNarrative: string,
+  ): string {
+    return [
+      'Eres el sistema de diagnóstico experto de la cadena de frío.',
+      '',
+      '[REGLAS DEL PRODUCTO]',
+      `- Rango seguro térmico: ${minTemp}°C a ${maxTemp}°C.`,
+      '',
+      '[MEMORIA HISTÓRICA RELEVANTE DEL VIAJE]',
+      historialZep || 'No hay memoria histórica relevante disponible.',
+      '',
+      '[SITUACIÓN ACTUAL]',
+      currentTelemetryNarrative,
+      '',
+      'Determina la causa raíz de la situación actual basándote en el historial proporcionado.',
+      '',
+      'REGLA ABSOLUTA: Responde ÚNICAMENTE con un objeto JSON válido con las siguientes tres propiedades exactas:',
       '  "nivel_riesgo": uno de "bajo", "medio", "alto", "critico"',
       '  "diagnostico_tecnico": análisis técnico conciso de la situación',
       '  "accion_mitigacion": acción concreta recomendada',
-      '',
-      'Criterios de evaluación de riesgo:',
-      '  "critico": Temperatura excede el límite máximo por ≥4°C o está ≥4°C por debajo del mínimo, batería ≤10%, o múltiples anomalías graves simultáneas.',
-      '  "alto": Temperatura fuera de rango permitido, batería ≤25%, o patrón de anomalía persistente en el historial.',
-      '  "medio": Temperatura dentro de 2°C del límite, tendencia de deterioro, o batería ≤40%.',
-      '  "bajo": Todos los parámetros dentro de rangos normales y estables.',
-      '',
-      'Considera el tipo de producto, su valor comercial y el historial de anomalías previas para contextualizar tu diagnóstico.',
+      'No incluyas explicaciones en texto plano fuera del JSON, ni bloques de código markdown como ```json.'
     ].join('\n');
   }
 
