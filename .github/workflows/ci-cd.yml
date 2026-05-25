@@ -7,7 +7,8 @@ on:
     branches: [ master, develop ]
 
 jobs:
-  lint-and-test:
+  validate-backend:
+    name: Validar Backend (Lint, Types & Tests)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout del código
@@ -18,30 +19,57 @@ jobs:
         with:
           node-version: 24
           cache: 'npm'
-          cache-dependency-path: |
-            backend/package-lock.json
-            frontend/package-lock.json
+          cache-dependency-path: backend/package-lock.json
 
-      # Validación Backend
-      - name: Instalar dependencias Backend
+      - name: Instalar dependencias
         run: npm ci
         working-directory: backend
 
-      - name: Validar Estilo (Lint) - Backend
+      - name: Validar Estilo (Lint)
         run: npm run lint
         working-directory: backend
 
-      # Validación Frontend
-      - name: Instalar dependencias Frontend
+      - name: Verificación de Tipos (TypeScript)
+        run: npx tsc --noEmit
+        working-directory: backend
+
+      - name: Ejecutar Pruebas Unitarias
+        run: npm run test
+        working-directory: backend
+
+  validate-frontend:
+    name: Validar Frontend (Lint, Types & Build)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout del código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Instalar dependencias
         run: npm ci
         working-directory: frontend
 
-      - name: Validar Estilo (Lint) - Frontend
+      - name: Validar Estilo (Lint)
         run: npm run lint
+        working-directory: frontend
+
+      - name: Verificación de Tipos (TypeScript)
+        run: npx tsc --noEmit
+        working-directory: frontend
+
+      - name: Compilar Frontend (Build de Producción)
+        run: npm run build
         working-directory: frontend
 
   build-docker-images:
-    needs: lint-and-test
+    name: Build de Prueba Docker
+    needs: [validate-backend, validate-frontend]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout del código
