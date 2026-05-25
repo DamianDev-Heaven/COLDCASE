@@ -415,7 +415,9 @@ export class ViajeService {
   async iniciar(id: string) {
     const viaje = await this.findOne(id);
     if (viaje.estado !== 'pendiente') {
-      throw new Error(`El viaje ${id} no está en estado pendiente (estado actual: ${viaje.estado}).`);
+      throw new Error(
+        `El viaje ${id} no está en estado pendiente (estado actual: ${viaje.estado}).`,
+      );
     }
     await this.db.query(
       `UPDATE viaje SET estado = 'en_curso', inicio_viaje = NOW() WHERE id = $1`,

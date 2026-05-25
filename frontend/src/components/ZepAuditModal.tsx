@@ -3,11 +3,25 @@
 import { useEffect, useState } from "react";
 import { X, Database, Network, Clock, AlertTriangle } from "lucide-react";
 
+interface ZepAuditViaje {
+  id: string;
+  tipo_producto?: string;
+}
+
+interface ZepTelemetryItem {
+  id?: string | number;
+  ia_diagnosis?: string | null;
+  timestamp_sensor: string;
+  temp?: number;
+  humedad?: number;
+  bateria?: number;
+}
+
 interface ZepAuditModalProps {
   isOpen: boolean;
   onClose: () => void;
-  viaje: any;
-  telemetryList: any[];
+  viaje: ZepAuditViaje | null;
+  telemetryList: ZepTelemetryItem[];
   apiUrl: string;
 }
 
@@ -23,6 +37,7 @@ export default function ZepAuditModal({
 
   useEffect(() => {
     if (!isOpen || !viaje?.id) return;
+    const viajeId = viaje.id;
 
     async function fetchZepContext() {
       setIsLoadingZep(true);
@@ -30,10 +45,10 @@ export default function ZepAuditModal({
         // Incluir el viaje_id en la query para que Zep devuelva hechos
         // relevantes exclusivamente para este trayecto.
         const queryFiltrada = encodeURIComponent(
-          `anomalias termicas y alertas operativas del viaje ${viaje.id}`
+          `anomalias termicas y alertas operativas del viaje ${viajeId}`
         );
         const res = await fetch(
-          `${apiUrl}/ia/contexto-grafo/${viaje.id}?query=${queryFiltrada}`
+          `${apiUrl}/ia/contexto-grafo/${viajeId}?query=${queryFiltrada}`
         );
         if (res.ok) {
           const data = await res.json();

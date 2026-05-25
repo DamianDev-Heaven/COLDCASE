@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Post,
+  Query,
+} from '@nestjs/common';
 import { AnalizarFalloDto } from './dto/analizar-fallo.dto';
 import { AnalizarViajeDto } from './dto/analizar-viaje.dto';
 import { IaService } from './ia.service';
@@ -71,4 +79,3 @@ export class IaController {
     return this.iaService.getQueueStatus();
   }
 }
-

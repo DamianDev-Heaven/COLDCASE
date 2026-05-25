@@ -1,11 +1,7 @@
 import { Test } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { DbService } from '../db/db.service';
-import {
-  IaAnalysisService,
-  AnalisisViajeInput,
-} from './ia-analysis.service';
-import { TelemetriaInput } from './ia.interfaces';
+import { IaAnalysisService } from './ia-analysis.service';
 import { ZepMemoryService } from './zep-memory.service';
 
 // ── Mocks ─────────────────────────────────────────
@@ -41,10 +37,7 @@ const mockZepMemoryService = {
 
 // ── Helper para crear el módulo de test ───────────
 
-async function createTestService(options?: {
-  groq?: any;
-  zep?: any;
-}) {
+async function createTestService(options?: { groq?: unknown; zep?: unknown }) {
   const moduleRef = await Test.createTestingModule({
     providers: [
       IaAnalysisService,
@@ -52,15 +45,23 @@ async function createTestService(options?: {
       { provide: DbService, useValue: dbService },
       {
         provide: 'GROQ_CLIENT',
-        useValue: options?.groq ?? { chat: { completions: { create: jest.fn() } } },
+        useValue: options?.groq ?? {
+          chat: { completions: { create: jest.fn() } },
+        },
       },
       {
         provide: ZepMemoryService,
         useValue: options?.zep ?? {
           guardarInteraccion: jest.fn().mockResolvedValue({ success: true }),
-          recuperarHistorial: jest.fn().mockResolvedValue({ messages: '', messageCount: 0 }),
-          recuperarContextoGlobal: jest.fn().mockResolvedValue({ messages: '', messageCount: 0 }),
-          searchMemory: jest.fn().mockResolvedValue({ messages: '', messageCount: 0 }),
+          recuperarHistorial: jest
+            .fn()
+            .mockResolvedValue({ messages: '', messageCount: 0 }),
+          recuperarContextoGlobal: jest
+            .fn()
+            .mockResolvedValue({ messages: '', messageCount: 0 }),
+          searchMemory: jest
+            .fn()
+            .mockResolvedValue({ messages: '', messageCount: 0 }),
         },
       },
     ],
@@ -82,20 +83,21 @@ describe('IaAnalysisService', () => {
       .fn()
       .mockResolvedValue({
         ok: true,
-        json: async () => ({
-          routes: [
-            {
-              distance: 1800,
-              geometry: {
-                coordinates: [
-                  [-89.2182, 13.6929],
-                  [-89.2045, 13.7001],
-                  [-89.1882, 13.7085],
-                ],
+        json: () =>
+          Promise.resolve({
+            routes: [
+              {
+                distance: 1800,
+                geometry: {
+                  coordinates: [
+                    [-89.2182, 13.6929],
+                    [-89.2045, 13.7001],
+                    [-89.1882, 13.7085],
+                  ],
+                },
               },
-            },
-          ],
-        }),
+            ],
+          }),
       }) as never;
 
     service = await createTestService();
@@ -206,9 +208,10 @@ describe('IaAnalysisService', () => {
 
       // Verifica que se llamó al INSERT
       const insertCall = dbService.query.mock.calls.find(
-        (call: string[]) =>
-          typeof call[0] === 'string' && call[0].includes('INSERT INTO analisis_ia'),
-      );
+        (call: unknown[]) =>
+          typeof call[0] === 'string' &&
+          call[0].includes('INSERT INTO analisis_ia'),
+      ) as [string, unknown[]] | undefined;
       expect(insertCall).toBeDefined();
       expect(insertCall![1]).toContain(viajeId);
     });
@@ -232,9 +235,10 @@ describe('IaAnalysisService', () => {
 
       // Verifica que el INSERT usó fuente 'reglas_fallback'
       const insertCall = dbService.query.mock.calls.find(
-        (call: string[]) =>
-          typeof call[0] === 'string' && call[0].includes('INSERT INTO analisis_ia'),
-      );
+        (call: unknown[]) =>
+          typeof call[0] === 'string' &&
+          call[0].includes('INSERT INTO analisis_ia'),
+      ) as [string, unknown[]] | undefined;
       expect(insertCall).toBeDefined();
       expect(insertCall![1]).toContain('reglas_fallback');
     });
@@ -263,9 +267,10 @@ describe('IaAnalysisService', () => {
       expect(result).toBeDefined();
 
       const insertCall = dbService.query.mock.calls.find(
-        (call: string[]) =>
-          typeof call[0] === 'string' && call[0].includes('INSERT INTO analisis_ia'),
-      );
+        (call: unknown[]) =>
+          typeof call[0] === 'string' &&
+          call[0].includes('INSERT INTO analisis_ia'),
+      ) as [string, unknown[]] | undefined;
       expect(insertCall![1]).toContain('reglas_fallback');
     });
 
@@ -280,9 +285,10 @@ describe('IaAnalysisService', () => {
       expect(result).toBeDefined();
 
       const insertCall = dbService.query.mock.calls.find(
-        (call: string[]) =>
-          typeof call[0] === 'string' && call[0].includes('INSERT INTO analisis_ia'),
-      );
+        (call: unknown[]) =>
+          typeof call[0] === 'string' &&
+          call[0].includes('INSERT INTO analisis_ia'),
+      ) as [string, unknown[]] | undefined;
       expect(insertCall![1]).toContain('reglas_fallback');
     });
 
@@ -290,8 +296,14 @@ describe('IaAnalysisService', () => {
       mockZepMemoryService.guardarInteraccion.mockRejectedValueOnce(
         new Error('Zep connection refused'),
       );
-      mockZepMemoryService.searchMemory.mockResolvedValueOnce({ messages: '', messageCount: 0 });
-      mockZepMemoryService.recuperarContextoGlobal.mockResolvedValueOnce({ messages: '', messageCount: 0 });
+      mockZepMemoryService.searchMemory.mockResolvedValueOnce({
+        messages: '',
+        messageCount: 0,
+      });
+      mockZepMemoryService.recuperarContextoGlobal.mockResolvedValueOnce({
+        messages: '',
+        messageCount: 0,
+      });
 
       service = await createTestService({
         groq: null,

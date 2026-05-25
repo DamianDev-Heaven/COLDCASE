@@ -22,9 +22,20 @@ export class IncidenteService {
     tipo_alerta: 'TEMP_ALTA' | 'FUERA_RUTA' | 'BATERIA_BAJA';
     valor_detectado: number;
     umbral_permitido: number;
-    query?: (text: string, params?: Array<unknown>) => Promise<{ rows: QueryResultRow[] }>;
+    query?: (
+      text: string,
+      params?: Array<unknown>,
+    ) => Promise<{ rows: QueryResultRow[] }>;
   }): Promise<IncidenteRow> {
-    const query = payload.query ?? this.db.query.bind(this.db);
+    const query: (
+      text: string,
+      params?: Array<unknown>,
+    ) => Promise<{ rows: QueryResultRow[] }> =
+      payload.query ??
+      (this.db.query.bind(this.db) as (
+        text: string,
+        params?: Array<unknown>,
+      ) => Promise<{ rows: QueryResultRow[] }>);
     const result = (await query(
       'INSERT INTO incidente (viaje_id, telemetria_id, tipo_alerta, valor_detectado, umbral_permitido, timestamp_bd) VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP) RETURNING id, viaje_id, telemetria_id, tipo_alerta, valor_detectado, umbral_permitido, timestamp_bd',
       [
@@ -36,7 +47,7 @@ export class IncidenteService {
       ],
     )) as { rows: IncidenteRow[] };
 
-    return result.rows[0] as IncidenteRow;
+    return result.rows[0];
   }
 
   async findAll() {

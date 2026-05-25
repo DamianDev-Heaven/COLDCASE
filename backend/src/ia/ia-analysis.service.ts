@@ -66,6 +66,24 @@ type RouteMetrics = {
 
 type Point = { lat: number; lon: number };
 
+interface SemanticTelemetryInput {
+  viaje_id?: string;
+  viajeId?: string;
+  id?: string | number;
+  temp?: string | number;
+  temperaturaActual?: string | number;
+  limite_max_temp?: string | number;
+  humedad?: string | number | null;
+  bateria?: string | number | null;
+  bateriaActual?: string | number;
+  lat?: string | number;
+  latitudActual?: string | number;
+  lon?: string | number;
+  longitudActual?: string | number;
+  timestamp_sensor?: string | number;
+  received_at?: string | number;
+}
+
 @Injectable()
 export class IaAnalysisService {
   private readonly logger = new Logger(IaAnalysisService.name);
@@ -149,8 +167,11 @@ export class IaAnalysisService {
     );
 
     try {
-      const limiteMinTemp = viajeContext?.limite_min_temp ?? (limiteMaxTemp - 3);
-      const currentTelemetryNarrative = this.formatTelemetryToSemantic(payload, 'Pendiente');
+      const limiteMinTemp = viajeContext?.limite_min_temp ?? limiteMaxTemp - 3;
+      const currentTelemetryNarrative = this.formatTelemetryToSemantic(
+        payload,
+        'Pendiente',
+      );
       const systemPrompt = this.buildSystemPromptAnalisisEvento(
         limiteMinTemp,
         limiteMaxTemp,
@@ -166,7 +187,10 @@ export class IaAnalysisService {
           {
             messages: [
               { role: 'system', content: systemPrompt },
-              { role: 'user', content: `Analiza la telemetría del IoT ${payload.iot_id} y genera tu diagnóstico en formato JSON.` }
+              {
+                role: 'user',
+                content: `Analiza la telemetría del IoT ${payload.iot_id} y genera tu diagnóstico en formato JSON.`,
+              },
             ],
             model: this.defaultModelName,
             response_format: { type: 'json_object' },
@@ -189,12 +213,17 @@ export class IaAnalysisService {
 
         // 2. Guardar la nueva interacción de forma semántica y asíncrona en Zep
         if (payload.viaje_id) {
-          const semanticText = this.formatTelemetryToSemantic(payload, respuestaFinal.diagnostico_tecnico);
+          const semanticText = this.formatTelemetryToSemantic(
+            payload,
+            respuestaFinal.diagnostico_tecnico,
+          );
           this.zepMemory
             .guardarInteraccion(payload.viaje_id, semanticText)
             .catch((err: unknown) => {
               const msg = err instanceof Error ? err.message : String(err);
-              this.logger.warn(`Zep: guardado no bloqueante falló (analizarEvento): ${msg}`);
+              this.logger.warn(
+                `Zep: guardado no bloqueante falló (analizarEvento): ${msg}`,
+              );
             });
         }
 
@@ -600,7 +629,10 @@ export class IaAnalysisService {
   ): Promise<AnalisisIaResultado> {
     const viajeMeta = await this.loadViajeMetadata(viajeId);
     const queryGrafo = `Anomalía actual: Temperatura ${telemetriaActual.temp}°C, Batería ${telemetriaActual.bateria ?? 'N/A'}%`;
-    const { messages: historialZep } = await this.zepMemory.searchMemory(viajeId, queryGrafo);
+    const { messages: historialZep } = await this.zepMemory.searchMemory(
+      viajeId,
+      queryGrafo,
+    );
 
     let nivel_riesgo: NivelRiesgo;
     let diagnostico_tecnico: string;
@@ -644,7 +676,10 @@ export class IaAnalysisService {
     });
 
     // Guardar en Zep de forma asíncrona — nunca bloquea ni crashea
-    const semanticText = this.formatTelemetryToSemantic(telemetriaActual, diagnostico_tecnico);
+    const semanticText = this.formatTelemetryToSemantic(
+      telemetriaActual,
+      diagnostico_tecnico,
+    );
 
     this.zepMemory
       .guardarInteraccion(viajeId, semanticText, {
@@ -689,7 +724,10 @@ export class IaAnalysisService {
     diagnostico_tecnico: string;
     accion_mitigacion: string;
   }> {
-    const currentTelemetryNarrative = this.formatTelemetryToSemantic(telemetria, 'Pendiente');
+    const currentTelemetryNarrative = this.formatTelemetryToSemantic(
+      telemetria,
+      'Pendiente',
+    );
     const systemPrompt = this.buildSystemPromptTiempoReal(
       viajeMeta.limite_min_temp,
       viajeMeta.limite_max_temp,
@@ -734,24 +772,35 @@ export class IaAnalysisService {
 
       return {
         nivel_riesgo: nivelRiesgo,
-        diagnostico_tecnico: parsed.diagnostico_tecnico as string,
-        accion_mitigacion: parsed.accion_mitigacion as string,
+        diagnostico_tecnico: parsed.diagnostico_tecnico,
+        accion_mitigacion: parsed.accion_mitigacion,
       };
     } finally {
       clearTimeout(timeoutId);
     }
   }
 
-  private formatTelemetryToSemantic(telemetry: any, iaDiagnosis: string): string {
+  private formatTelemetryToSemantic(
+    telemetry: SemanticTelemetryInput,
+    iaDiagnosis: string,
+  ): string {
     const viajeId = telemetry.viaje_id ?? telemetry.viajeId ?? 'desconocido';
     const telemetriaId = telemetry.id ?? 'N/A';
-    const temp = telemetry.temp !== undefined ? Number(telemetry.temp) : telemetry.temperaturaActual;
+    const temp =
+      telemetry.temp !== undefined
+        ? Number(telemetry.temp)
+        : telemetry.temperaturaActual;
     const limiteMax = telemetry.limite_max_temp ?? 'N/A';
-    const hum = telemetry.humedad !== undefined && telemetry.humedad !== null ? telemetry.humedad : 'N/A';
+    const hum =
+      telemetry.humedad !== undefined && telemetry.humedad !== null
+        ? telemetry.humedad
+        : 'N/A';
     const bat =
       telemetry.bateria !== undefined && telemetry.bateria !== null
         ? telemetry.bateria
-        : (telemetry.bateriaActual !== undefined ? telemetry.bateriaActual : 'N/A');
+        : telemetry.bateriaActual !== undefined
+          ? telemetry.bateriaActual
+          : 'N/A';
     const latRaw = telemetry.lat ?? telemetry.latitudActual;
     const lonRaw = telemetry.lon ?? telemetry.longitudActual;
     const coordenadas =
@@ -759,7 +808,9 @@ export class IaAnalysisService {
         ? `${Number(latRaw).toFixed(5)}, ${Number(lonRaw).toFixed(5)}`
         : 'no disponibles';
     const tsRaw = telemetry.timestamp_sensor ?? telemetry.received_at;
-    const timestamp = tsRaw ? new Date(tsRaw as string).toISOString() : new Date().toISOString();
+    const timestamp = tsRaw
+      ? new Date(tsRaw).toISOString()
+      : new Date().toISOString();
 
     // Construir narrativa profesional estructurada para el grafo de Zep
     const partes: string[] = [
@@ -800,7 +851,7 @@ export class IaAnalysisService {
       '  "nivel_riesgo": uno de "CRITICO", "ALTO", "MODERADO", "DESCONOCIDO"',
       '  "diagnostico_tecnico": análisis técnico conciso de la situación',
       '  "accion_mitigacion": acción concreta recomendada',
-      'No incluyas explicaciones en texto plano fuera del JSON, ni bloques de código markdown como ```json.'
+      'No incluyas explicaciones en texto plano fuera del JSON, ni bloques de código markdown como ```json.',
     ].join('\n');
   }
 
@@ -828,7 +879,7 @@ export class IaAnalysisService {
       '  "nivel_riesgo": uno de "bajo", "medio", "alto", "critico"',
       '  "diagnostico_tecnico": análisis técnico conciso de la situación',
       '  "accion_mitigacion": acción concreta recomendada',
-      'No incluyas explicaciones en texto plano fuera del JSON, ni bloques de código markdown como ```json.'
+      'No incluyas explicaciones en texto plano fuera del JSON, ni bloques de código markdown como ```json.',
     ].join('\n');
   }
 
@@ -857,7 +908,11 @@ export class IaAnalysisService {
     ];
 
     if (historialZep) {
-      lines.push('', '=== CONTEXTO DEL GRAFO GLOBAL (ANOMALÍAS HISTÓRICAS) ===', historialZep);
+      lines.push(
+        '',
+        '=== CONTEXTO DEL GRAFO GLOBAL (ANOMALÍAS HISTÓRICAS) ===',
+        historialZep,
+      );
     }
 
     return lines.join('\n');
@@ -994,33 +1049,45 @@ export class IaAnalysisService {
         'Anomalías y alertas térmicas en este viaje',
       );
       zepContext = zepResult.messages || '';
-    } catch (zepErr: any) {
-      this.logger.warn(`Zep context retrieval failed: ${zepErr.message}`);
+    } catch (zepErr: unknown) {
+      const message = zepErr instanceof Error ? zepErr.message : String(zepErr);
+      this.logger.warn(`Zep context retrieval failed: ${message}`);
     }
 
     const incidentSummary = diagnoses
       .map((d, index) => {
-        const time = d.created_at ? new Date(d.created_at).toLocaleTimeString() : 'N/A';
+        const time = d.created_at
+          ? new Date(d.created_at).toLocaleTimeString()
+          : 'N/A';
         return `- Alerta ${index + 1} a las ${time} [Riesgo: ${d.nivel_riesgo}]: ${d.diagnostico_tecnico}`;
       })
       .join('\n');
 
     let maxRiesgo = 'bajo';
-    if (diagnoses.some(d => d.nivel_riesgo.toLowerCase() === 'critico')) {
+    if (diagnoses.some((d) => d.nivel_riesgo.toLowerCase() === 'critico')) {
       maxRiesgo = 'crítico';
-    } else if (diagnoses.some(d => d.nivel_riesgo.toLowerCase() === 'alto')) {
+    } else if (diagnoses.some((d) => d.nivel_riesgo.toLowerCase() === 'alto')) {
       maxRiesgo = 'alto';
-    } else if (diagnoses.some(d => d.nivel_riesgo.toLowerCase() === 'medio' || d.nivel_riesgo.toLowerCase() === 'moderado')) {
+    } else if (
+      diagnoses.some(
+        (d) =>
+          d.nivel_riesgo.toLowerCase() === 'medio' ||
+          d.nivel_riesgo.toLowerCase() === 'moderado',
+      )
+    ) {
       maxRiesgo = 'moderado';
     }
 
-    const fallbackAudit = `Auditoría Final: El viaje del transporte de ${viaje.tipo_producto || 'Carga Sensible'} concluyó. ` +
+    const fallbackAudit =
+      `Auditoría Final: El viaje del transporte de ${viaje.tipo_producto || 'Carga Sensible'} concluyó. ` +
       (diagnoses.length > 0
         ? `Se registraron ${diagnoses.length} anomalías térmicas durante el trayecto, principalmente debidas a fluctuaciones de temperatura fuera del rango de tolerancia (${viaje.limite_min_temp}°C a ${viaje.limite_max_temp}°C). Los incidentes fueron mitigados a tiempo y la temperatura final se estabilizó. Carga entregada con nivel de riesgo final ${maxRiesgo}.`
         : `No se registraron alertas ni anomalías térmicas durante el recorrido. La temperatura se mantuvo estable dentro de los límites requeridos de ${viaje.limite_min_temp}°C a ${viaje.limite_max_temp}°C, garantizando la perfecta integridad de la cadena de frío. Carga entregada exitosamente con riesgo bajo.`);
 
     if (!this.groqClient) {
-      this.logger.warn('Groq client not available, using high-fidelity deterministic final audit fallback.');
+      this.logger.warn(
+        'Groq client not available, using high-fidelity deterministic final audit fallback.',
+      );
       await this.db.query(
         `UPDATE viaje SET auditoria_ia = $1, estado = 'finalizado', final_viaje = NOW() WHERE id = $2`,
         [fallbackAudit, viajeId],
@@ -1086,8 +1153,11 @@ Por favor, genera la auditoría del viaje en el JSON.`;
         clearTimeout(timeoutId);
         throw err;
       }
-    } catch (error: any) {
-      this.logger.warn(`Groq request for final audit failed: ${error.message}. Falling back to deterministic fallback.`);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.warn(
+        `Groq request for final audit failed: ${message}. Falling back to deterministic fallback.`,
+      );
       await this.db.query(
         `UPDATE viaje SET auditoria_ia = $1, estado = 'finalizado', final_viaje = NOW() WHERE id = $2`,
         [fallbackAudit, viajeId],
@@ -1101,7 +1171,10 @@ Por favor, genera la auditoría del viaje en el JSON.`;
    * para el viaje especificado. La query semántica incluye el viaje ID para
    * maximizar la relevancia de los hechos recuperados.
    */
-  async obtenerContextoGrafo(viajeId: string, query: string) {
+  async obtenerContextoGrafo(
+    viajeId: string,
+    query: string,
+  ): Promise<{ messages: string; messageCount: number }> {
     // Enriquecer la query con el ID del viaje para que Zep devuelva
     // únicamente hechos relevantes para este trayecto específico.
     const enrichedQuery = `Viaje ${viajeId}: ${query ?? 'anomalías térmicas y alertas operativas'}`;

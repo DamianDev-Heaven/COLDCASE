@@ -1,4 +1,10 @@
-import { IsNumber, IsOptional, IsString, IsUUID, MinLength } from 'class-validator';
+import {
+  IsNumber,
+  IsOptional,
+  IsString,
+  IsUUID,
+  MinLength,
+} from 'class-validator';
 
 export class CreateSucursalDto {
   @IsUUID()

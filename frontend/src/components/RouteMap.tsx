@@ -28,11 +28,9 @@ type RouteMapProps = {
 type PreviewStatus = "idle" | "loading" | "osrm" | "fallback";
 
 export default function RouteMap({
-  viajeId: _viajeId,
   waypoints = [],
   onAddWaypoint,
   onMapClick,
-  mode,
   center = [13.6929, -89.2182],
   zoom = 12,
   routePreviewApiUrl,
@@ -76,7 +74,8 @@ export default function RouteMap({
       return;
     }
 
-    const map = leaflet.map(containerRef.current).setView(center, zoom);
+    const currentContainer = containerRef.current;
+    const map = leaflet.map(currentContainer).setView(center, zoom);
     leaflet
       .tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         attribution:
@@ -94,13 +93,11 @@ export default function RouteMap({
       map.invalidateSize();
     }, 0);
 
-    if (onAddWaypoint || onMapClick) {
-      map.on("click", (event: import("leaflet").LeafletMouseEvent) => {
-        const coords = { lat: event.latlng.lat, lon: event.latlng.lng };
-        addRef.current?.(coords);
-        mapClickRef.current?.(coords);
-      });
-    }
+    map.on("click", (event: import("leaflet").LeafletMouseEvent) => {
+      const coords = { lat: event.latlng.lat, lon: event.latlng.lng };
+      addRef.current?.(coords);
+      mapClickRef.current?.(coords);
+    });
 
     mapRef.current = map;
     layerRef.current = layerGroup;
@@ -116,8 +113,8 @@ export default function RouteMap({
         resizeTimeoutRef.current = null;
       }
 
-      if (containerRef.current && "_leaflet_id" in containerRef.current) {
-        (containerRef.current as unknown as { _leaflet_id?: number })._leaflet_id = undefined;
+      if (currentContainer && "_leaflet_id" in currentContainer) {
+        (currentContainer as unknown as { _leaflet_id?: number })._leaflet_id = undefined;
       }
     };
   }, [center, zoom, leaflet]);
@@ -223,14 +220,22 @@ export default function RouteMap({
 
   useEffect(() => {
     let active = true;
+    let timer: NodeJS.Timeout | undefined;
 
     if (!routePreviewApiUrl || waypoints.length < 2) {
-      setPreviewRoute(null);
-      setPreviewStatus("idle");
-      return undefined;
+      timer = setTimeout(() => {
+        setPreviewRoute(null);
+        setPreviewStatus("idle");
+      }, 0);
+      return () => {
+        active = false;
+        if (timer) clearTimeout(timer);
+      };
     }
 
-    setPreviewStatus("loading");
+    timer = setTimeout(() => {
+      setPreviewStatus("loading");
+    }, 0);
 
     const controller = new AbortController();
 
@@ -263,20 +268,19 @@ export default function RouteMap({
         setPreviewRoute(nextRoute);
         setPreviewStatus(data.osrm_usado ? "osrm" : "fallback");
       } catch {
-        if (!active) {
-          return;
+        if (active) {
+          setPreviewRoute(null);
+          setPreviewStatus("fallback");
         }
-
-        setPreviewRoute(null);
-        setPreviewStatus("fallback");
       }
     };
 
-    loadPreviewRoute();
+    void loadPreviewRoute();
 
     return () => {
       active = false;
       controller.abort();
+      if (timer) clearTimeout(timer);
     };
   }, [routePreviewApiUrl, waypoints]);
 
