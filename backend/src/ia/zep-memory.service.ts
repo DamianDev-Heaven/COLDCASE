@@ -45,7 +45,9 @@ export class ZepMemoryService {
     private readonly zepClient: ZepClient | null,
   ) {
     if (this.zepClient) {
-      this.logger.log('ZepMemoryService inicializado con cliente Zep Cloud (Graph API)');
+      this.logger.log(
+        'ZepMemoryService inicializado con cliente Zep Cloud (Graph API)',
+      );
     } else {
       this.logger.warn(
         'ZepMemoryService inicializado SIN cliente Zep (ZEP_API_KEY no configurada)',
@@ -79,7 +81,7 @@ export class ZepMemoryService {
     metadata?: Record<string, unknown>,
   ): Promise<ZepSaveResult> {
     const graphId = this.graphId;
-    
+
     let dataToSave = mensajeSensorOrSemanticText;
     let actualMetadata = metadata;
 
@@ -88,10 +90,13 @@ export class ZepMemoryService {
       dataToSave = `Viaje ID: ${viajeId}\nAlerta del Sensor: ${mensajeSensorOrSemanticText}\nResolución de IA: ${respuestaIA}`;
     } else if (respuestaIA && typeof respuestaIA === 'object') {
       // Si el tercer parámetro era en realidad la metadata
-      actualMetadata = respuestaIA as Record<string, unknown>;
+      actualMetadata = respuestaIA;
     }
 
-    return this.addDataToGraph(graphId, dataToSave, { viajeId, ...actualMetadata });
+    return this.addDataToGraph(graphId, dataToSave, {
+      viajeId,
+      ...actualMetadata,
+    });
   }
 
   /**
@@ -104,7 +109,11 @@ export class ZepMemoryService {
     metadata?: Record<string, unknown>,
   ): Promise<ZepSaveResult> {
     const graphId = this.graphId;
-    return this.addDataToGraph(graphId, `Viaje ID: ${viajeId}\nAlerta del Sensor: ${content}`, { viajeId, ...metadata });
+    return this.addDataToGraph(
+      graphId,
+      `Viaje ID: ${viajeId}\nAlerta del Sensor: ${content}`,
+      { viajeId, ...metadata },
+    );
   }
 
   /**
@@ -117,7 +126,11 @@ export class ZepMemoryService {
     metadata?: Record<string, unknown>,
   ): Promise<ZepSaveResult> {
     const graphId = this.graphId;
-    return this.addDataToGraph(graphId, `Viaje ID: ${viajeId}\nResolución de IA: ${content}`, { viajeId, ...metadata });
+    return this.addDataToGraph(
+      graphId,
+      `Viaje ID: ${viajeId}\nResolución de IA: ${content}`,
+      { viajeId, ...metadata },
+    );
   }
 
   /**
@@ -146,7 +159,7 @@ export class ZepMemoryService {
         this.zepClient.graph.search({
           graphId,
           query,
-        })
+        }),
       );
 
       // Zep GraphSearchResults devuelve edges y nodes
@@ -189,11 +202,11 @@ export class ZepMemoryService {
    * Alias de compatibilidad para recuperarHistorial que llama a recuperarContextoGlobal.
    * Por defecto usará un query genérico si no se provee.
    */
-  async recuperarHistorial(
-    viajeId: string,
-    lastN: number = 10, // ignorado en graph search
-  ): Promise<ZepHistorialResult> {
-    return this.recuperarContextoGlobal(viajeId, 'Anomalías y fallas previas en este viaje');
+  async recuperarHistorial(viajeId: string): Promise<ZepHistorialResult> {
+    return this.recuperarContextoGlobal(
+      viajeId,
+      'Anomalías y fallas previas en este viaje',
+    );
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -209,7 +222,11 @@ export class ZepMemoryService {
     metadata?: Record<string, unknown>,
   ): Promise<ZepSaveResult> {
     if (!this.zepClient) {
-      return { success: false, userId: graphId, error: 'Cliente Zep no disponible' };
+      return {
+        success: false,
+        userId: graphId,
+        error: 'Cliente Zep no disponible',
+      };
     }
 
     try {
@@ -221,14 +238,18 @@ export class ZepMemoryService {
           data,
           type: 'text',
           metadata,
-        })
+        }),
       );
 
-      this.logger.debug(`Zep: Datos agregados al grafo independiente ${graphId}`);
+      this.logger.debug(
+        `Zep: Datos agregados al grafo independiente ${graphId}`,
+      );
       return { success: true, userId: graphId };
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : String(error);
-      this.logger.warn(`Zep: Error al agregar datos al grafo ${graphId}: ${msg}`);
+      this.logger.warn(
+        `Zep: Error al agregar datos al grafo ${graphId}: ${msg}`,
+      );
       return { success: false, userId: graphId, error: msg };
     }
   }
@@ -244,7 +265,8 @@ export class ZepMemoryService {
         this.zepClient.graph.create({
           graphId,
           name: 'Coldcase Global Graph',
-          description: 'Grafo de conocimiento global para las anomalías de COLDCASE',
+          description:
+            'Grafo de conocimiento global para las anomalías de COLDCASE',
         }),
       );
       this.logger.debug(`Zep: Grafo standalone '${graphId}' creado/asegurado`);
@@ -281,9 +303,9 @@ export class ZepMemoryService {
           clearTimeout(timer);
           resolve(result);
         })
-        .catch((error) => {
+        .catch((error: unknown) => {
           clearTimeout(timer);
-          reject(error);
+          reject(error instanceof Error ? error : new Error(String(error)));
         });
     });
   }
@@ -294,11 +316,12 @@ export class ZepMemoryService {
       const err = error as Record<string, unknown>;
       if (err['statusCode'] === 400) return true;
       if (err['status'] === 400) return true;
-      if (typeof err['name'] === 'string' && err['name'].includes('BadRequest')) return true;
+      if (typeof err['name'] === 'string' && err['name'].includes('BadRequest'))
+        return true;
       if (
         typeof err['message'] === 'string' &&
-        ((err['message'] as string).includes('400') ||
-          (err['message'] as string).toLowerCase().includes('already exists'))
+        (err['message'].includes('400') ||
+          err['message'].toLowerCase().includes('already exists'))
       ) {
         return true;
       }

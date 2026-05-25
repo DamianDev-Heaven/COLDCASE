@@ -6,7 +6,11 @@ import {
   AnalisisResultado,
   AnalisisViajeInput,
 } from './ia-analysis.service';
-import type { AnalisisIaResultado, AnalisisIaRow, TelemetriaInput } from './ia.interfaces';
+import type {
+  AnalisisIaResultado,
+  AnalisisIaRow,
+  TelemetriaInput,
+} from './ia.interfaces';
 
 @Injectable()
 export class IaService {
@@ -55,7 +59,10 @@ export class IaService {
   /**
    * Obtiene el contexto relacional extraído por el Standalone Graph de Zep.
    */
-  obtenerContextoGrafo(viajeId: string, query: string) {
+  obtenerContextoGrafo(
+    viajeId: string,
+    query: string,
+  ): Promise<{ messages: string; messageCount: number }> {
     return this.iaAnalysisService.obtenerContextoGrafo(viajeId, query);
   }
 
@@ -88,4 +95,3 @@ export class IaService {
     };
   }
 }
-

@@ -5,6 +5,21 @@ import { DbService } from '../db/db.service';
 import { IncidenteService } from '../incidente/incidente.service';
 import { IaAnalysisService } from '../ia/ia-analysis.service';
 
+interface WaypointGeoJSON {
+  features?: Array<{
+    geometry?: {
+      coordinates?: Array<[number, number]>;
+    };
+  }>;
+}
+
+interface WaypointPoint {
+  lat?: number;
+  lon?: number;
+  latitude?: number;
+  longitude?: number;
+}
+
 type IncidenteRow = {
   id: string;
   viaje_id: string;
@@ -49,7 +64,7 @@ export class TelemetriaService {
       const viajeResult = await client.query<{
         id: string;
         limite_max_temp: number;
-        ruta_waypoints?: any;
+        ruta_waypoints?: unknown;
         margen_desvio_km?: number;
       }>(
         'SELECT id, limite_max_temp, ruta_waypoints, margen_desvio_km FROM viaje WHERE id = $1',
@@ -102,7 +117,7 @@ export class TelemetriaService {
           tipo_alerta: 'TEMP_ALTA',
           valor_detectado: payload.temp,
           umbral_permitido: viaje.limite_max_temp,
-          query: client.query.bind(client),
+          query: (text, params) => client.query(text, params),
         });
       } else if (payload.bateria != null && Number(payload.bateria) <= 10) {
         incidente = await this.incidenteService.create({
@@ -111,21 +126,33 @@ export class TelemetriaService {
           tipo_alerta: 'BATERIA_BAJA',
           valor_detectado: Math.trunc(Number(payload.bateria)),
           umbral_permitido: 10,
-          query: client.query.bind(client),
+          query: (text, params) => client.query(text, params),
         });
       } else {
         // Detectar si la telemetría está fuera de la ruta (si el viaje tiene geometría y margen definido)
         try {
-          const margen = viaje.margen_desvio_km == null ? 0.5 : Number(viaje.margen_desvio_km);
+          const margen =
+            viaje.margen_desvio_km == null
+              ? 0.5
+              : Number(viaje.margen_desvio_km);
           const waypoints =
             Array.isArray(viaje.ruta_waypoints) && viaje.ruta_waypoints.length
-              ? viaje.ruta_waypoints
-              : viaje.ruta_waypoints?.features?.[0]?.geometry?.coordinates?.map((c) => ({ lon: c[0], lat: c[1] })) ?? null;
+              ? (viaje.ruta_waypoints as WaypointPoint[])
+              : ((
+                  viaje.ruta_waypoints as WaypointGeoJSON
+                )?.features?.[0]?.geometry?.coordinates?.map(
+                  (c: [number, number]) => ({ lon: c[0], lat: c[1] }),
+                ) ?? null);
 
           if (Array.isArray(waypoints) && waypoints.length > 0 && margen >= 0) {
             // calcular distancia mínima (km) entre telemetría y puntos de la ruta
             const toRad = (deg: number) => (deg * Math.PI) / 180;
-            const haversineKm = (aLat: number, aLon: number, bLat: number, bLon: number) => {
+            const haversineKm = (
+              aLat: number,
+              aLon: number,
+              bLat: number,
+              bLon: number,
+            ) => {
               const R = 6371; // km
               const dLat = toRad(bLat - aLat);
               const dLon = toRad(bLon - aLon);
@@ -133,7 +160,9 @@ export class TelemetriaService {
               const lat2 = toRad(bLat);
               const sinDlat = Math.sin(dLat / 2);
               const sinDlon = Math.sin(dLon / 2);
-              const aa = sinDlat * sinDlat + sinDlon * sinDlon * Math.cos(lat1) * Math.cos(lat2);
+              const aa =
+                sinDlat * sinDlat +
+                sinDlon * sinDlon * Math.cos(lat1) * Math.cos(lat2);
               const c = 2 * Math.atan2(Math.sqrt(aa), Math.sqrt(1 - aa));
               return R * c;
             };
@@ -141,9 +170,25 @@ export class TelemetriaService {
             const lat = Number(payload.lat);
             const lon = Number(payload.lon);
             let minKm = Infinity;
-            for (const p of waypoints) {
-              const pl = { lat: Number(p.lat ?? p[1] ?? p.latitude), lon: Number(p.lon ?? p[0] ?? p.longitude) };
-              if (!Number.isFinite(pl.lat) || !Number.isFinite(pl.lon)) continue;
+            const waypointsList = waypoints as Array<
+              WaypointPoint | [number, number]
+            >;
+            for (const p of waypointsList) {
+              let pLat: number | undefined;
+              let pLon: number | undefined;
+              if (Array.isArray(p)) {
+                pLon = p[0];
+                pLat = p[1];
+              } else if (p && typeof p === 'object') {
+                pLat = p.lat ?? p.latitude;
+                pLon = p.lon ?? p.longitude;
+              }
+              const pl = {
+                lat: Number(pLat),
+                lon: Number(pLon),
+              };
+              if (!Number.isFinite(pl.lat) || !Number.isFinite(pl.lon))
+                continue;
               const dist = haversineKm(lat, lon, pl.lat, pl.lon);
               if (dist < minKm) minKm = dist;
             }
@@ -155,11 +200,11 @@ export class TelemetriaService {
                 tipo_alerta: 'FUERA_RUTA',
                 valor_detectado: Math.round(minKm * 1000), // metros
                 umbral_permitido: Math.round(margen * 1000),
-                query: client.query.bind(client),
+                query: (text, params) => client.query(text, params),
               });
             }
           }
-        } catch (err) {
+        } catch {
           // no bloquear inserción por fallo en detección de fuera de ruta
         }
       }
@@ -214,7 +259,9 @@ export class TelemetriaService {
   }
 
   async findByViaje(viajeId: string) {
-    const result = await this.db.query<TelemetriaRow & { ia_diagnosis?: string }>(
+    const result = await this.db.query<
+      TelemetriaRow & { ia_diagnosis?: string }
+    >(
       `SELECT t.id, t.viaje_id, t.lat, t.lon, t.temp, t.humedad, t.bateria, t.timestamp_sensor, t.received_at, a.diagnostico_tecnico AS ia_diagnosis
        FROM telemetria t
        LEFT JOIN analisis_ia a ON a.telemetria_id = t.id

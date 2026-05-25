@@ -71,7 +71,9 @@ export class CreateViajeDto {
 
   @IsOptional()
   @IsObject()
-  ruta_waypoints?: Record<string, unknown> | Array<{ lat: number; lon: number }>;
+  ruta_waypoints?:
+    | Record<string, unknown>
+    | Array<{ lat: number; lon: number }>;
 
   @IsOptional()
   @IsNumber()
