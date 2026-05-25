@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { DbService } from '../db/db.service';
 import { IncidenteService } from '../incidente/incidente.service';
+import { IaAnalysisService } from '../ia/ia-analysis.service';
 
 type IncidenteRow = {
   id: string;
@@ -29,6 +30,7 @@ export class TelemetriaService {
   constructor(
     private readonly db: DbService,
     private readonly incidenteService: IncidenteService,
+    private readonly iaAnalysisService: IaAnalysisService,
   ) {}
 
   async create(payload: {
@@ -40,7 +42,7 @@ export class TelemetriaService {
     bateria?: number;
     timestamp_sensor: string;
   }) {
-    return this.db.transaction(async (client) => {
+    const result = await this.db.transaction(async (client) => {
       const viajeResult = await client.query<{
         id: string;
         limite_max_temp: number;
@@ -168,6 +170,35 @@ export class TelemetriaService {
         timestamp_bd: incidente?.timestamp_bd ?? null,
       };
     });
+
+    let ia_diagnosis: string | null = null;
+
+    if (result.tipo_alerta === 'TEMP_ALTA') {
+      try {
+        const iaResult = await this.iaAnalysisService.analizarEventoEnTiempoReal(
+          payload.viaje_id,
+          {
+            id: result.id,
+            viaje_id: result.viaje_id,
+            lat: Number(result.lat),
+            lon: Number(result.lon),
+            temp: Number(result.temp),
+            humedad: result.humedad,
+            bateria: result.bateria,
+            timestamp_sensor: result.timestamp_sensor,
+          },
+        );
+        ia_diagnosis = iaResult.diagnostico_tecnico;
+      } catch (err: any) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.warn(`Error de diagnóstico IA no bloqueante: ${msg}`);
+      }
+    }
+
+    return {
+      ...result,
+      ia_diagnosis,
+    };
   }
 
   async findAll() {

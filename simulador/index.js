@@ -464,6 +464,7 @@ async function tickSimulation() {
 				lon: sample.payload.lon,
 				timestamp: response.received_at || sample.payload.timestamp_sensor,
 				incidente_id: response.incidente_id || null,
+				ia_diagnosis: response.ia_diagnosis || null,
 			});
 			state.history = state.history.slice(0, 12);
 			state.lastPayload = sample.payload;
@@ -1105,6 +1106,7 @@ function renderDashboardPage() {
 				lat: asNumber(entry.lat),
 				lon: asNumber(entry.lon),
 				timestamp_sensor: entry.timestamp || null,
+				ia_diagnosis: entry.ia_diagnosis || null,
 			}));
 		}
 
@@ -1316,10 +1318,19 @@ function renderDashboardPage() {
 
 			return telemetry.slice(0, 8).map((point) => {
 				const breach = Number(point.temp) > Number(detail?.viaje?.limite_max_temp ?? 0) || Number(point.temp) < Number(detail?.viaje?.limite_min_temp ?? 0);
+				
+				const iaBlock = point.ia_diagnosis
+					? '<div style="margin-top: 8px; padding: 10px; background: rgba(139, 92, 246, 0.15); border-left: 3px solid #8b5cf6; border-radius: 6px; color: #e2e8f0; font-size: 12px; font-style: italic;">'
+						+ '<strong style="color: #c4b5fd; display: block; margin-bottom: 4px;">Zep & Groq Insight:</strong>'
+						+ escapeHtml(point.ia_diagnosis)
+						+ '</div>'
+					: '';
+
 				return '<div class="feed-item">'
 					+ '<strong>' + (breach ? 'Incidente detectado' : 'Telemetría recibida') + '</strong>'
 					+ '<small>' + formatDate(point.timestamp_sensor) + '</small>'
 					+ '<small>Temp: ' + formatNumber(point.temp) + '°C · Hum: ' + formatNumber(point.humedad) + '% · Bat: ' + formatNumber(point.bateria, 0) + '%</small>'
+					+ iaBlock
 					+ '</div>';
 			}).join('');
 		}
