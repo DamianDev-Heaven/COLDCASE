@@ -18,6 +18,7 @@ const runtimeState = {
 	simulations: [],
 	logs: [],
 	gateOpeningEnabled: true,
+	turboMode: false,
 };
 
 const simulationMap = new Map();
@@ -83,6 +84,8 @@ function createTripState(viaje) {
 		temperatureBias,
 		routeSeed,
 		history: [],
+		compressorFailed: false,
+		routeDeviated: false,
 	};
 }
 
@@ -123,28 +126,31 @@ function getRoutePosition(state) {
 
 function advanceRouteState(state) {
 	if (state.routePoints.length < 2) {
-		return;
+		return false;
 	}
 
-	state.progressStep += 0.22;
+	const stepIncrement = runtimeState.turboMode ? 0.95 : 0.22;
+	state.progressStep += stepIncrement;
 
 	if (state.progressStep < 1) {
-		return;
+		return false;
 	}
 
 	state.progressStep = 0;
 	state.progressIndex += state.direction;
 
-	const maxIndex = state.routePoints.length - 2;
+	const maxIndex = state.routePoints.length - 1;
 	if (state.progressIndex >= maxIndex) {
 		state.progressIndex = maxIndex;
-		state.direction = -1;
+		return true; // Reached the destination
 	}
 
 	if (state.progressIndex <= 0) {
 		state.progressIndex = 0;
 		state.direction = 1;
 	}
+
+	return false;
 }
 
 function buildSample(viaje, state) {
@@ -165,10 +171,11 @@ function buildSample(viaje, state) {
 	}
 
 	// Evaluar probabilidad de apertura de compuerta (anomalía crítica) si está habilitada en UI
-	if (runtimeState.gateOpeningEnabled !== false && state.gateOpenTicks === 0) {
+	if (runtimeState.gateOpeningEnabled !== false && state.gateOpenTicks === 0 && !state.compressorFailed) {
 		const rand = Math.random();
-		// 2% de probabilidad de que ocurra una apertura de compuerta
-		if (rand > 0.98) {
+		// Coeficiente probabilístico balanceado para evitar spam de alertas, especialmente en Modo Turbo
+		const baseProbability = runtimeState.turboMode ? 0.0015 : 0.006;
+		if (rand < baseProbability) {
 			state.gateOpenTicks = 4; // La compuerta se mantendrá abierta por 4 ciclos
 			logEvent('warn', `Simulador: Apertura de Compuerta detectada en viaje ${viaje.id}. Infiltración térmica externa activa.`, viaje.id);
 		}
@@ -178,10 +185,17 @@ function buildSample(viaje, state) {
 	let heatTransferCoef = 0.02; // Coeficiente normal con contenedor sellado
 	let coolingPower = 0.18;     // Poder de enfriamiento del compresor refrigerante
 
+	if (state.compressorFailed) {
+		coolingPower = 0.0;
+		heatTransferCoef = 0.08; // Falla total de compresor, infiltración lenta constante
+	}
+
 	if (state.gateOpenTicks > 0) {
 		// La compuerta está abierta: infiltración masiva de aire exterior cálido y compresor ineficiente
 		heatTransferCoef = 0.35;
-		coolingPower = 0.02;
+		if (!state.compressorFailed) {
+			coolingPower = 0.02;
+		}
 		state.gateOpenTicks -= 1;
 	}
 
@@ -200,13 +214,21 @@ function buildSample(viaje, state) {
 	const batteryDrain = state.routeSeed % 3 === 0 ? 1.8 : 0.9;
 	const battery = Math.max(0, Math.min(100, Math.round(state.battery - batteryDrain)));
 
+	// Calcular geolocalización con desvío opcional
+	let finalLat = routePosition.lat;
+	let finalLon = routePosition.lon;
+	if (state.routeDeviated) {
+		finalLat += 0.07;
+		finalLon -= 0.05;
+	}
+
 	state.battery = battery;
 	state.telemetryCount += 1;
 	state.lastTelemetryAt = new Date().toISOString();
 	state.lastPayload = {
 		viaje_id: viaje.id,
-		lat: Number(routePosition.lat.toFixed(6)),
-		lon: Number(routePosition.lon.toFixed(6)),
+		lat: Number(finalLat.toFixed(6)),
+		lon: Number(finalLon.toFixed(6)),
 		temp,
 		humedad: humidity,
 		bateria: battery,
@@ -218,7 +240,7 @@ function buildSample(viaje, state) {
 		temp,
 		humidity,
 		battery,
-		routePosition,
+		routePosition: { lat: finalLat, lon: finalLon },
 		limitMaxTemp,
 		limitMinTemp,
 		alertaTemperatura: temp > limitMaxTemp || temp < limitMinTemp,
@@ -279,6 +301,9 @@ function serializeState() {
 		battery: state.battery,
 		status: state.status,
 		history: state.history.slice(0, 12),
+		compressorFailed: !!state.compressorFailed,
+		routeDeviated: !!state.routeDeviated,
+		gateOpenTicks: state.gateOpenTicks || 0,
 	}));
 
 	return {
@@ -493,8 +518,27 @@ async function tickSimulation() {
 			state.incidentCount += response.incidente_id ? 1 : 0;
 			runtimeState.totalSent += 1;
 			runtimeState.totalIncidents += response.incidente_id ? 1 : 0;
-			state.status = response.incidente_id ? 'alerta' : 'activo';
-			advanceRouteState(state);
+			const reachedEnd = advanceRouteState(state);
+			if (reachedEnd) {
+				logEvent('info', `Simulador: Destino alcanzado para viaje ${viaje.id}. Finalizando...`, viaje.id);
+				try {
+					const finalizeRes = await fetch(`${API_URL}/viaje/${viaje.id}/finalizar`, {
+						method: 'PATCH',
+						headers: { 'Content-Type': 'application/json' }
+					});
+					if (finalizeRes.ok) {
+						logEvent('success', `Simulador: Viaje ${viaje.id} finalizado exitosamente en el backend.`, viaje.id);
+					} else {
+						logEvent('error', `Simulador: Error al finalizar viaje ${viaje.id} (${finalizeRes.status}).`, viaje.id);
+					}
+				} catch (finalizeErr) {
+					logEvent('error', `Simulador: Error de red al finalizar viaje ${viaje.id}: ${finalizeErr.message}`, viaje.id);
+				}
+				simulationMap.delete(viaje.id);
+				if (runtimeState.selectedTripId === viaje.id) {
+					runtimeState.selectedTripId = null;
+				}
+			}
 
 			logEvent(
 				response.incidente_id ? 'warn' : 'success',
@@ -527,16 +571,16 @@ function renderDashboardPage() {
 
 		:root {
 			color-scheme: dark;
-			--bg: #030712;
-			--panel: #0b111e;
-			--panel-2: #111827;
-			--line: #1f2937;
-			--text: #f9fafb;
-			--muted: #9ca3af;
-			--cyan: #06b6d4;
+			--bg: #05070f;
+			--panel: #0a0f1d;
+			--panel-2: #121826;
+			--line: #1e293b;
+			--text: #f8fafc;
+			--muted: #64748b;
+			--cyan: #0ea5e9;
 			--emerald: #10b981;
 			--amber: #f59e0b;
-			--rose: #f43f5e;
+			--rose: #ef4444;
 			--indigo: #6366f1;
 		}
 
@@ -544,15 +588,15 @@ function renderDashboardPage() {
 		
 		/* Custom scrollbar styles */
 		::-webkit-scrollbar {
-			width: 6px;
-			height: 6px;
+			width: 5px;
+			height: 5px;
 		}
 		::-webkit-scrollbar-track {
-			background: rgba(15, 23, 42, 0.3);
+			background: transparent;
 		}
 		::-webkit-scrollbar-thumb {
-			background: rgba(148, 163, 184, 0.25);
-			border-radius: 999px;
+			background: rgba(148, 163, 184, 0.12);
+			border-radius: 99px;
 		}
 		::-webkit-scrollbar-thumb:hover {
 			background: var(--cyan);
@@ -560,33 +604,35 @@ function renderDashboardPage() {
 
 		body {
 			margin: 0;
-			min-height: 100vh;
-			background:
-				radial-gradient(circle at 10% 20%, rgba(6, 182, 212, 0.08), transparent 40%),
-				radial-gradient(circle at 90% 80%, rgba(99, 102, 241, 0.06), transparent 40%),
-				#030712;
+			height: 100vh;
+			background-color: var(--bg);
+			background-image: 
+				radial-gradient(at 50% 0%, rgba(14, 165, 233, 0.12) 0px, transparent 50%),
+				radial-gradient(at 0% 100%, rgba(99, 102, 241, 0.05) 0px, transparent 40%),
+				linear-gradient(rgba(255, 255, 255, 0.002) 1px, transparent 1px),
+				linear-gradient(90deg, rgba(255, 255, 255, 0.002) 1px, transparent 1px);
+			background-size: 100% 100%, 100% 100%, 32px 32px, 32px 32px;
 			color: var(--text);
 			font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
-			overflow-x: hidden;
-			overflow-y: auto;
-			letter-spacing: -0.01em;
+			overflow: hidden;
+			letter-spacing: -0.019em;
 		}
 
 		/* LED glow animation for active/inactive state */
 		@keyframes led-glow-green {
 			0% { box-shadow: 0 0 4px rgba(16, 185, 129, 0.4); opacity: 0.8; }
-			50% { box-shadow: 0 0 16px rgba(16, 185, 129, 0.9); opacity: 1; }
+			50% { box-shadow: 0 0 12px rgba(16, 185, 129, 0.9); opacity: 1; }
 			100% { box-shadow: 0 0 4px rgba(16, 185, 129, 0.4); opacity: 0.8; }
 		}
 		@keyframes led-glow-amber {
 			0% { box-shadow: 0 0 4px rgba(245, 158, 11, 0.4); opacity: 0.8; }
-			50% { box-shadow: 0 0 16px rgba(245, 158, 11, 0.9); opacity: 1; }
+			50% { box-shadow: 0 0 12px rgba(245, 158, 11, 0.9); opacity: 1; }
 			100% { box-shadow: 0 0 4px rgba(245, 158, 11, 0.4); opacity: 0.8; }
 		}
 		.led-indicator {
 			display: inline-block;
-			width: 10px;
-			height: 10px;
+			width: 8px;
+			height: 8px;
 			border-radius: 50%;
 			margin-right: 8px;
 			vertical-align: middle;
@@ -602,158 +648,142 @@ function renderDashboardPage() {
 
 		/* AI Diagnostic card styles */
 		.ia-diagnosis-card {
-			margin-top: 12px;
-			padding: 14px 16px;
-			background: linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.95));
-			border-left: 4px solid var(--emerald);
-			border-top: 1px solid rgba(16, 185, 129, 0.15);
-			border-right: 1px solid rgba(16, 185, 129, 0.15);
-			border-bottom: 1px solid rgba(16, 185, 129, 0.15);
-			border-radius: 12px;
-			box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5), inset 0 0 12px rgba(16, 185, 129, 0.05);
-			color: #ffffff;
-			font-size: 13px;
-			line-height: 1.6;
+			margin-top: 10px;
+			padding: 12px 14px;
+			background: rgba(10, 15, 29, 0.9);
+			border: 1px solid rgba(16, 185, 129, 0.15);
+			border-left: 3px solid var(--emerald);
+			border-radius: 8px;
+			color: #f1f5f9;
+			font-size: 12px;
+			line-height: 1.5;
 			position: relative;
 			overflow: hidden;
 		}
-		.ia-diagnosis-card::before {
-			content: "";
-			position: absolute;
-			top: 0;
-			right: 0;
-			width: 60px;
-			height: 60px;
-			background: radial-gradient(circle, rgba(16, 185, 129, 0.1), transparent 70%);
-			pointer-events: none;
-		}
 		.ia-diagnosis-header {
-			display: flex;
-			align-items: center;
-			gap: 8px;
-			color: #a7f3d0;
-			font-size: 11px;
+			font-size: 10px;
 			font-weight: 800;
+			letter-spacing: 0.08em;
 			text-transform: uppercase;
-			letter-spacing: 0.12em;
-			margin-bottom: 8px;
-			border-bottom: 1px solid rgba(16, 185, 129, 0.15);
-			padding-bottom: 6px;
+			color: #a7f3d0;
+			margin-bottom: 6px;
+			border-bottom: 1px solid rgba(16, 185, 129, 0.1);
+			padding-bottom: 4px;
 		}
 		.ia-diagnosis-body {
-			font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+			font-family: inherit;
 			font-weight: 400;
-			color: #f1f5f9;
+			color: #e2e8f0;
 			white-space: pre-wrap;
 			word-wrap: break-word;
 		}
 
 		.topbar {
-			position: sticky;
-			top: 0;
 			height: 64px;
-			background: rgba(19, 24, 36, 0.92);
-			border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+			background: rgba(10, 15, 29, 0.85);
+			border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 			backdrop-filter: blur(16px);
 			z-index: 30;
 			display: flex;
 			align-items: center;
 			justify-content: space-between;
-			padding: 0 20px;
+			padding: 0 24px;
+			transition: all 0.2s ease;
 		}
 
 		.shell {
 			width: 100%;
-			max-width: 1650px;
+			max-width: 1750px;
 			margin: 0 auto;
 			padding: 16px;
 			display: grid;
-			grid-template-columns: 320px minmax(0, 1fr) 400px;
-			gap: 12px;
-			height: auto;
-			min-height: calc(100vh - 64px);
-			min-height: 0;
-			overflow: visible;
-		}
-
-		.sidebar,
-		.workspace-main,
-		.workspace-ai {
-			min-height: 0;
-			overflow: visible;
+			grid-template-columns: 340px minmax(0, 1fr) 400px;
+			gap: 16px;
+			height: calc(100vh - 64px);
+			overflow: hidden;
 		}
 
 		.sidebar {
-			background: rgba(19, 24, 36, 0.92);
-			display: grid;
-			grid-template-rows: auto 1fr auto;
+			display: flex;
+			flex-direction: column;
 			gap: 12px;
-			max-height: calc(100vh - 96px);
-			position: sticky;
-			top: 80px;
-			overflow: hidden;
+			height: 100%;
+			min-height: 0;
 		}
 
 		.workspace-main {
 			display: flex;
 			flex-direction: column;
 			gap: 12px;
+			height: 100%;
 			min-width: 0;
+			min-height: 0;
 		}
 
 		.workspace-ai {
 			display: flex;
 			flex-direction: column;
 			gap: 12px;
-			min-width: 0;
+			height: 100%;
+			min-height: 0;
 		}
 
 		.panel,
 		.card,
 		.stack-item {
-			background: linear-gradient(180deg, rgba(19, 24, 36, 0.96), rgba(15, 19, 27, 0.96));
-			border: 1px solid rgba(148, 163, 184, 0.12);
-			border-radius: 22px;
-			box-shadow: 0 18px 40px rgba(2, 6, 23, 0.28);
+			background: rgba(10, 15, 29, 0.7);
+			border: 1px solid rgba(255, 255, 255, 0.06);
+			border-radius: 16px;
+			box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.02);
 			backdrop-filter: blur(12px);
+			transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 		}
 
 		.panel { padding: 16px; min-height: 0; }
-		.stack { overflow: auto; padding: 0 10px 12px; display: grid; gap: 10px; min-height: 0; max-height: 100%; overscroll-behavior: contain; }
+		
+		.stack { 
+			overflow-y: auto; 
+			padding-right: 4px;
+			display: flex;
+			flex-direction: column;
+			gap: 8px;
+			min-height: 0;
+			flex: 1;
+			overscroll-behavior: contain; 
+		}
 		
 		.stack-item {
-			padding: 14px;
+			padding: 12px;
 			cursor: pointer;
-			transition: transform .2s cubic-bezier(0.4, 0, 0.2, 1), border-color .2s ease, background .2s ease, box-shadow .2s ease;
-			border-radius: 16px;
-			background: linear-gradient(180deg, rgba(20, 26, 40, 0.5), rgba(15, 20, 30, 0.7));
-			border: 1px solid rgba(148, 163, 184, 0.08);
+			background: rgba(18, 25, 41, 0.4);
+			border: 1px solid rgba(255, 255, 255, 0.04);
 			position: relative;
+			border-radius: 12px;
 		}
 		.stack-item:hover {
-			transform: translateY(-2px);
-			border-color: rgba(6, 182, 212, 0.35);
-			background: linear-gradient(180deg, rgba(20, 26, 40, 0.7), rgba(15, 20, 30, 0.85));
-			box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+			border-color: rgba(14, 165, 233, 0.25);
+			background: rgba(18, 25, 41, 0.7);
+			transform: translateY(-1px);
 		}
 		.stack-item.active {
-			border-color: rgba(6, 182, 212, 0.6);
-			background: linear-gradient(180deg, rgba(6, 182, 212, 0.15), rgba(15, 20, 30, 0.95));
-			box-shadow: 0 0 20px rgba(6, 182, 212, 0.25);
+			border-color: var(--cyan);
+			background: rgba(14, 165, 233, 0.08);
+			box-shadow: 0 0 15px rgba(14, 165, 233, 0.08);
 		}
 
 		.eyebrow {
 			text-transform: uppercase;
-			letter-spacing: 0.32em;
+			letter-spacing: 0.15em;
 			font-size: 10px;
 			color: var(--cyan);
 			font-weight: 800;
 		}
 
 		.title {
-			margin: 8px 0 0;
-			font-size: 2rem;
-			line-height: 1;
+			margin: 4px 0 0;
+			font-size: 1.5rem;
+			font-weight: 800;
+			letter-spacing: -0.02em;
 		}
 
 		.muted { color: var(--muted); }
@@ -761,71 +791,76 @@ function renderDashboardPage() {
 		.controls, .stat-grid {
 			display: grid;
 			grid-template-columns: repeat(2, minmax(0, 1fr));
-			gap: 10px;
-			margin-top: 14px;
+			gap: 8px;
+			margin-top: 12px;
 		}
 
 		.btn {
-			border: 1px solid rgba(255, 255, 255, 0.08);
-			background: rgba(17, 24, 39, 0.8);
-			color: var(--text);
-			border-radius: 12px;
-			padding: 10px 16px;
-			font-weight: 700;
+			border: 1px solid rgba(255, 255, 255, 0.06);
+			background: rgba(15, 23, 42, 0.6);
+			color: #e2e8f0;
+			border-radius: 10px;
+			padding: 8px 14px;
+			font-weight: 600;
 			cursor: pointer;
-			transition: all .2s cubic-bezier(0.4, 0, 0.2, 1);
-			display: flex;
+			transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+			display: inline-flex;
 			align-items: center;
-			gap: 6px;
-			font-size: 12px;
+			justify-content: center;
+			gap: 8px;
+			font-size: 11px;
+			text-transform: uppercase;
+			letter-spacing: 0.05em;
 		}
 		.btn:hover {
-			transform: translateY(-2px);
-			border-color: var(--cyan);
-			background: rgba(17, 24, 39, 0.95);
-			box-shadow: 0 4px 12px rgba(6, 182, 212, 0.15);
+			border-color: rgba(14, 165, 233, 0.4);
+			background: rgba(15, 23, 42, 0.95);
+			color: #ffffff;
+			box-shadow: 0 4px 15px rgba(14, 165, 233, 0.1);
 		}
 		.btn:active {
-			transform: translateY(0);
+			transform: translateY(1px);
 		}
 		.btn.primary {
-			background: linear-gradient(135deg, var(--cyan), var(--indigo));
-			color: #ffffff;
-			border-color: transparent;
-			box-shadow: 0 4px 15px rgba(6, 182, 212, 0.2);
+			background: rgba(14, 165, 233, 0.15);
+			border-color: rgba(14, 165, 233, 0.35);
+			color: #38bdf8;
 		}
 		.btn.primary:hover {
-			background: linear-gradient(135deg, #22d3ee, #818cf8);
-			box-shadow: 0 6px 20px rgba(6, 182, 212, 0.3);
+			background: rgba(14, 165, 233, 0.25);
+			border-color: #38bdf8;
+			box-shadow: 0 4px 20px rgba(14, 165, 233, 0.2);
 		}
 		.btn.warn {
-			background: rgba(239, 68, 68, 0.1);
+			background: rgba(239, 68, 68, 0.08);
 			border-color: rgba(239, 68, 68, 0.3);
 			color: #fca5a5;
 		}
 		.btn.warn:hover {
-			background: rgba(239, 68, 68, 0.2);
-			border-color: #f87171;
-			box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
+			background: rgba(239, 68, 68, 0.18);
+			border-color: #ef4444;
+			box-shadow: 0 4px 15px rgba(239, 68, 68, 0.15);
 		}
 
 		.tag {
 			display: inline-flex;
 			align-items: center;
 			gap: 6px;
-			border-radius: 999px;
-			padding: 6px 12px;
-			font-size: 11px;
+			border-radius: 99px;
+			padding: 4px 10px;
+			font-size: 10px;
 			font-weight: 800;
-			border: 1px solid rgba(148, 163, 184, 0.18);
-			background: rgba(15, 19, 27, 0.9);
+			border: 1px solid rgba(255, 255, 255, 0.06);
+			background: rgba(10, 15, 29, 0.85);
+			text-transform: uppercase;
+			letter-spacing: 0.05em;
 		}
 
-		.tag.activo { color: #bbf7d0; border-color: rgba(34, 197, 94, 0.24); }
-		.tag.alerta { color: #fef3c7; border-color: rgba(245, 158, 11, 0.28); }
-		.tag.error { color: #fecaca; border-color: rgba(239, 68, 68, 0.28); }
-		.tag.pausado { color: #e2e8f0; border-color: rgba(148, 163, 184, 0.22); }
-		.tag.osrm { color: #cffafe; border-color: rgba(76, 201, 240, 0.28); }
+		.tag.activo { color: #86efac; border-color: rgba(16, 185, 129, 0.2); background: rgba(16, 185, 129, 0.05); }
+		.tag.alerta { color: #fef08a; border-color: rgba(245, 158, 11, 0.2); background: rgba(245, 158, 11, 0.05); }
+		.tag.error { color: #fca5a5; border-color: rgba(239, 68, 68, 0.2); background: rgba(239, 68, 68, 0.05); }
+		.tag.pausado { color: #cbd5e1; border-color: rgba(148, 163, 184, 0.2); background: rgba(148, 163, 184, 0.05); }
+		.tag.osrm { color: #93c5fd; border-color: rgba(14, 165, 233, 0.2); background: rgba(14, 165, 233, 0.05); }
 
 		.card {
 			padding: 16px;
@@ -835,62 +870,109 @@ function renderDashboardPage() {
 		}
 
 		.metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
-		.metric { padding: 14px; border-radius: 18px; background: rgba(7, 10, 16, 0.45); border: 1px solid rgba(148, 163, 184, 0.12); }
-		.metric span { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: 0.22em; color: var(--muted); }
-		.metric strong { display: block; margin-top: 10px; font-size: 1.4rem; }
+		.metric { padding: 12px; border-radius: 12px; background: rgba(15, 23, 42, 0.35); border: 1px solid rgba(255, 255, 255, 0.04); }
+		.metric span { display: block; font-size: 9px; text-transform: uppercase; letter-spacing: 0.15em; color: var(--muted); font-weight: 700; }
+		.metric strong { display: block; margin-top: 6px; font-size: 1.3rem; font-family: monospace; font-weight: 700; color: #fff; }
 
 		.map-card, .chart-card, .feed-card {
 			overflow: hidden;
-			background: rgba(19, 24, 36, 0.92);
-			border: 1px solid rgba(148, 163, 184, 0.12);
-			border-radius: 22px;
-			box-shadow: 0 18px 40px rgba(2, 6, 23, 0.24);
+			background: rgba(10, 15, 29, 0.7);
+			border: 1px solid rgba(255, 255, 255, 0.06);
+			border-radius: 16px;
+			box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
 			display: flex;
 			flex-direction: column;
 			min-height: 0;
 		}
 
-		.map-card { padding: 14px; }
-		.chart-card { padding: 14px; }
-		.feed-card { padding: 14px; display: flex; gap: 10px; }
-		.chart-card { overflow: hidden; }
+		.map-card {
+			padding: 14px;
+			flex-grow: 1;
+			display: flex;
+			flex-direction: column;
+			min-height: 280px; /* Evita colapsos a 0 */
+			position: relative;
+		}
+		.chart-card {
+			padding: 14px;
+			shrink: 0;
+			height: 250px;
+			display: flex;
+			flex-direction: column;
+			position: relative;
+		}
+		.feed-card {
+			padding: 14px;
+			flex-grow: 1;
+			display: flex;
+			flex-direction: column;
+			min-height: 220px;
+		}
+		
 		.chart-wrap {
-			overflow: auto;
-			min-height: 0;
-			flex: 1;
-			padding-bottom: 4px;
 			overflow-x: auto;
 			overflow-y: hidden;
+			min-height: 0;
+			flex: 1;
+			position: relative;
+			background: #05070f;
+			border-radius: 12px;
+			border: 1px solid rgba(255, 255, 255, 0.04);
 			overscroll-behavior: contain;
 			display: block;
 		}
 		.chart-scroll {
-			min-width: 1120px;
-			height: 360px;
-			min-height: 360px;
+			height: 100%;
+			display: block;
 		}
 
-		.two-cols > * { min-height: 0; }
-		.map-svg, .chart-svg { width: 100%; height: 100%; display: block; }
 		.map-wrap {
 			flex: 1;
 			min-height: 0;
 			position: relative;
+			display: flex;
+			flex-direction: column;
 		}
 		.map-shell {
 			position: relative;
-			height: 100%;
-			min-height: 420px;
-			border-radius: 18px;
+			flex: 1;
+			width: 100%;
+			border-radius: 12px;
 			overflow: hidden;
-			background: linear-gradient(180deg, #0b1016, #09111a);
+			background: #05070f;
+			border: 1px solid rgba(255, 255, 255, 0.04);
 		}
+		
+		/* Custom Dark mode filter for Leaflet map */
 		.leaflet-map {
 			position: absolute;
 			inset: 0;
 			width: 100%;
 			height: 100%;
 		}
+		.leaflet-container {
+			filter: invert(96%) hue-rotate(185deg) brightness(85%) contrast(100%);
+			background: #05070f !important;
+		}
+		.leaflet-tile-container {
+			opacity: 0.85;
+		}
+		.leaflet-bar {
+			border: none !important;
+			box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4) !important;
+		}
+		.leaflet-bar a {
+			background-color: #0b0f19 !important;
+			border: 1px solid rgba(255, 255, 255, 0.06) !important;
+			color: #94a3b8 !important;
+			transition: all 0.2s ease;
+		}
+		.leaflet-bar a:hover {
+			background-color: rgba(14, 165, 233, 0.15) !important;
+			color: #38bdf8 !important;
+			border-color: rgba(14, 165, 233, 0.3) !important;
+		}
+
 		.map-hud {
 			position: absolute;
 			top: 10px;
@@ -902,19 +984,20 @@ function renderDashboardPage() {
 			gap: 8px;
 			pointer-events: none;
 		}
-		.map-hud .tag { pointer-events: none; backdrop-filter: blur(10px); }
+		.map-hud .tag { pointer-events: auto; backdrop-filter: blur(10px); }
+		
 		.map-banner {
 			position: absolute;
 			left: 10px;
 			bottom: 10px;
 			z-index: 500;
-			max-width: min(520px, calc(100% - 20px));
-			padding: 10px 12px;
-			border-radius: 14px;
-			border: 1px solid rgba(148, 163, 184, 0.16);
-			background: rgba(15, 19, 27, 0.82);
+			max-width: min(480px, calc(100% - 20px));
+			padding: 8px 12px;
+			border-radius: 10px;
+			border: 1px solid rgba(255, 255, 255, 0.06);
+			background: rgba(10, 15, 29, 0.85);
 			backdrop-filter: blur(10px);
-			font-size: 12px;
+			font-size: 11px;
 			color: var(--text);
 		}
 		.map-legend {
@@ -923,15 +1006,15 @@ function renderDashboardPage() {
 			bottom: 10px;
 			z-index: 500;
 			display: grid;
-			gap: 6px;
-			padding: 10px 12px;
-			border-radius: 14px;
-			border: 1px solid rgba(148, 163, 184, 0.16);
-			background: rgba(15, 19, 27, 0.82);
+			gap: 4px;
+			padding: 8px 12px;
+			border-radius: 10px;
+			border: 1px solid rgba(255, 255, 255, 0.06);
+			background: rgba(10, 15, 29, 0.85);
 			backdrop-filter: blur(10px);
-			font-size: 12px;
+			font-size: 11px;
 			color: var(--text);
-			max-width: min(260px, calc(100% - 20px));
+			max-width: min(220px, calc(100% - 20px));
 		}
 		.legend-row {
 			display: flex;
@@ -940,16 +1023,16 @@ function renderDashboardPage() {
 			white-space: nowrap;
 		}
 		.legend-dot {
-			width: 10px;
-			height: 10px;
-			border-radius: 999px;
+			width: 8px;
+			height: 8px;
+			border-radius: 50%;
 			flex: 0 0 auto;
 		}
 		.legend-dot.route { background: #7dd3fc; }
 		.legend-dot.temp { background: #ef4444; }
 		.legend-dot.battery { background: #f59e0b; }
 		.legend-dot.current { background: #4cc9f0; }
-		.map-banner strong { color: #fff; }
+		
 		.map-fallback {
 			position: absolute;
 			inset: 0;
@@ -959,138 +1042,145 @@ function renderDashboardPage() {
 			text-align: center;
 			padding: 18px;
 			color: var(--muted);
-			background: rgba(7, 10, 16, 0.48);
-		}
-
-		.two-cols {
-			display: none;
-		}
-
-		.main-grid {
-			display: grid;
-			grid-template-columns: minmax(0, 1.45fr) minmax(340px, 420px);
-			gap: 12px;
-			min-height: 0;
-			align-items: stretch;
-		}
-
-		.main-stack {
-			display: grid;
-			grid-template-rows: minmax(420px, 1.08fr) minmax(300px, 0.92fr);
-			gap: 12px;
-			min-height: 0;
-		}
-
-		.main-grid > * {
-			min-height: 0;
-		}
-
-		.feed-card {
-			overflow: hidden;
-			min-height: 200px;
-			max-height: calc(100vh - 100px);
-			display: flex;
-			flex-direction: column;
+			background: rgba(5, 7, 15, 0.6);
+			z-index: 450;
 		}
 
 		.feed-list {
 			overflow-y: auto;
-			display: grid;
-			gap: 10px;
-			max-height: 100%;
-			min-height: 0;
+			display: flex;
+			flex-direction: column;
+			gap: 8px;
 			flex: 1;
+			min-height: 0;
 			overscroll-behavior: contain;
 		}
 		.feed-item {
-			padding: 14px;
-			border-radius: 18px;
-			background: linear-gradient(135deg, rgba(15, 23, 42, 0.5), rgba(30, 41, 59, 0.4));
-			border: 1px solid rgba(148, 163, 184, 0.08);
-			box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
-			transition: border-color 0.2s ease, box-shadow 0.2s ease;
+			padding: 12px;
+			border-radius: 12px;
+			background: rgba(15, 23, 42, 0.3);
+			border: 1px solid rgba(255, 255, 255, 0.04);
+			transition: all 0.2s ease;
 		}
 		.feed-item:hover {
-			border-color: rgba(148, 163, 184, 0.18);
-			box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+			border-color: rgba(255, 255, 255, 0.08);
+			background: rgba(15, 23, 42, 0.45);
 		}
-		.feed-item strong { display: block; font-size: 13px; }
-		.feed-item small { display: block; margin-top: 6px; color: var(--muted); }
+		.feed-item strong { display: block; font-size: 12px; color: #fff; }
+		.feed-item small { display: block; margin-top: 4px; color: var(--muted); font-size: 10px; }
 
 		.empty {
-			padding: 18px;
-			border-radius: 18px;
-			border: 1px dashed rgba(148, 163, 184, 0.16);
+			padding: 20px;
+			border-radius: 12px;
+			border: 1px dashed rgba(255, 255, 255, 0.06);
 			color: var(--muted);
-			background: rgba(7, 10, 16, 0.35);
+			background: rgba(10, 15, 29, 0.3);
+			text-align: center;
+			font-size: 11px;
+			font-family: inherit;
+			height: 100%;
+			display: flex;
+			align-items: center;
+			justify-content: center;
 		}
 
-		/* Estilos para el switch de toggle premium */
-		.switch input:checked + .slider {
-			background-color: var(--cyan);
+		/* Premium custom styled switches */
+		.switch {
+			position: relative;
+			display: inline-block;
+			width: 42px;
+			height: 22px;
+			flex: 0 0 auto;
+		}
+		.switch input {
+			opacity: 0;
+			width: 0;
+			height: 0;
+		}
+		.slider {
+			position: absolute;
+			cursor: pointer;
+			inset: 0;
+			background-color: rgba(255, 255, 255, 0.06);
+			transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+			border-radius: 99px;
+			border: 1px solid rgba(255, 255, 255, 0.04);
 		}
 		.slider:before {
 			position: absolute;
 			content: "";
-			height: 16px;
-			width: 16px;
-			left: 4px;
-			bottom: 4px;
-			background-color: #ffffff;
-			transition: .3s ease;
+			height: 14px;
+			width: 14px;
+			left: 3px;
+			bottom: 3px;
+			background-color: #64748b;
+			transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 			border-radius: 50%;
 			box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
 		}
+		.switch input:checked + .slider {
+			background-color: rgba(14, 165, 233, 0.2);
+			border-color: rgba(14, 165, 233, 0.4);
+		}
 		.switch input:checked + .slider:before {
 			transform: translateX(20px);
-		}
-
-		/* Operational guide styles */
-		.operational-guide {
-			background: linear-gradient(180deg, rgba(19, 24, 36, 0.98), rgba(9, 13, 24, 0.98));
-			border: 1px solid rgba(6, 182, 212, 0.2);
-			box-shadow: 0 8px 32px rgba(6, 182, 212, 0.05);
-			transition: border-color 0.3s ease, box-shadow 0.3s ease;
-		}
-		.operational-guide:hover {
-			border-color: rgba(6, 182, 212, 0.35);
-			box-shadow: 0 8px 32px rgba(6, 182, 212, 0.1);
+			background-color: var(--cyan);
+			box-shadow: 0 0 8px rgba(14, 165, 233, 0.6);
 		}
 
 		@media (max-width: 1400px) {
-			.shell { grid-template-columns: 300px minmax(0, 1fr); }
+			.shell { grid-template-columns: 300px minmax(0, 1fr) 350px; gap: 12px; }
 		}
 
-		@media (max-width: 1080px) {
-			.shell { grid-template-columns: 1fr; height: auto; min-height: 0; overflow: auto; }
-			.workspace { grid-template-rows: auto auto; }
-			.main-grid { grid-template-columns: 1fr; }
-			.main-stack { grid-template-rows: auto auto; }
-			.metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-			.controls { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-			.map-shell { min-height: 360px; }
+		@media (max-width: 1120px) {
+			body { overflow: auto; height: auto; }
+			.shell { grid-template-columns: 1fr; height: auto; overflow: visible; }
+			.sidebar, .workspace-main, .workspace-ai { height: auto; }
+			.map-card { height: 400px; }
+			.feed-card { height: 440px; }
 		}
 
-		@media (max-width: 680px) {
-			.topbar { height: auto; padding: 12px 14px; gap: 12px; flex-direction: column; align-items: flex-start; }
-			.controls { width: 100%; grid-template-columns: 1fr; }
-			.shell { padding: 12px; }
-			.metrics { grid-template-columns: 1fr; }
-			.stat-grid { grid-template-columns: 1fr 1fr; }
-			.map-shell { min-height: 320px; }
+		/* Adaptabilidad para pantallas de poca altura (Vertical Media Queries) */
+		@media (max-height: 800px) {
+			body { overflow: auto; height: auto; }
+			.shell { height: auto; overflow: visible; grid-template-columns: 340px minmax(0, 1fr) 400px; }
+			@media (max-width: 1120px) {
+				.shell { grid-template-columns: 1fr; }
+			}
+			.sidebar, .workspace-main, .workspace-ai { height: auto; }
+			.map-card { height: 360px; }
+			.feed-card { height: 400px; }
+		}
+
+		/* Adaptabilidad para pantallas extremadamente estrechas o móviles */
+		@media (max-width: 768px) {
+			.topbar {
+				height: auto;
+				padding: 12px 16px;
+				flex-direction: column;
+				gap: 12px;
+				align-items: flex-start;
+			}
+			.topbar > div {
+				width: 100%;
+			}
+			.topbar button {
+				padding: 6px 10px;
+				font-size: 10px;
+			}
 		}
 	</style>
 </head>
 <body>
 	<header class="topbar">
 		<div>
-			<div class="eyebrow">Simulador maestro</div>
-			<div class="muted" id="connectionState" style="display:flex; align-items:center;">
+			<div class="eyebrow" style="letter-spacing: 0.25em;">Consola de Operaciones</div>
+			<div class="muted" id="connectionState" style="display:flex; align-items:center; font-size: 11px; font-weight: 600; margin-top: 2px;">
 				<span class="led-indicator active" id="ledStatus"></span>
 				<span id="connectionText">Conectando con backend...</span>
 			</div>
 		</div>
-		<div class="controls" style="grid-template-columns: repeat(4, auto); margin-top:0;">
+		<div style="display: flex; gap: 8px; align-items: center;">
 			<button id="toggleBtn" class="btn primary">Pausar</button>
 			<button id="stepBtn" class="btn">Forzar ciclo</button>
 			<button id="syncBtn" class="btn">Sincronizar</button>
@@ -1099,45 +1189,68 @@ function renderDashboardPage() {
 	</header>
 
 	<div class="shell">
+		<!-- COLUMNA 1: CONTROL DE WORKER & LISTADO DE VIAJES (IZQUIERDA) -->
 		<aside class="sidebar">
 			<div class="panel">
-				<div class="eyebrow">Panel de control</div>
-				<h1 class="title">Viajes activos</h1>
-				<p class="muted" style="margin:10px 0 0;">Selecciona un viaje para ver ruta, telemetría y estado de envío.</p>
-				<div class="stat-grid">
-					<div class="metric"><span>Activos</span><strong id="activeTrips">0</strong></div>
-					<div class="metric"><span>Enviados</span><strong id="sentTrips">0</strong></div>
-					<div class="metric"><span>Incidentes</span><strong id="incidentTrips">0</strong></div>
-					<div class="metric"><span>Sync</span><strong id="lastSync">-</strong></div>
+				<div class="eyebrow" style="margin-bottom: 2px;">Simulación Global</div>
+				<h1 class="title" style="font-size: 1.25rem; margin-bottom: 8px; color: #fff;">Consola de Worker</h1>
+				
+				<div class="stat-grid" style="grid-template-columns: repeat(2, 1fr); gap: 6px; margin-top: 8px;">
+					<div class="metric" style="padding: 8px 10px;"><span style="font-size: 8px;">Sims Activas</span><strong id="activeTrips" style="font-size: 1.1rem; margin-top: 2px;">0</strong></div>
+					<div class="metric" style="padding: 8px 10px;"><span style="font-size: 8px;">Total Ticks</span><strong id="sentTrips" style="font-size: 1.1rem; margin-top: 2px;">0</strong></div>
+					<div class="metric" style="padding: 8px 10px;"><span style="font-size: 8px;">Anomalías</span><strong id="incidentTrips" style="font-size: 1.1rem; margin-top: 2px;">0</strong></div>
+					<div class="metric" style="padding: 8px 10px;"><span style="font-size: 8px;">Última Sync</span><strong id="lastSync" style="font-size: 8px; font-family: monospace; margin-top: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">-</strong></div>
 				</div>
-				<div style="margin-top: 14px; padding: 12px 14px; border-radius: 18px; background: rgba(7, 10, 16, 0.45); border: 1px solid rgba(148, 163, 184, 0.12); display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+				
+				<!-- Global Simulation Speed / Turbo Control -->
+				<div style="margin-top: 10px; padding: 10px 12px; border-radius: 10px; background: rgba(15, 23, 42, 0.3); border: 1px solid rgba(255, 255, 255, 0.04); display: flex; align-items: center; justify-content: space-between; gap: 10px;">
 					<div>
-						<div style="font-size: 13px; font-weight: 700; color: var(--text);">Apertura de Compuerta</div>
-						<div style="font-size: 11px; color: var(--muted); margin-top: 2px;">Eventos críticos (2% prob. +4.5°C)</div>
+						<div style="font-size: 11px; font-weight: 700; color: #e2e8f0;">Avance Rápido (Modo Turbo)</div>
+						<div style="font-size: 9px; color: var(--muted); margin-top: 1px;">Ticks de 2s y saltos de tramo</div>
 					</div>
-					<label class="switch" style="position: relative; display: inline-block; width: 44px; height: 24px; flex: 0 0 auto;">
-						<input type="checkbox" id="gateToggle" checked style="opacity: 0; width: 0; height: 0;">
-						<span class="slider" style="position: absolute; cursor: pointer; inset: 0; background-color: rgba(148, 163, 184, 0.28); transition: .3s; border-radius: 24px;"></span>
+					<label class="switch">
+						<input type="checkbox" id="turboToggle">
+						<span class="slider"></span>
+					</label>
+				</div>
+				
+				<!-- Probabilistic Gate Opening Toggle -->
+				<div style="margin-top: 6px; padding: 10px 12px; border-radius: 10px; background: rgba(15, 23, 42, 0.3); border: 1px solid rgba(255, 255, 255, 0.04); display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+					<div>
+						<div style="font-size: 11px; font-weight: 700; color: #e2e8f0;">Simulación de Compuerta</div>
+						<div style="font-size: 9px; color: var(--muted); margin-top: 1px;">Aperturas físicas automáticas</div>
+					</div>
+					<label class="switch">
+						<input type="checkbox" id="gateToggle" checked>
+						<span class="slider"></span>
 					</label>
 				</div>
 			</div>
-			<div class="stack" id="tripList"></div>
-			<div class="panel">
-				<div class="muted" id="statusText">Esperando estado...</div>
+			
+			<div class="panel" style="flex: 1; display: flex; flex-direction: column; min-height: 0; padding-bottom: 12px;">
+				<div class="eyebrow" style="margin-bottom: 4px;">Monitoreo de Flota</div>
+				<span style="font-size: 11px; color: var(--muted); display: block; margin-bottom: 8px;">Selecciona una ruta en curso para auditar</span>
+				<div class="stack" id="tripList"></div>
+			</div>
+			
+			<div class="panel" style="padding: 10px 14px; shrink: 0; background: rgba(15, 23, 42, 0.25);">
+				<div class="muted font-mono" id="statusText" style="font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 6px;">
+					Esperando estado...
+				</div>
 			</div>
 		</aside>
 
-		<!-- COLUMNA 2: GEOMETRÍA Y TERMODINÁMICA (CENTRAL) -->
-		<section class="workspace-main" style="display:flex; flex-direction:column; gap:12px; min-width:0; flex:1;">
+		<!-- COLUMNA 2: GEOMETRÍA Y TERMODINÁMICA (CENTRAL - FLEX-1) -->
+		<section class="workspace-main">
 			<!-- Banner de Viaje Seleccionado -->
-			<section class="card" style="padding:16px;">
-				<div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;">
-					<div>
-						<div class="eyebrow" style="color:var(--cyan); font-weight:800; letter-spacing:0.25em;">Monitoreo de Geometría y Trayecto</div>
-						<h2 style="margin:8px 0 0;font-size:1.8rem; font-weight:800; color:#fff;" id="selectedTitle">Sin viaje seleccionado</h2>
-						<p class="muted" id="selectedSubtitle" style="margin:8px 0 0; font-size:12px;">La telemetría aparecerá aquí cuando el simulador seleccione un viaje en curso.</p>
+			<section class="card" style="padding:14px; shrink: 0;">
+				<div style="display:flex; justify-content:space-between; gap:12px; align-items:center; flex-wrap:wrap;">
+					<div style="min-width: 0; flex: 1;">
+						<div class="eyebrow" style="letter-spacing:0.2em; font-size: 9px;">Geometría & Ruta en Tiempo Real</div>
+						<h2 style="margin:4px 0 0; font-size:1.15rem; font-weight:800; color:#fff; font-family: monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" id="selectedTitle">Sin viaje seleccionado</h2>
+						<p class="muted" id="selectedSubtitle" style="margin:4px 0 0; font-size:11px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">La telemetría aparecerá aquí al seleccionar un viaje activo.</p>
 					</div>
-					<div style="display:flex;gap:8px;flex-wrap:wrap;">
+					<div style="display:flex; gap:6px; flex-shrink: 0;">
 						<span class="tag osrm" id="previewTag">OSRM</span>
 						<span class="tag" id="stateTag">activo</span>
 					</div>
@@ -1145,68 +1258,100 @@ function renderDashboardPage() {
 			</section>
 
 			<!-- Mapa OSRM Leaflet -->
-			<section class="map-card" style="flex:1; min-height: 400px; max-height: 520px; display:flex; flex-direction:column;">
-				<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px;">
+			<section class="map-card">
+				<div style="display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:8px;">
 					<div>
-						<div class="eyebrow">Mapa de Ruta Activa</div>
-						<div class="muted" style="font-size:11px;">Posicionamiento OSRM y avance en tiempo real</div>
+						<div class="eyebrow" style="font-size: 9px;">Mapa de Ruta Activa</div>
+						<div class="muted" style="font-size:10px;">Posicionamiento OSRM y avance en tiempo real</div>
 					</div>
-					<div class="tag" id="routeSourceTag">fallback</div>
+					<div class="tag" id="routeSourceTag" style="font-size: 9px;">fallback</div>
 				</div>
-				<div class="map-wrap" id="mapWrap" style="flex:1; min-height:0;"><div class="empty">Selecciona un viaje para ver la ruta.</div></div>
+				<div class="map-wrap" id="mapWrap">
+					<div class="empty">Selecciona un viaje para ver la ruta interactiva.</div>
+				</div>
 			</section>
 
 			<!-- Gráfica Térmica -->
-			<section class="chart-card" style="height: 290px; shrink: 0; display:flex; flex-direction:column;">
-				<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:8px;">
+			<section class="chart-card">
+				<div style="display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:8px;">
 					<div>
-						<div class="eyebrow">Gráfica Térmica del Sensor</div>
-						<div class="muted" style="font-size:11px;">Evolución de temperatura y zona segura de carga</div>
+						<div class="eyebrow" style="font-size: 9px;">Historial Térmico de Sensor</div>
+						<div class="muted" style="font-size:10px;">Curva del sensor térmico físico y zona ideal de carga</div>
 					</div>
-					<div class="tag" id="rangeTag">Zona segura</div>
+					<div class="tag" id="rangeTag" style="font-size: 9px;">Zona segura</div>
 				</div>
-				<div class="chart-wrap" id="chartWrap" style="flex:1; min-height:0;"><div class="empty">Sin datos todavía.</div></div>
+				<div class="chart-wrap" id="chartWrap">
+					<div class="empty">Sin telemetría para trazar gráfica.</div>
+				</div>
 			</section>
 		</section>
 
 		<!-- COLUMNA 3: COGNICIÓN E INTEGRACIÓN IA (DERECHA) -->
-		<aside class="workspace-ai" style="width: 400px; display:flex; flex-direction:column; gap:12px; shrink: 0;">
+		<aside class="workspace-ai">
 			<!-- Telemetría actual instantánea -->
-			<section class="card" style="padding:16px;">
-				<div class="eyebrow" style="color:var(--emerald); font-weight:800; letter-spacing:0.25em; margin-bottom:10px;">Análisis Analítico de Telemetría (IA)</div>
-				<div class="metrics" style="grid-template-columns: repeat(2, 1fr); gap: 10px;">
-					<div class="metric" style="padding:10px 12px; border-radius:14px;">
-						<span style="font-size:9px; letter-spacing:0.15em;">Temp actual</span>
-						<strong id="tempNow" style="font-size:1.3rem; margin-top:4px;">-</strong>
+			<section class="card" style="padding:14px; shrink: 0;">
+				<div class="eyebrow" style="color:var(--emerald); margin-bottom:8px; font-size: 9px; letter-spacing: 0.2em;">Métricas Instantáneas</div>
+				<div class="metrics" style="grid-template-columns: repeat(2, 1fr); gap: 8px;">
+					<div class="metric">
+						<span>Temperatura</span>
+						<strong id="tempNow">-</strong>
 					</div>
-					<div class="metric" style="padding:10px 12px; border-radius:14px;">
-						<span style="font-size:9px; letter-spacing:0.15em;">Humedad</span>
-						<strong id="humidityNow" style="font-size:1.3rem; margin-top:4px;">-</strong>
+					<div class="metric">
+						<span>Humedad</span>
+						<strong id="humidityNow">-</strong>
 					</div>
-					<div class="metric" style="padding:10px 12px; border-radius:14px;">
-						<span style="font-size:9px; letter-spacing:0.15em;">Batería</span>
-						<strong id="batteryNow" style="font-size:1.3rem; margin-top:4px;">-</strong>
+					<div class="metric">
+						<span>Batería</span>
+						<strong id="batteryNow">-</strong>
 					</div>
-					<div class="metric" style="padding:10px 12px; border-radius:14px;">
-						<span style="font-size:9px; letter-spacing:0.15em;">Lecturas</span>
-						<strong id="telemetryCount" style="font-size:1.3rem; margin-top:4px;">-</strong>
+					<div class="metric">
+						<span>Lecturas</span>
+						<strong id="telemetryCount">-</strong>
 					</div>
 				</div>
 			</section>
 
-			<!-- Alertas y diagnósticos de Zep & Groq -->
-			<section class="feed-card" style="flex:1; min-height: 480px; display:flex; flex-direction:column;">
-				<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap; margin-bottom:10px;">
-					<div>
-						<div class="eyebrow">Diagnósticos de Anomalía</div>
-						<div class="muted" id="backendSummary" style="font-size:11px;">Sin información del backend.</div>
-					</div>
-					<div class="muted" id="lastTick" style="font-size:10px;">Sin tick aún.</div>
+			<!-- Selected Trip Manual Incident Triggers -->
+			<div class="panel" style="shrink: 0; padding: 14px;">
+				<div class="eyebrow" style="margin-bottom: 8px; font-size: 9px; letter-spacing: 0.2em;">Inyector de Anomalías</div>
+				
+				<div style="padding: 8px 12px; border-radius: 8px; background: rgba(15, 23, 42, 0.35); border: 1px solid rgba(255,255,255,0.04); display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+					<span style="font-size: 11px; font-weight: 700; color: #cbd5e1;">Falla de Compresor</span>
+					<label class="switch">
+						<input type="checkbox" id="compressorToggle">
+						<span class="slider"></span>
+					</label>
 				</div>
-				<div class="feed-list" id="feedList" style="flex:1; overflow-y:auto; min-height:0;"></div>
+				
+				<div style="padding: 8px 12px; border-radius: 8px; background: rgba(15, 23, 42, 0.35); border: 1px solid rgba(255,255,255,0.04); display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+					<span style="font-size: 11px; font-weight: 700; color: #cbd5e1;">Desvío de Ruta (GPS)</span>
+					<label class="switch">
+						<input type="checkbox" id="deviationToggle">
+						<span class="slider"></span>
+					</label>
+				</div>
+				
+				<button id="forceGateBtn" class="btn" style="width: 100%; margin-top: 4px; padding: 7px 12px; font-size: 10px; font-weight: 700; border-radius: 8px; background: rgba(148, 163, 184, 0.08); border: 1px solid rgba(255,255,255,0.06); color: #cbd5e1; cursor: pointer;">
+					Simular Apertura de Compuerta (Manual)
+				</button>
+			</div>
+
+			<!-- Alertas y diagnósticos de Zep & Groq -->
+			<section class="feed-card">
+				<div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap; margin-bottom:10px;">
+					<div>
+						<div class="eyebrow" style="font-size: 9px;">Línea de Eventos (IA)</div>
+						<div class="muted" id="backendSummary" style="font-size:10px; margin-top: 2px;">Sin información disponible.</div>
+					</div>
+					<div class="muted font-mono" id="lastTick" style="font-size:9px; font-weight: 600;">Sin tick aún.</div>
+				</div>
+				<div class="feed-list" id="feedList">
+					<div class="empty">Esperando telemetría...</div>
+				</div>
 			</section>
 		</aside>
 	</div>
+
 
 	<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 	<script>
@@ -1227,6 +1372,10 @@ function renderDashboardPage() {
 		const apiStateUrl = '/api/state';
 		const toggleBtn = document.getElementById('toggleBtn');
 		const gateToggle = document.getElementById('gateToggle');
+		const turboToggle = document.getElementById('turboToggle');
+		const compressorToggle = document.getElementById('compressorToggle');
+		const deviationToggle = document.getElementById('deviationToggle');
+		const forceGateBtn = document.getElementById('forceGateBtn');
 		const stepBtn = document.getElementById('stepBtn');
 		const syncBtn = document.getElementById('syncBtn');
 		const openDashboardBtn = document.getElementById('openDashboardBtn');
@@ -1543,7 +1692,7 @@ function renderDashboardPage() {
 			const low = Math.min(minTemp - 3, ...temps) - 1;
 			const high = Math.max(maxTemp + 3, ...temps) + 1;
 			const width = Math.max(1120, telemetry.length * 92);
-			const height = 340;
+			const height = 240;
 			const pad = 34;
 
 			const xStep = telemetry.length > 1 ? (width - pad * 2) / (telemetry.length - 1) : 0;
@@ -1551,20 +1700,26 @@ function renderDashboardPage() {
 			const xScale = (index) => pad + index * xStep;
 			const linePoints = telemetry.map((point, index) => xScale(index).toFixed(1) + ',' + yScale(Number(point.temp)).toFixed(1)).join(' ');
 
-			return '<div class="chart-scroll">'
+			return '<div class="chart-scroll" style="width: ' + width + 'px; height: 100%;">'
 				+ '<svg class="chart-svg" viewBox="0 0 ' + width + ' ' + height + '" preserveAspectRatio="none" role="img" aria-label="Gráfica térmica">'
-				+ '<rect width="' + width + '" height="' + height + '" fill="#0b1016" />'
-				+ '<rect x="' + pad + '" y="' + yScale(maxTemp) + '" width="' + (width - pad * 2) + '" height="' + (yScale(minTemp) - yScale(maxTemp)) + '" fill="rgba(34,197,94,0.08)" />'
-				+ Array.from({ length: 5 }, (_, index) => '<line x1="' + pad + '" y1="' + (pad + index * ((height - pad * 2) / 4)) + '" x2="' + (width - pad) + '" y2="' + (pad + index * ((height - pad * 2) / 4)) + '" stroke="rgba(148,163,184,0.10)" />').join('')
-				+ '<line x1="' + pad + '" y1="' + yScale(minTemp) + '" x2="' + (width - pad) + '" y2="' + yScale(minTemp) + '" stroke="rgba(34,197,94,0.35)" stroke-dasharray="6 6" />'
-				+ '<line x1="' + pad + '" y1="' + yScale(maxTemp) + '" x2="' + (width - pad) + '" y2="' + yScale(maxTemp) + '" stroke="rgba(239,68,68,0.28)" stroke-dasharray="6 6" />'
-				+ '<polyline points="' + linePoints + '" fill="none" stroke="#f8fafc" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />'
+				+ '<defs>'
+				+ '<linearGradient id="safeZoneGrad" x1="0" y1="0" x2="0" y2="1">'
+				+ '<stop offset="0%" stop-color="#10b981" stop-opacity="0.04"/>'
+				+ '<stop offset="100%" stop-color="#10b981" stop-opacity="0.01"/>'
+				+ '</linearGradient>'
+				+ '</defs>'
+				+ '<rect width="' + width + '" height="' + height + '" fill="#050811" />'
+				+ '<rect x="' + pad + '" y="' + yScale(maxTemp) + '" width="' + (width - pad * 2) + '" height="' + (yScale(minTemp) - yScale(maxTemp)) + '" fill="url(#safeZoneGrad)" stroke="rgba(16,185,129,0.18)" stroke-width="1" stroke-dasharray="4 4" />'
+				+ Array.from({ length: 5 }, (_, index) => '<line x1="' + pad + '" y1="' + (pad + index * ((height - pad * 2) / 4)) + '" x2="' + (width - pad) + '" y2="' + (pad + index * ((height - pad * 2) / 4)) + '" stroke="rgba(255, 255, 255, 0.03)" />').join('')
+				+ '<line x1="' + pad + '" y1="' + yScale(minTemp) + '" x2="' + (width - pad) + '" y2="' + yScale(minTemp) + '" stroke="rgba(16,185,129,0.3)" stroke-width="1.5" />'
+				+ '<line x1="' + pad + '" y1="' + yScale(maxTemp) + '" x2="' + (width - pad) + '" y2="' + yScale(maxTemp) + '" stroke="rgba(244,63,94,0.3)" stroke-width="1.5" />'
+				+ '<polyline points="' + linePoints + '" fill="none" stroke="#0ea5e9" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />'
 				+ telemetry.map((point, index) => {
 					const temp = Number(point.temp);
 					const x = xScale(index);
 					const y = yScale(temp);
 					const breach = temp > maxTemp || temp < minTemp || (point.bateria != null && Number(point.bateria) <= 10);
-					return '<circle cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="' + (breach ? 7 : 4) + '" fill="' + (breach ? '#ef4444' : '#4cc9f0') + '" />';
+					return '<circle cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="' + (breach ? 6 : 4) + '" fill="' + (breach ? '#f43f5e' : '#38bdf8') + '" stroke="#050811" stroke-width="1.5" />';
 				}).join('')
 				+ '</svg>'
 				+ '</div>';
@@ -1649,6 +1804,9 @@ function renderDashboardPage() {
 			if (gateToggle) {
 				gateToggle.checked = state.gateOpeningEnabled !== false;
 			}
+			if (turboToggle) {
+				turboToggle.checked = !!state.turboMode;
+			}
 			activeTrips.textContent = state.activeTrips ?? 0;
 			sentTrips.textContent = state.totalSent ?? 0;
 			incidentTrips.textContent = state.totalIncidents ?? 0;
@@ -1683,12 +1841,26 @@ function renderDashboardPage() {
 				mapWrap.innerHTML = '<div class="empty">Sin viaje seleccionado.</div>';
 				renderedMapTripId = null;
 				chartWrap.innerHTML = '<div class="empty">Sin telemetría.</div>';
+				chartWrap.removeAttribute('data-fingerprint');
 				feedList.innerHTML = '<div class="empty">Sin datos.</div>';
+				feedList.removeAttribute('data-fingerprint');
 				backendSummary.textContent = 'Sin detalle disponible.';
 				telemetryCount.textContent = '-';
 				stateTag.textContent = 'sin datos';
 				routeSourceTag.textContent = 'fallback';
 				previewTag.textContent = 'OSRM';
+				
+				if (compressorToggle) {
+					compressorToggle.checked = false;
+					compressorToggle.disabled = true;
+				}
+				if (deviationToggle) {
+					deviationToggle.checked = false;
+					deviationToggle.disabled = true;
+				}
+				if (forceGateBtn) {
+					forceGateBtn.disabled = true;
+				}
 				return;
 			}
 
@@ -1708,12 +1880,37 @@ function renderDashboardPage() {
 			previewTag.className = interp.previewMode === 'osrm' ? 'tag osrm' : 'tag';
 			rangeTag.textContent = 'Zona ' + formatNumber(viaje.limite_min_temp) + '°C a ' + formatNumber(viaje.limite_max_temp) + '°C';
 
+			if (compressorToggle) {
+				compressorToggle.checked = !!simulation?.compressorFailed;
+				compressorToggle.disabled = false;
+			}
+			if (deviationToggle) {
+				deviationToggle.checked = !!simulation?.routeDeviated;
+				deviationToggle.disabled = false;
+			}
+			if (forceGateBtn) {
+				forceGateBtn.disabled = false;
+			}
+
 			if (renderedMapTripId !== viaje.id) {
 				mapWrap.innerHTML = renderMap(detail, simulation);
 				renderedMapTripId = viaje.id;
 			}
-			chartWrap.innerHTML = renderChart(detail, simulation);
-			feedList.innerHTML = renderFeed(detail);
+			
+			// Evitar parpadeo del historial térmico y feed re-renderizando únicamente ante cambios reales en la telemetría
+			const telemetry = getChartTelemetry(detail, simulation);
+			const telemetryFingerprint = viaje.id + '_' + telemetry.length + '_' + (telemetry.length > 0 ? telemetry[telemetry.length - 1].timestamp_sensor + '_' + telemetry[telemetry.length - 1].temp : '');
+			if (chartWrap.getAttribute('data-fingerprint') !== telemetryFingerprint) {
+				chartWrap.innerHTML = renderChart(detail, simulation);
+				chartWrap.setAttribute('data-fingerprint', telemetryFingerprint);
+			}
+
+			const feedTelemetry = Array.isArray(detail?.telemetry) ? detail.telemetry : [];
+			const feedFingerprint = viaje.id + '_' + feedTelemetry.length + '_' + (feedTelemetry.length > 0 ? feedTelemetry[0].timestamp_sensor + '_' + feedTelemetry[0].temp : '');
+			if (feedList.getAttribute('data-fingerprint') !== feedFingerprint) {
+				feedList.innerHTML = renderFeed(detail);
+				feedList.setAttribute('data-fingerprint', feedFingerprint);
+			}
 
 			requestAnimationFrame(() => updateInteractiveMap(detail, simulation));
 
@@ -1803,6 +2000,70 @@ function renderDashboardPage() {
 			});
 		}
 
+		if (turboToggle) {
+			turboToggle.addEventListener('change', async () => {
+				turboToggle.disabled = true;
+				try {
+					await postJson('/api/simulation/toggle-turbo', { enabled: turboToggle.checked });
+				} catch (error) {
+					console.error(error);
+				} finally {
+					turboToggle.disabled = false;
+				}
+			});
+		}
+
+		if (compressorToggle) {
+			compressorToggle.addEventListener('change', async () => {
+				const activeTrip = document.querySelector('.stack-item.active');
+				const viajeId = activeTrip ? activeTrip.getAttribute('data-trip-id') : null;
+				if (!viajeId) return;
+
+				compressorToggle.disabled = true;
+				try {
+					await postJson('/api/simulation/toggle-compressor', { viajeId, enabled: compressorToggle.checked });
+				} catch (error) {
+					console.error(error);
+				} finally {
+					compressorToggle.disabled = false;
+				}
+			});
+		}
+
+		if (deviationToggle) {
+			deviationToggle.addEventListener('change', async () => {
+				const activeTrip = document.querySelector('.stack-item.active');
+				const viajeId = activeTrip ? activeTrip.getAttribute('data-trip-id') : null;
+				if (!viajeId) return;
+
+				deviationToggle.disabled = true;
+				try {
+					await postJson('/api/simulation/toggle-deviation', { viajeId, enabled: deviationToggle.checked });
+				} catch (error) {
+					console.error(error);
+				} finally {
+					deviationToggle.disabled = false;
+				}
+			});
+		}
+
+		if (forceGateBtn) {
+			forceGateBtn.addEventListener('click', async () => {
+				const activeTrip = document.querySelector('.stack-item.active');
+				const viajeId = activeTrip ? activeTrip.getAttribute('data-trip-id') : null;
+				if (!viajeId) return;
+
+				forceGateBtn.disabled = true;
+				try {
+					await postJson('/api/simulation/force-gate', { viajeId });
+				} catch (error) {
+					console.error(error);
+				} finally {
+					forceGateBtn.disabled = false;
+				}
+			});
+		}
+
 		refreshState();
 		setInterval(refreshState, 3000);
 	</script>
@@ -1867,6 +2128,103 @@ async function handleApiRequest(req, res, pathname) {
 		return true;
 	}
 
+	if (req.method === 'POST' && pathname === '/api/simulation/toggle-compressor') {
+		let body = '';
+		for await (const chunk of req) {
+			body += chunk;
+		}
+		let payload = {};
+		try {
+			payload = body ? JSON.parse(body) : {};
+		} catch {
+			payload = {};
+		}
+
+		if (payload.viajeId && simulationMap.has(payload.viajeId)) {
+			const state = simulationMap.get(payload.viajeId);
+			state.compressorFailed = payload.enabled !== undefined ? !!payload.enabled : !state.compressorFailed;
+			logEvent('warn', state.compressorFailed ? `Simulador: Compresor APAGADO (Falla) para viaje ${payload.viajeId}.` : `Simulador: Compresor ENCENDIDO (Normal) para viaje ${payload.viajeId}.`, payload.viajeId);
+			res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+			res.end(JSON.stringify({ viajeId: payload.viajeId, compressorFailed: state.compressorFailed }));
+		} else {
+			res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+			res.end(JSON.stringify({ error: 'Viaje no encontrado o inactivo.' }));
+		}
+		return true;
+	}
+
+	if (req.method === 'POST' && pathname === '/api/simulation/toggle-deviation') {
+		let body = '';
+		for await (const chunk of req) {
+			body += chunk;
+		}
+		let payload = {};
+		try {
+			payload = body ? JSON.parse(body) : {};
+		} catch {
+			payload = {};
+		}
+
+		if (payload.viajeId && simulationMap.has(payload.viajeId)) {
+			const state = simulationMap.get(payload.viajeId);
+			state.routeDeviated = payload.enabled !== undefined ? !!payload.enabled : !state.routeDeviated;
+			logEvent('warn', state.routeDeviated ? `Simulador: Camión DESVIADO de su ruta OSRM para viaje ${payload.viajeId}.` : `Simulador: Camión REGRESADO a su ruta OSRM para viaje ${payload.viajeId}.`, payload.viajeId);
+			res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+			res.end(JSON.stringify({ viajeId: payload.viajeId, routeDeviated: state.routeDeviated }));
+		} else {
+			res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+			res.end(JSON.stringify({ error: 'Viaje no encontrado o inactivo.' }));
+		}
+		return true;
+	}
+
+	if (req.method === 'POST' && pathname === '/api/simulation/toggle-turbo') {
+		let body = '';
+		for await (const chunk of req) {
+			body += chunk;
+		}
+		let payload = {};
+		try {
+			payload = body ? JSON.parse(body) : {};
+		} catch {
+			payload = {};
+		}
+
+		runtimeState.turboMode = payload.enabled !== undefined ? !!payload.enabled : !runtimeState.turboMode;
+		logEvent('info', runtimeState.turboMode ? 'Simulador: Modo Turbo ACTIVADO (Ticks rápidos cada 2s + avance acelerado).' : 'Simulador: Modo Turbo DESACTIVADO (Ticks normales).');
+		
+		scheduleNextTick();
+
+		res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+		res.end(JSON.stringify({ turboMode: runtimeState.turboMode }));
+		return true;
+	}
+
+	if (req.method === 'POST' && pathname === '/api/simulation/force-gate') {
+		let body = '';
+		for await (const chunk of req) {
+			body += chunk;
+		}
+		let payload = {};
+		try {
+			payload = body ? JSON.parse(body) : {};
+		} catch {
+			payload = {};
+		}
+
+		if (payload.viajeId && simulationMap.has(payload.viajeId)) {
+			const state = simulationMap.get(payload.viajeId);
+			state.gateOpenTicks = 4;
+			logEvent('warn', `Simulador: Apertura MANUAL de compuerta forzada para viaje ${payload.viajeId}.`, payload.viajeId);
+			res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+			res.end(JSON.stringify({ viajeId: payload.viajeId, gateOpenTicks: state.gateOpenTicks }));
+		} else {
+			res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+			res.end(JSON.stringify({ error: 'Viaje no encontrado o inactivo.' }));
+		}
+		return true;
+	}
+
 	if (req.method === 'POST' && pathname === '/api/simulation/refresh') {
 		const trips = await syncActiveTrips();
 		res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
@@ -1920,18 +2278,32 @@ server.listen(PORT, () => {
 	console.log(`Simulador maestro escuchando en http://localhost:${PORT}`);
 });
 
+let tickTimeoutHandle = null;
+
+function scheduleNextTick() {
+	if (tickTimeoutHandle) {
+		clearTimeout(tickTimeoutHandle);
+	}
+	const currentInterval = runtimeState.turboMode ? 2000 : TICK_INTERVAL_MS;
+	tickTimeoutHandle = setTimeout(async () => {
+		try {
+			await tickSimulation();
+		} catch (error) {
+			const message = error instanceof Error ? error.message : 'Error al ejecutar el ciclo de simulación.';
+			runtimeState.lastError = message;
+			logEvent('error', message);
+		}
+		scheduleNextTick();
+	}, currentInterval);
+}
+
 syncActiveTrips()
-	.then(() => tickSimulation())
+	.then(() => {
+		scheduleNextTick();
+	})
 	.catch((error) => {
 		runtimeState.lastError = error instanceof Error ? error.message : 'Error arrancando simulador';
 		logEvent('error', runtimeState.lastError);
 	});
 
 setInterval(syncActiveTrips, SYNC_INTERVAL_MS);
-setInterval(() => {
-	tickSimulation().catch((error) => {
-		const message = error instanceof Error ? error.message : 'Error al ejecutar el ciclo de simulación.';
-		runtimeState.lastError = message;
-		logEvent('error', message);
-	});
-}, TICK_INTERVAL_MS);

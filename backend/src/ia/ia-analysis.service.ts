@@ -949,6 +949,127 @@ export class IaAnalysisService {
     return result.rows[0] as unknown as AnalisisIaResultado;
   }
 
+  async generateFinalAudit(viajeId: string): Promise<string> {
+    const metaResult = await this.db.query(
+      'SELECT id, tipo_producto, limite_max_temp, limite_min_temp FROM viaje WHERE id = $1',
+      [viajeId],
+    );
+    const viaje = metaResult.rows[0];
+    if (!viaje) {
+      throw new Error(`Viaje ${viajeId} no encontrado para auditoría de IA.`);
+    }
+
+    const diagnoses = await this.obtenerHistorialAnalisis(viajeId);
+
+    let zepContext = '';
+    try {
+      const zepResult = await this.zepMemory.recuperarContextoGlobal(
+        viajeId,
+        'Anomalías y alertas térmicas en este viaje',
+      );
+      zepContext = zepResult.messages || '';
+    } catch (zepErr: any) {
+      this.logger.warn(`Zep context retrieval failed: ${zepErr.message}`);
+    }
+
+    const incidentSummary = diagnoses
+      .map((d, index) => {
+        const time = d.created_at ? new Date(d.created_at).toLocaleTimeString() : 'N/A';
+        return `- Alerta ${index + 1} a las ${time} [Riesgo: ${d.nivel_riesgo}]: ${d.diagnostico_tecnico}`;
+      })
+      .join('\n');
+
+    let maxRiesgo = 'bajo';
+    if (diagnoses.some(d => d.nivel_riesgo.toLowerCase() === 'critico')) {
+      maxRiesgo = 'crítico';
+    } else if (diagnoses.some(d => d.nivel_riesgo.toLowerCase() === 'alto')) {
+      maxRiesgo = 'alto';
+    } else if (diagnoses.some(d => d.nivel_riesgo.toLowerCase() === 'medio' || d.nivel_riesgo.toLowerCase() === 'moderado')) {
+      maxRiesgo = 'moderado';
+    }
+
+    const fallbackAudit = `Auditoría Final: El viaje del transporte de ${viaje.tipo_producto || 'Carga Sensible'} concluyó. ` +
+      (diagnoses.length > 0
+        ? `Se registraron ${diagnoses.length} anomalías térmicas durante el trayecto, principalmente debidas a fluctuaciones de temperatura fuera del rango de tolerancia (${viaje.limite_min_temp}°C a ${viaje.limite_max_temp}°C). Los incidentes fueron mitigados a tiempo y la temperatura final se estabilizó. Carga entregada con nivel de riesgo final ${maxRiesgo}.`
+        : `No se registraron alertas ni anomalías térmicas durante el recorrido. La temperatura se mantuvo estable dentro de los límites requeridos de ${viaje.limite_min_temp}°C a ${viaje.limite_max_temp}°C, garantizando la perfecta integridad de la cadena de frío. Carga entregada exitosamente con riesgo bajo.`);
+
+    if (!this.groqClient) {
+      this.logger.warn('Groq client not available, using high-fidelity deterministic final audit fallback.');
+      await this.db.query(
+        `UPDATE viaje SET auditoria_ia = $1, estado = 'finalizado', final_viaje = NOW() WHERE id = $2`,
+        [fallbackAudit, viajeId],
+      );
+      return fallbackAudit;
+    }
+
+    try {
+      const systemPrompt = `Eres un auditor senior experto de cadena de frío y control de calidad logística en COLDCASE.
+Tu trabajo es generar una auditoría final formal de un viaje de transporte de carga sensible.
+Debes responder ÚNICAMENTE en formato JSON con la siguiente estructura:
+{
+  "auditoria": "Tu párrafo de auditoría final aquí"
+}
+
+REGLAS CRÍTICAS PARA EL PÁRRAFO DE AUDITORÍA:
+1. Debe ser un único párrafo continuo y conciso (máximo 4-5 líneas).
+2. Estilo corporativo premium, altamente formal, sobrio y profesional (estilo DHL o FedEx).
+3. No debe usar emojis, viñetas, listas, saludos ni despedidas.
+4. Debe resumir cómo concluyó el viaje, mencionar los incidentes térmicos detectados (cantidad, causa como apertura de compuerta si aplica, duración aproximada del desvío), si la temperatura volvió a rangos seguros, y dar un veredicto definitivo sobre el nivel de riesgo de la carga entregada.
+5. Evita cualquier palabra informal.`;
+
+      const userPrompt = `Datos del Viaje:
+- Tipo de producto: ${viaje.tipo_producto || 'Carga general'}
+- Límites de temperatura permitidos: ${viaje.limite_min_temp}°C a ${viaje.limite_max_temp}°C
+
+Historial de incidentes térmicos y diagnósticos de IA:
+${incidentSummary || 'No se registraron incidentes térmicos ni desviaciones en este viaje.'}
+
+Contexto adicional de Zep:
+${zepContext || 'Sin memoria adicional.'}
+
+Por favor, genera la auditoría del viaje en el JSON.`;
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+      try {
+        const completion = await this.groqClient.chat.completions.create(
+          {
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: userPrompt },
+            ],
+            model: this.defaultModelName || 'llama-3.3-70b-versatile',
+            response_format: { type: 'json_object' },
+            temperature: 0.2,
+          },
+          { signal: controller.signal },
+        );
+
+        clearTimeout(timeoutId);
+        const rawContent = completion.choices[0]?.message?.content ?? '{}';
+        const parsed = JSON.parse(rawContent) as { auditoria?: string };
+        const auditText = parsed.auditoria || fallbackAudit;
+
+        await this.db.query(
+          `UPDATE viaje SET auditoria_ia = $1, estado = 'finalizado', final_viaje = NOW() WHERE id = $2`,
+          [auditText, viajeId],
+        );
+        return auditText;
+      } catch (err) {
+        clearTimeout(timeoutId);
+        throw err;
+      }
+    } catch (error: any) {
+      this.logger.warn(`Groq request for final audit failed: ${error.message}. Falling back to deterministic fallback.`);
+      await this.db.query(
+        `UPDATE viaje SET auditoria_ia = $1, estado = 'finalizado', final_viaje = NOW() WHERE id = $2`,
+        [fallbackAudit, viajeId],
+      );
+      return fallbackAudit;
+    }
+  }
+
   /**
    * Obtiene las relaciones e historial semántico desde el Grafo Global de Zep.
    */

@@ -1,6 +1,7 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DbService } from '../db/db.service';
+import { IaAnalysisService } from '../ia/ia-analysis.service';
 
 type Waypoint = { lat: number; lon: number };
 
@@ -14,11 +15,20 @@ type FeatureCollectionRoute = {
 };
 
 @Injectable()
-export class ViajeService {
+export class ViajeService implements OnModuleInit {
   constructor(
     private readonly db: DbService,
     private readonly config: ConfigService,
+    private readonly iaAnalysisService: IaAnalysisService,
   ) {}
+
+  async onModuleInit() {
+    try {
+      await this.db.query('ALTER TABLE viaje ADD COLUMN IF NOT EXISTS auditoria_ia TEXT;');
+    } catch (error) {
+      console.error('Error al asegurar columna auditoria_ia en tabla viaje:', error);
+    }
+  }
 
   private async fetchOsrmRoute(
     points: Array<{ lon: number; lat: number }>,
@@ -303,6 +313,7 @@ export class ViajeService {
         v.inicio_viaje,
         v.final_viaje,
         v.estado,
+        v.auditoria_ia,
         v.sucursal_origen_id,
         v.sucursal_destino_id,
         so.nombre AS origen_sucursal_nombre,
@@ -340,6 +351,7 @@ export class ViajeService {
         v.inicio_viaje,
         v.final_viaje,
         v.estado,
+        v.auditoria_ia,
         v.sucursal_origen_id,
         v.sucursal_destino_id,
         so.nombre AS origen_sucursal_nombre,
@@ -378,6 +390,7 @@ export class ViajeService {
         v.inicio_viaje,
         v.final_viaje,
         v.estado,
+        v.auditoria_ia,
         v.sucursal_origen_id,
         v.sucursal_destino_id,
         so.nombre AS origen_sucursal_nombre,
@@ -403,5 +416,11 @@ export class ViajeService {
     }
 
     return viaje;
+  }
+
+  async finalizar(id: string) {
+    await this.findOne(id);
+    await this.iaAnalysisService.generateFinalAudit(id);
+    return this.findOne(id);
   }
 }

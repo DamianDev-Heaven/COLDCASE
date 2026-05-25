@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import RouteMap from "@/components/RouteMap";
 import { ResponsiveContainer, ComposedChart, Line, XAxis, YAxis, Tooltip, ReferenceArea } from "recharts";
+import AiInsightsPanel from "@/components/AiInsightsPanel";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
 const SIMULATOR_URL = process.env.NEXT_PUBLIC_SIMULADOR_URL || "http://localhost:4000";
@@ -32,12 +33,12 @@ function TelemetryChart({ telemetryData, limiteMin, limiteMax }: { telemetryData
     if (esAlta || esBaja) {
       return (
         <g key={`dot-${payload.timestamp_sensor}`}>
-          <circle cx={cx} cy={cy} r={7} className={`${esAlta ? "fill-red-500" : "fill-sky-400"} opacity-40 animate-ping`} />
-          <circle cx={cx} cy={cy} r={4} className={`${esAlta ? "fill-red-500" : "fill-sky-400"} stroke-[#161920] stroke-2`} />
+          {/* Solid premium static dot without flashing ping effects to prevent layout repaints */}
+          <circle cx={cx} cy={cy} r={5.5} className={`${esAlta ? "fill-rose-500" : "fill-sky-400"} stroke-[#05070f] stroke-1.5`} />
         </g>
       );
     }
-    return <circle cx={cx} cy={cy} r={3} className="fill-slate-400" key={`dot-normal-${payload.timestamp_sensor}`} />;
+    return <circle cx={cx} cy={cy} r={3.5} className="fill-[#38bdf8] stroke-[#05070f] stroke-1" key={`dot-normal-${payload.timestamp_sensor}`} />;
   };
 
   return (
@@ -50,10 +51,13 @@ function TelemetryChart({ telemetryData, limiteMin, limiteMax }: { telemetryData
             stroke="#475569"
             fontSize={10}
           />
-          <YAxis stroke="#475569" fontSize={10} domain={[limiteMin - 3, limiteMax + 3]} />
-          <Tooltip contentStyle={{ backgroundColor: "#0f1115", borderColor: "#334155", borderRadius: "6px", fontSize: "11px", color: "#fff" }} />
-          <ReferenceArea y1={limiteMin} y2={limiteMax} fill="#10b981" fillOpacity={0.05} stroke="#10b981" strokeOpacity={0.15} strokeDasharray="3 3" />
-          <Line type="monotone" dataKey="temp" stroke="#f1f5f9" strokeWidth={2} dot={<CustomDot />} activeDot={{ r: 5 }} isAnimationActive={false} />
+          <YAxis stroke="#475569" fontSize={10} domain={[limiteMin - 2, limiteMax + 2]} />
+          <Tooltip 
+            transitionDuration={0} 
+            contentStyle={{ backgroundColor: "#0a0f1d", borderColor: "rgba(255, 255, 255, 0.08)", borderRadius: "6px", fontSize: "11px", color: "#fff" }} 
+          />
+          <ReferenceArea y1={limiteMin} y2={limiteMax} fill="#10b981" fillOpacity={0.03} stroke="#10b981" strokeOpacity={0.15} strokeDasharray="3 3" />
+          <Line type="monotone" dataKey="temp" stroke="#0ea5e9" strokeWidth={2} dot={<CustomDot />} activeDot={{ r: 4 }} isAnimationActive={false} />
         </ComposedChart>
       </ResponsiveContainer>
     </div>
@@ -72,7 +76,7 @@ export default function DashboardV2() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  const [activeTab, setActiveTab] = useState<"overview" | "timeline" | "ai">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "timeline">("overview");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [telemetryList, setTelemetryList] = useState<any[]>([]);
 
@@ -254,17 +258,17 @@ export default function DashboardV2() {
 
   if (isLoading) {
     return (
-      <div className="h-screen w-full bg-[#0f1115] flex items-center justify-center text-white font-mono text-xs">
+      <div className="h-screen w-full bg-[#05070f] flex items-center justify-center text-white font-mono text-xs">
         Cargando telemetría de COLDCASE...
       </div>
     );
   }
 
   return (
-    <div className="bg-[#0f1115] text-slate-100 h-screen w-full overflow-hidden flex flex-col font-sans antialiased">
+    <div className="bg-[#05070f] text-slate-100 h-screen w-full overflow-hidden flex flex-col font-sans antialiased">
       
       {/* HEADER BAR */}
-      <header className="bg-[#161920] fixed top-0 right-0 w-[calc(100%-64px)] z-30 border-b border-slate-800 flex justify-between items-center px-6 h-16">
+      <header className="bg-[#0a0f1d] fixed top-0 right-0 w-[calc(100%-64px)] z-30 border-b border-white/5 flex justify-between items-center px-6 h-16">
         <div className="flex items-center gap-4">
           <h1 className="text-sm font-bold text-white uppercase tracking-wider">Control Panel V2</h1>
           <div className="h-4 w-px bg-slate-800"></div>
@@ -275,7 +279,7 @@ export default function DashboardV2() {
         </div>
         <button 
           onClick={() => { resetModalForm(); setIsModalOpen(true); }}
-          className="bg-[#4cc9f0] text-black hover:opacity-90 px-4 py-1.5 rounded-md text-xs font-bold flex items-center gap-1"
+          className="bg-[#0ea5e9] text-white hover:opacity-90 px-4 py-1.5 rounded-md text-xs font-bold flex items-center gap-1 transition-all"
         >
           Registrar Envío
         </button>
@@ -283,7 +287,7 @@ export default function DashboardV2() {
           href={SIMULATOR_URL}
           target="_blank"
           rel="noreferrer"
-          className="bg-slate-900 text-slate-100 border border-slate-700 hover:border-cyan-400/40 px-4 py-1.5 rounded-md text-xs font-bold flex items-center gap-1"
+          className="bg-[#0a0f1d] text-slate-100 border border-white/10 hover:border-[#0ea5e9]/40 px-4 py-1.5 rounded-md text-xs font-bold flex items-center gap-1 transition-all"
         >
           Abrir simulador
         </a>
@@ -291,17 +295,17 @@ export default function DashboardV2() {
 
       {/* WORKSPACE AREA */}
       <div className="flex h-full pt-16">
-        <nav className="bg-[#111319] fixed left-0 top-0 h-full w-[64px] z-30 border-r border-slate-800 flex flex-col items-center py-4 justify-between">
-          <div className="w-10 h-10 bg-slate-800 rounded-lg flex items-center justify-center font-bold text-[#4cc9f0]">CC</div>
+        <nav className="bg-[#070a13] fixed left-0 top-0 h-full w-[64px] z-30 border-r border-white/5 flex flex-col items-center py-4 justify-between">
+          <div className="w-10 h-10 bg-[#0a0f1d] border border-white/5 rounded-lg flex items-center justify-center font-bold text-[#0ea5e9]">CC</div>
         </nav>
 
         <main className="flex-1 ml-[64px] flex p-3 gap-3 overflow-hidden h-full">
           
           {/* BARRA LATERAL */}
-          <aside className="w-[320px] h-full flex flex-col bg-[#161920] rounded-xl border border-slate-800 overflow-hidden shrink-0">
-            <div className="p-3 border-b border-slate-800">
+          <aside className="w-[320px] h-full flex flex-col bg-[#0a0f1d] rounded-xl border border-white/5 overflow-hidden shrink-0">
+            <div className="p-3 border-b border-white/5">
               <h2 className="text-xs font-bold uppercase tracking-wider text-slate-300 flex justify-between">
-                Monitoreo Activo <span className="text-[#4cc9f0]">{viajes.length}</span>
+                Monitoreo Activo <span className="text-[#0ea5e9]">{viajes.length}</span>
               </h2>
             </div>
             <div className="flex-1 overflow-y-auto p-2 space-y-2">
@@ -309,13 +313,13 @@ export default function DashboardV2() {
                 <div 
                   key={viaje.id}
                   onClick={() => setViajeSeleccionado(viaje)}
-                  className={`bg-[#0f1115] border rounded-lg p-3 cursor-pointer hover:border-slate-700 transition-all ${
-                    viajeSeleccionado?.id === viaje.id ? "border-[#4cc9f0]" : "border-slate-800"
+                  className={`bg-[#05070f] border rounded-lg p-3 cursor-pointer hover:border-white/10 transition-all ${
+                    viajeSeleccionado?.id === viaje.id ? "border-[#0ea5e9]" : "border-white/5"
                   }`}
                 >
                   <div className="flex justify-between items-center mb-1">
                     <span className="font-mono text-xs font-bold text-white">#{viaje.id.substring(0, 6).toUpperCase()}</span>
-                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase ${viaje.estado === 'en_curso' ? "bg-cyan-950 text-cyan-400" : "bg-slate-800 text-slate-400"}`}>{viaje.estado}</span>
+                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase ${viaje.estado === 'en_curso' ? "bg-cyan-950/80 text-cyan-400 border border-cyan-800/30" : "bg-[#070a13] text-slate-400 border border-white/5"}`}>{viaje.estado}</span>
                   </div>
                   <p className="text-[10px] text-slate-400 font-mono">Prod: {viaje.tipo_producto || "No especificado"}</p>
                   <p className="text-[10px] text-slate-500 font-mono">Val: ${Number(viaje.valor_comercial || 0).toLocaleString()}</p>
@@ -328,7 +332,7 @@ export default function DashboardV2() {
           <div className="flex-1 flex flex-col gap-3 h-full min-w-0">
             
             {/* MAPA INTERACTIVO CON RUTA PUNTO A PUNTO ACTIVA */}
-            <div className="flex-1 bg-slate-900 rounded-xl border border-slate-800 relative overflow-hidden z-10">
+            <div className="flex-1 bg-[#0a0f1d] rounded-xl border border-white/5 relative overflow-hidden z-10">
               {waypointsViajeActivo.length === 2 ? (
                 <RouteMap 
                   viajeId={viajeSeleccionado.id} 
@@ -337,27 +341,26 @@ export default function DashboardV2() {
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-slate-500 text-xs font-mono">
-                  📍 Geolocalizando trayecto OSRM para el viaje seleccionado...
+                  Geolocalizando trayecto OSRM para el viaje seleccionado...
                 </div>
               )}
             </div>
 
             {/* LOWER SPECS TABS */}
-            <div className="h-[290px] shrink-0 bg-[#161920] rounded-xl border border-slate-800 flex flex-col overflow-hidden">
-              <div className="flex border-b border-slate-800 px-4 bg-[#111319]">
-                <button onClick={() => setActiveTab("overview")} className={`px-4 py-2.5 text-xs font-bold uppercase tracking-wider border-b-2 transition-colors ${activeTab === "overview" ? "border-[#4cc9f0] text-white" : "border-transparent text-slate-400"}`}>Historial Térmico</button>
-                <button onClick={() => setActiveTab("timeline")} className={`px-4 py-2.5 text-xs font-bold uppercase tracking-wider border-b-2 transition-colors ${activeTab === "timeline" ? "border-[#4cc9f0] text-white" : "border-transparent text-slate-400"}`}>Ficha Despacho</button>
-                <button onClick={() => setActiveTab("ai")} className={`px-4 py-2.5 text-xs font-bold uppercase tracking-wider border-b-2 transition-colors ${activeTab === "ai" ? "border-sky-500 text-white" : "border-transparent text-slate-400"}`}>Diagnóstico de Incidentes (IA)</button>
+            <div className="h-[290px] shrink-0 bg-[#0a0f1d] rounded-xl border border-white/5 flex flex-col overflow-hidden">
+              <div className="flex border-b border-white/5 px-4 bg-[#070a13]">
+                <button onClick={() => setActiveTab("overview")} className={`px-4 py-2.5 text-xs font-bold uppercase tracking-wider border-b-2 transition-colors ${activeTab === "overview" ? "border-[#0ea5e9] text-white" : "border-transparent text-slate-400"}`}>Historial Térmico</button>
+                <button onClick={() => setActiveTab("timeline")} className={`px-4 py-2.5 text-xs font-bold uppercase tracking-wider border-b-2 transition-colors ${activeTab === "timeline" ? "border-[#0ea5e9] text-white" : "border-transparent text-slate-400"}`}>Ficha Despacho</button>
               </div>
 
               <div className="flex-1 p-4 overflow-y-auto">
                 {activeTab === "overview" && viajeSeleccionado && (
                   <div className="flex flex-col md:flex-row gap-4 h-full items-center">
-                    <div className="w-full md:w-1/4 bg-[#0f1115] border border-slate-800 p-3 rounded-lg flex flex-col justify-center h-full">
+                    <div className="w-full md:w-1/4 bg-[#05070f] border border-white/5 p-3 rounded-lg flex flex-col justify-center h-full">
                       <span className="text-[9px] font-mono text-slate-400 uppercase">Límites de Carga</span>
                       <div className="text-xs font-mono text-red-400 mt-1">Max: {viajeSeleccionado.limite_max_temp || 5}°C</div>
                       <div className="text-xs font-mono text-sky-400">Min: {viajeSeleccionado.limite_min_temp || 1}°C</div>
-                      <div className="h-px bg-slate-800 my-2" />
+                      <div className="h-px bg-white/5 my-2" />
                       <span className="text-[9px] font-mono text-slate-500">Masa: {viajeSeleccionado.peso_kg || 0} Kg</span>
                     </div>
                     <div className="flex-1 w-full h-full flex items-center justify-center">
@@ -373,22 +376,22 @@ export default function DashboardV2() {
                 {activeTab === "timeline" && viajeSeleccionado && (
                   <div className="flex flex-col gap-4 h-full justify-between">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                      <div className="bg-[#0f1115] border border-slate-800 p-3 rounded-lg">
+                      <div className="bg-[#05070f] border border-white/5 p-3 rounded-lg">
                         <span className="text-[9px] font-mono uppercase text-slate-400 block tracking-wider">Valor Asegurado</span>
                         <span className="text-base font-bold text-white mt-0.5 block">
                           ${Number(viajeSeleccionado.valor_comercial || 0).toLocaleString("en-US", { minimumFractionDigits: 2 })}
                         </span>
                       </div>
-                      <div className={`bg-[#0f1115] border p-3 rounded-lg ${viajeSeleccionado.id === "77777777-7777-4777-8777-777777777777" ? "border-red-900/60 text-red-400 animate-pulse" : "border-slate-800 text-emerald-400"}`}>
+                      <div className={`bg-[#05070f] border p-3 rounded-lg ${viajeSeleccionado.id === "77777777-7777-4777-8777-777777777777" ? "border-red-900/60 text-red-400 animate-pulse" : "border-white/5 text-emerald-400"}`}>
                         <span className="text-[9px] font-mono uppercase text-slate-400 block tracking-wider">Estado de Riesgo</span>
                         <span className="text-base font-bold mt-0.5 block">{viajeSeleccionado.id === "77777777-7777-4777-8777-777777777777" || telemetryList.some((p) => p.temp > (viajeSeleccionado.limite_max_temp || 5) || p.temp < (viajeSeleccionado.limite_min_temp || 1)) ? "CRÍTICO" : "ESTABLE"}</span>
                       </div>
-                      <div className="bg-[#0f1115] border border-slate-800 p-3 rounded-lg">
+                      <div className="bg-[#05070f] border border-white/5 p-3 rounded-lg">
                         <span className="text-[9px] font-mono uppercase text-slate-400 block tracking-wider">Ocupación de Contenedor</span>
                         <span className="text-base font-bold text-sky-400 mt-0.5 block">{((Number(viajeSeleccionado.peso_kg || 0) / 15000) * 100).toFixed(1)}%</span>
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-xs font-mono border-t border-slate-800/80 pt-3">
+                    <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-xs font-mono border-t border-white/5 pt-3">
                       <div className="flex justify-between"><span className="text-slate-500">Categoría Producto:</span> <span className="text-white font-medium">{viajeSeleccionado.tipo_producto || "N/A"}</span></div>
                       <div className="flex justify-between"><span className="text-slate-500">Volumen Ocupado:</span> <span className="text-sky-400 font-medium">{viajeSeleccionado.volumen_m3 || 0} m³</span></div>
                       <div className="flex justify-between"><span className="text-slate-500">Margen de Desvío:</span> <span className="text-white font-medium">{viajeSeleccionado.margen_desvio_km} Km</span></div>
@@ -396,52 +399,19 @@ export default function DashboardV2() {
                     </div>
                   </div>
                 )}
-
-                {activeTab === "ai" && viajeSeleccionado && (
-                  <div className="flex flex-col h-full gap-2">
-                    <div className="flex justify-between items-center mb-1 shrink-0">
-                      <span className="text-[9px] font-mono uppercase text-slate-400 block tracking-wider">Análisis de Incidentes (Motor IA NestJS & Zep Vector Store)</span>
-                      <span className="text-[9px] px-2 py-0.5 rounded font-mono bg-slate-800 text-slate-300">{aiDiagnostics.length} Incidentes Registrados</span>
-                    </div>
-                    <div className="flex-1 overflow-y-auto space-y-3 pr-1 max-h-[175px] min-h-[175px]">
-                      {aiDiagnostics.length === 0 ? (
-                        <div className="bg-[#0f1115] border border-slate-800/60 p-4 rounded-lg flex items-center gap-3 justify-center h-full min-h-[120px]">
-                          <div className="text-center">
-                            <span className="text-xs text-emerald-400 font-bold block uppercase tracking-wider">[ ESTABLE · CANAL SEGURO ]</span>
-                            <span className="text-[10px] text-slate-500 font-mono block mt-1">No se han registrado desviaciones térmicas ni análisis de anomalías en este viaje.</span>
-                          </div>
-                        </div>
-                      ) : (
-                        aiDiagnostics.map((diag, index) => {
-                          const formattedTime = new Date(diag.timestamp_sensor).toLocaleString();
-                          return (
-                            <div key={diag.id || index} className="bg-slate-950 border border-slate-800 rounded-lg p-3 flex flex-col gap-2">
-                              <div className="flex justify-between items-center text-[10px] font-mono border-b border-slate-800 pb-1.5">
-                                <span className="text-red-500 font-bold">ALERTA: ANOMALÍA TÉRMICA DETECTADA</span>
-                                <span className="text-slate-500">{formattedTime}</span>
-                              </div>
-                              <div className="flex gap-4">
-                                <div className="text-[10px] font-mono bg-[#0f1115] border border-slate-800 p-2 rounded shrink-0 flex flex-col justify-center gap-0.5">
-                                  <div><span className="text-slate-500">Temp:</span> <span className="text-red-400 font-bold">{diag.temp}°C</span></div>
-                                  <div><span className="text-slate-500">Hum:</span> <span className="text-slate-300">{diag.humedad}%</span></div>
-                                  <div><span className="text-slate-500">Bat:</span> <span className="text-slate-400">{diag.bateria}%</span></div>
-                                </div>
-                                <div className="flex-1 bg-slate-900 border-l-2 border-slate-600 rounded p-2 text-xs text-slate-300 font-sans leading-relaxed whitespace-pre-wrap">
-                                  <div className="text-[9px] font-bold text-slate-400 tracking-wide uppercase mb-1">Diagnóstico Analítico (IA):</div>
-                                  {diag.ia_diagnosis}
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })
-                      )}
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
 
           </div>
+
+          {/* COLUMNA DERECHA: PANEL DE INSIGHTS IA Y AUDITORÍA */}
+          <aside className="w-[340px] h-full shrink-0 flex flex-col">
+            <AiInsightsPanel 
+              viaje={viajeSeleccionado} 
+              telemetryList={telemetryList} 
+              apiUrl={API_URL} 
+            />
+          </aside>
         </main>
       </div>
 
@@ -450,7 +420,7 @@ export default function DashboardV2() {
          ======================================================== */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
-          <div className="bg-[#161920] border border-slate-800 w-[900px] p-5 rounded-xl shadow-2xl relative">
+          <div className="bg-[#0a0f1d] border border-white/5 w-[900px] p-5 rounded-xl shadow-2xl relative">
             <button className="absolute top-4 right-4 text-slate-400 hover:text-white" onClick={() => { setIsModalOpen(false); resetModalForm(); }}><span className="material-symbols-outlined">close</span></button>
             <div className="mb-4">
               <h2 className="text-xs font-bold text-white uppercase tracking-wider">Registrar Nuevo Envío Termocontrolado</h2>
@@ -465,14 +435,14 @@ export default function DashboardV2() {
                   <div className="flex gap-2">
                     <div className="flex-1 flex flex-col gap-1">
                       <label className="text-[9px] uppercase font-mono text-slate-400">Origen (Sucursal)</label>
-                      <select value={sucursalOrigenIdForm} onChange={(e) => setSucursalOrigenIdForm(e.target.value)} className="w-full bg-[#0f1115] border border-slate-800 text-xs text-slate-200 p-2 rounded-md outline-none">
+                      <select value={sucursalOrigenIdForm} onChange={(e) => setSucursalOrigenIdForm(e.target.value)} className="w-full bg-[#05070f] border border-white/5 text-xs text-slate-200 p-2 rounded-md outline-none">
                         <option value="">Seleccionar</option>
                         {sucursales.map((s) => <option key={s.id} value={s.id}>{s.nombre}</option>)}
                       </select>
                     </div>
                     <div className="flex-1 flex flex-col gap-1">
                       <label className="text-[9px] uppercase font-mono text-slate-400">Destino (Sucursal)</label>
-                      <select value={sucursalDestinoIdForm} onChange={(e) => setSucursalDestinoIdForm(e.target.value)} className="w-full bg-[#0f1115] border border-slate-800 text-xs text-slate-200 p-2 rounded-md outline-none">
+                      <select value={sucursalDestinoIdForm} onChange={(e) => setSucursalDestinoIdForm(e.target.value)} className="w-full bg-[#05070f] border border-white/5 text-xs text-slate-200 p-2 rounded-md outline-none">
                         <option value="">Seleccionar</option>
                         {sucursales.map((s) => <option key={s.id} value={s.id}>{s.nombre}</option>)}
                       </select>
@@ -482,7 +452,7 @@ export default function DashboardV2() {
                   {/* TRANSPORTE ASIGNADO */}
                   <div className="flex flex-col gap-1">
                     <label className="text-[9px] uppercase font-mono text-slate-400">Vehículo / Transporte</label>
-                    <select value={transporteIdForm} onChange={(e) => setTransporteIdForm(e.target.value)} className="w-full bg-[#0f1115] border border-slate-800 text-xs text-slate-200 p-2 rounded-md outline-none">
+                    <select value={transporteIdForm} onChange={(e) => setTransporteIdForm(e.target.value)} className="w-full bg-[#05070f] border border-white/5 text-xs text-slate-200 p-2 rounded-md outline-none">
                       <option value="">Seleccionar transporte</option>
                       {transportes.map((t) => <option key={t.id} value={t.id}>{t.placa} · {t.estado}</option>)}
                     </select>
@@ -490,13 +460,13 @@ export default function DashboardV2() {
 
                   {/* NUEVA FILA: TIPO PRODUCTO Y VALOR COMERCIAL */}
                   <div className="flex gap-2">
-                    <div className="flex-1 flex flex-col gap-1">
+                    <div className="flex-grow flex-1 flex flex-col gap-1">
                       <label className="text-[9px] uppercase font-mono text-slate-400">Categoría Carga</label>
-                      <input type="text" placeholder="Ej: Vacunas, Carnes" value={tipoProductoForm} onChange={(e) => setTipoProductoForm(e.target.value)} className="w-full bg-[#0f1115] border border-slate-800 text-xs text-slate-200 p-2 rounded-md outline-none" />
+                      <input type="text" placeholder="Ej: Vacunas, Carnes" value={tipoProductoForm} onChange={(e) => setTipoProductoForm(e.target.value)} className="w-full bg-[#05070f] border border-white/5 text-xs text-slate-200 p-2 rounded-md outline-none" />
                     </div>
-                    <div className="flex-1 flex flex-col gap-1">
+                    <div className="flex-grow flex-1 flex flex-col gap-1">
                       <label className="text-[9px] uppercase font-mono text-slate-400">Valor Comercial (USD)</label>
-                      <input type="number" placeholder="Monto Asegurado" value={valorComercialForm} onChange={(e) => setValorComercialForm(e.target.value)} className="w-full bg-[#0f1115] border border-slate-800 text-xs text-slate-200 p-2 rounded-md outline-none" />
+                      <input type="number" placeholder="Monto Asegurado" value={valorComercialForm} onChange={(e) => setValorComercialForm(e.target.value)} className="w-full bg-[#05070f] border border-white/5 text-xs text-slate-200 p-2 rounded-md outline-none" />
                     </div>
                   </div>
 
@@ -504,27 +474,27 @@ export default function DashboardV2() {
                   <div className="flex gap-2">
                     <div className="flex-1 flex flex-col gap-1">
                       <label className="text-[9px] uppercase font-mono text-slate-400">Masa Carga (Kg)</label>
-                      <input type="number" placeholder="Peso neto" value={pesoKgForm} onChange={(e) => setPesoKgForm(e.target.value)} className="w-full bg-[#0f1115] border border-slate-800 text-xs text-slate-200 p-2 rounded-md outline-none" />
+                      <input type="number" placeholder="Peso neto" value={pesoKgForm} onChange={(e) => setPesoKgForm(e.target.value)} className="w-full bg-[#05070f] border border-white/5 text-xs text-slate-200 p-2 rounded-md outline-none" />
                     </div>
                     <div className="flex-1 flex flex-col gap-1">
                       <label className="text-[9px] uppercase font-mono text-slate-400">Volumen Carga (m³)</label>
-                      <input type="number" step="0.01" placeholder="Cubaje" value={volumenM3Form} onChange={(e) => setVolumenM3Form(e.target.value)} className="w-full bg-[#0f1115] border border-slate-800 text-xs text-slate-200 p-2 rounded-md outline-none" />
+                      <input type="number" step="0.01" placeholder="Cubaje" value={volumenM3Form} onChange={(e) => setVolumenM3Form(e.target.value)} className="w-full bg-[#05070f] border border-white/5 text-xs text-slate-200 p-2 rounded-md outline-none" />
                     </div>
                   </div>
 
                   {/* FILA: UMBRALES TÉRMICOS SEGUROS */}
                   <div className="flex gap-2">
-                    <div className="flex-1 flex flex-col gap-1">
+                    <div className="flex-grow flex-1 flex flex-col gap-1">
                       <label className="text-[9px] uppercase font-mono text-slate-400">Temp Mínima (°C)</label>
-                      <input type="number" value={limiteMinTempForm} onChange={(e) => setLimiteMinTempForm(e.target.value)} className="w-full bg-[#0f1115] border border-slate-800 text-xs text-slate-200 p-2 rounded-md outline-none" />
+                      <input type="number" value={limiteMinTempForm} onChange={(e) => setLimiteMinTempForm(e.target.value)} className="w-full bg-[#05070f] border border-white/5 text-xs text-slate-200 p-2 rounded-md outline-none" />
                     </div>
-                    <div className="flex-1 flex flex-col gap-1">
+                    <div className="flex-grow flex-1 flex flex-col gap-1">
                       <label className="text-[9px] uppercase font-mono text-slate-400">Temp Máxima (°C)</label>
-                      <input type="number" value={limiteMaxTempForm} onChange={(e) => setLimiteMaxTempForm(e.target.value)} className="w-full bg-[#0f1115] border border-slate-800 text-xs text-slate-200 p-2 rounded-md outline-none" />
+                      <input type="number" value={limiteMaxTempForm} onChange={(e) => setLimiteMaxTempForm(e.target.value)} className="w-full bg-[#05070f] border border-white/5 text-xs text-slate-200 p-2 rounded-md outline-none" />
                     </div>
-                    <div className="flex-1 flex flex-col gap-1">
+                    <div className="flex-grow flex-1 flex flex-col gap-1">
                       <label className="text-[9px] uppercase font-mono text-slate-400">Estado</label>
-                      <select value={estadoForm} onChange={(e) => setEstadoForm(e.target.value as any)} className="w-full bg-[#0f1115] border border-slate-800 text-xs text-slate-200 p-2 rounded-md outline-none">
+                      <select value={estadoForm} onChange={(e) => setEstadoForm(e.target.value as any)} className="w-full bg-[#05070f] border border-white/5 text-xs text-slate-200 p-2 rounded-md outline-none">
                         <option value="pendiente">pendiente</option>
                         <option value="en_curso">en_curso</option>
                       </select>
@@ -536,7 +506,7 @@ export default function DashboardV2() {
               </div>
 
               {/* MAPA DE PREVISUALIZACIÓN */}
-              <div className="w-[50%] min-h-[300px] relative border border-slate-800 rounded-lg overflow-hidden">
+              <div className="w-[50%] min-h-[300px] relative border border-white/5 rounded-lg overflow-hidden">
                 <RouteMap 
                   waypoints={waypointsFormModal} 
                   routePreviewApiUrl={API_URL} 
@@ -546,9 +516,9 @@ export default function DashboardV2() {
               </div>
             </div>
 
-            <div className="flex justify-end gap-2 mt-4 pt-3 border-t border-slate-800">
+            <div className="flex justify-end gap-2 mt-4 pt-3 border-t border-white/5">
               <button className="text-xs text-slate-400 px-3 py-1.5" onClick={() => { setIsModalOpen(false); resetModalForm(); }}>Cancelar</button>
-              <button className="bg-[#4cc9f0] text-black font-bold text-xs px-4 py-1.5 rounded-md hover:opacity-90" type="submit" form="new-viaje-form">
+              <button className="bg-[#0ea5e9] text-white font-bold text-xs px-4 py-1.5 rounded-md hover:opacity-90 transition-all" type="submit" form="new-viaje-form">
                 {isSubmitting ? "Procesando..." : "Iniciar Monitoreo"}
               </button>
             </div>
