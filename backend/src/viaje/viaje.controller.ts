@@ -31,6 +31,11 @@ export class ViajeController {
     return this.viajeService.findOne(id);
   }
 
+  @Patch(':id/iniciar')
+  iniciar(@Param('id') id: string) {
+    return this.viajeService.iniciar(id);
+  }
+
   @Patch(':id/finalizar')
   finalizar(@Param('id') id: string) {
     return this.viajeService.finalizar(id);

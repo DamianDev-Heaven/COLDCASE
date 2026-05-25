@@ -27,8 +27,13 @@ export default function ZepAuditModal({
     async function fetchZepContext() {
       setIsLoadingZep(true);
       try {
+        // Incluir el viaje_id en la query para que Zep devuelva hechos
+        // relevantes exclusivamente para este trayecto.
+        const queryFiltrada = encodeURIComponent(
+          `anomalias termicas y alertas operativas del viaje ${viaje.id}`
+        );
         const res = await fetch(
-          `${apiUrl}/ia/contexto-grafo/${viaje.id}?query=anomalias termicas`
+          `${apiUrl}/ia/contexto-grafo/${viaje.id}?query=${queryFiltrada}`
         );
         if (res.ok) {
           const data = await res.json();
@@ -56,7 +61,14 @@ export default function ZepAuditModal({
 
   if (!isOpen || !viaje) return null;
 
-  const aiIncidentList = telemetryList.filter((t) => t.ia_diagnosis);
+  // Anomalías del viaje actual ordenadas de más reciente a más antigua
+  const aiIncidentList = telemetryList
+    .filter((t) => t.ia_diagnosis)
+    .sort(
+      (a, b) =>
+        new Date(b.timestamp_sensor).getTime() -
+        new Date(a.timestamp_sensor).getTime()
+    );
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">

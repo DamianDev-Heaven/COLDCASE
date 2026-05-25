@@ -743,11 +743,37 @@ export class IaAnalysisService {
   }
 
   private formatTelemetryToSemantic(telemetry: any, iaDiagnosis: string): string {
-    const sessionId = telemetry.viaje_id ?? telemetry.viajeId ?? '';
-    const temp = telemetry.temp !== undefined ? telemetry.temp : telemetry.temperaturaActual;
+    const viajeId = telemetry.viaje_id ?? telemetry.viajeId ?? 'desconocido';
+    const telemetriaId = telemetry.id ?? 'N/A';
+    const temp = telemetry.temp !== undefined ? Number(telemetry.temp) : telemetry.temperaturaActual;
+    const limiteMax = telemetry.limite_max_temp ?? 'N/A';
     const hum = telemetry.humedad !== undefined && telemetry.humedad !== null ? telemetry.humedad : 'N/A';
-    const bat = telemetry.bateria !== undefined && telemetry.bateria !== null ? telemetry.bateria : (telemetry.bateriaActual !== undefined ? telemetry.bateriaActual : 'N/A');
-    return `Alerta en Viaje ${sessionId}: La temperatura registró ${temp}°C, excediendo el rango. Humedad: ${hum}%. Batería: ${bat}%. Diagnóstico IA previo: ${iaDiagnosis}`;
+    const bat =
+      telemetry.bateria !== undefined && telemetry.bateria !== null
+        ? telemetry.bateria
+        : (telemetry.bateriaActual !== undefined ? telemetry.bateriaActual : 'N/A');
+    const latRaw = telemetry.lat ?? telemetry.latitudActual;
+    const lonRaw = telemetry.lon ?? telemetry.longitudActual;
+    const coordenadas =
+      latRaw != null && lonRaw != null
+        ? `${Number(latRaw).toFixed(5)}, ${Number(lonRaw).toFixed(5)}`
+        : 'no disponibles';
+    const tsRaw = telemetry.timestamp_sensor ?? telemetry.received_at;
+    const timestamp = tsRaw ? new Date(tsRaw as string).toISOString() : new Date().toISOString();
+
+    // Construir narrativa profesional estructurada para el grafo de Zep
+    const partes: string[] = [
+      `[EVENTO DE TELEMETRÍA — Viaje: ${viajeId}]`,
+      `Telemetría ID: ${telemetriaId}`,
+      `Timestamp: ${timestamp}`,
+      `Temperatura registrada: ${temp}°C${limiteMax !== 'N/A' ? ` (límite máx. ${limiteMax}°C)` : ''}`,
+      `Humedad: ${hum}%`,
+      `Batería del sensor: ${bat}%`,
+      `Coordenadas GPS: ${coordenadas}`,
+      `Diagnóstico emitido por IA: ${iaDiagnosis}`,
+    ];
+
+    return partes.join('\n');
   }
 
   private buildSystemPromptAnalisisEvento(
@@ -1071,9 +1097,14 @@ Por favor, genera la auditoría del viaje en el JSON.`;
   }
 
   /**
-   * Obtiene las relaciones e historial semántico desde el Grafo Global de Zep.
+   * Obtiene las relaciones e historial semántico desde el Grafo Global de Zep
+   * para el viaje especificado. La query semántica incluye el viaje ID para
+   * maximizar la relevancia de los hechos recuperados.
    */
   async obtenerContextoGrafo(viajeId: string, query: string) {
-    return this.zepMemory.recuperarContextoGlobal(viajeId, query);
+    // Enriquecer la query con el ID del viaje para que Zep devuelva
+    // únicamente hechos relevantes para este trayecto específico.
+    const enrichedQuery = `Viaje ${viajeId}: ${query ?? 'anomalías térmicas y alertas operativas'}`;
+    return this.zepMemory.recuperarContextoGlobal(viajeId, enrichedQuery);
   }
 }

@@ -146,7 +146,7 @@ export default function TelemetriaPage() {
             lat: Number(t.lat),
             lon: Number(t.lon),
             label: `${inc.tipo_alerta} · ${Number(inc.valor_detectado).toFixed(1)} / ${Number(inc.umbral_permitido).toFixed(1)}`,
-            accent: inc.tipo_alerta === "TEMP_ALTA" ? "rose" : inc.tipo_alerta === "FUERA_RUTA" ? "amber" : "cyan",
+            accent: (inc.tipo_alerta === "TEMP_ALTA" ? "rose" : inc.tipo_alerta === "FUERA_RUTA" ? "amber" : "cyan") as "rose" | "amber" | "cyan",
           },
         ];
       }),

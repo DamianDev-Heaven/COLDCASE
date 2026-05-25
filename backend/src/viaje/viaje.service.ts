@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DbService } from '../db/db.service';
 import { IaAnalysisService } from '../ia/ia-analysis.service';
@@ -15,20 +15,12 @@ type FeatureCollectionRoute = {
 };
 
 @Injectable()
-export class ViajeService implements OnModuleInit {
+export class ViajeService {
   constructor(
     private readonly db: DbService,
     private readonly config: ConfigService,
     private readonly iaAnalysisService: IaAnalysisService,
   ) {}
-
-  async onModuleInit() {
-    try {
-      await this.db.query('ALTER TABLE viaje ADD COLUMN IF NOT EXISTS auditoria_ia TEXT;');
-    } catch (error) {
-      console.error('Error al asegurar columna auditoria_ia en tabla viaje:', error);
-    }
-  }
 
   private async fetchOsrmRoute(
     points: Array<{ lon: number; lat: number }>,
@@ -367,8 +359,10 @@ export class ViajeService implements OnModuleInit {
       LEFT JOIN empresa eo ON eo.id = so.empresa_id
       LEFT JOIN sucursal sd ON sd.id = v.sucursal_destino_id
       LEFT JOIN empresa ed ON ed.id = sd.empresa_id
-      WHERE v.estado = 'en_curso'
-      ORDER BY v.inicio_viaje DESC NULLS LAST`,
+      WHERE v.estado IN ('en_curso', 'pendiente')
+      ORDER BY
+        CASE v.estado WHEN 'en_curso' THEN 0 ELSE 1 END,
+        v.inicio_viaje DESC NULLS LAST`,
     );
 
     return result.rows;
@@ -416,6 +410,18 @@ export class ViajeService implements OnModuleInit {
     }
 
     return viaje;
+  }
+
+  async iniciar(id: string) {
+    const viaje = await this.findOne(id);
+    if (viaje.estado !== 'pendiente') {
+      throw new Error(`El viaje ${id} no está en estado pendiente (estado actual: ${viaje.estado}).`);
+    }
+    await this.db.query(
+      `UPDATE viaje SET estado = 'en_curso', inicio_viaje = NOW() WHERE id = $1`,
+      [id],
+    );
+    return this.findOne(id);
   }
 
   async finalizar(id: string) {

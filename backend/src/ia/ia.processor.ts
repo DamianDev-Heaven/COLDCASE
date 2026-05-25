@@ -2,6 +2,7 @@ import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Job } from 'bullmq';
 import { Injectable, Logger } from '@nestjs/common';
 import { IaAnalysisService } from './ia-analysis.service';
+import { TelemetriaInput } from './ia.interfaces';
 
 @Processor('ia-analysis-queue', { concurrency: 1 })
 @Injectable()
@@ -14,7 +15,7 @@ export class IaProcessor extends WorkerHost {
     super();
   }
 
-  async process(job: Job<{ viajeId: string; incidenteData: any }, any, string>): Promise<any> {
+  async process(job: Job<{ viajeId: string; incidenteData: TelemetriaInput }, unknown, string>): Promise<unknown> {
     this.logger.log(`Procesando trabajo ${job.id} de tipo ${job.name}...`);
     
     if (job.name === 'analyze-incident') {
@@ -23,7 +24,6 @@ export class IaProcessor extends WorkerHost {
       try {
         this.logger.log(`[Job ${job.id}] Ejecutando análisis de IA en segundo plano para viaje ${viajeId}...`);
         
-        // Ejecutar la llamada pesada de Zep y Groq (éste método persiste el resultado internamente en 'analisis_ia')
         const iaResult = await this.iaAnalysisService.analizarEventoEnTiempoReal(
           viajeId,
           incidenteData,
@@ -31,8 +31,9 @@ export class IaProcessor extends WorkerHost {
         
         this.logger.log(`[Job ${job.id}] Análisis completado y persistido. Diagnóstico: ${iaResult.diagnostico_tecnico}`);
         return iaResult;
-      } catch (err: any) {
-        this.logger.error(`Error al procesar diagnóstico de incidente en segundo plano: ${err.message}`);
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        this.logger.error(`Error al procesar diagnóstico de incidente en segundo plano: ${message}`);
         throw err;
       }
     }

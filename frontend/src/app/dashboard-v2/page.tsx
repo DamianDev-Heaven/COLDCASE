@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import RouteMap from "@/components/RouteMap";
-import { ResponsiveContainer, ComposedChart, Line, XAxis, YAxis, Tooltip, ReferenceArea } from "recharts";
 import AiInsightsPanel from "@/components/AiInsightsPanel";
+import TelemetryChart from "@/components/TelemetryChart";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
 const SIMULATOR_URL = process.env.NEXT_PUBLIC_SIMULADOR_URL || "http://localhost:4000";
@@ -19,50 +19,6 @@ type Sucursal = {
   lat: number;
   lon: number;
 };
-
-// ========================================================
-// SUBCOMPONENTE INLINE: GRÁFICO DE TELEMETRÍA "ZONA SEGURA"
-// ========================================================
-function TelemetryChart({ telemetryData, limiteMin, limiteMax }: { telemetryData: any[]; limiteMin: number; limiteMax: number }) {
-  const CustomDot = (props: any) => {
-    const { cx, cy, payload } = props;
-    const t = payload.temp;
-    const esAlta = t > limiteMax;
-    const esBaja = t < limiteMin;
-
-    if (esAlta || esBaja) {
-      return (
-        <g key={`dot-${payload.timestamp_sensor}`}>
-          {/* Solid premium static dot without flashing ping effects to prevent layout repaints */}
-          <circle cx={cx} cy={cy} r={5.5} className={`${esAlta ? "fill-rose-500" : "fill-sky-400"} stroke-[#05070f] stroke-1.5`} />
-        </g>
-      );
-    }
-    return <circle cx={cx} cy={cy} r={3.5} className="fill-[#38bdf8] stroke-[#05070f] stroke-1" key={`dot-normal-${payload.timestamp_sensor}`} />;
-  };
-
-  return (
-    <div className="w-full h-full min-h-[170px]">
-      <ResponsiveContainer width="100%" height="100%">
-        <ComposedChart data={telemetryData} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
-          <XAxis 
-            dataKey="timestamp_sensor" 
-            tickFormatter={(t) => new Date(t).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-            stroke="#475569"
-            fontSize={10}
-          />
-          <YAxis stroke="#475569" fontSize={10} domain={[limiteMin - 2, limiteMax + 2]} />
-          <Tooltip 
-            transitionDuration={0} 
-            contentStyle={{ backgroundColor: "#0a0f1d", borderColor: "rgba(255, 255, 255, 0.08)", borderRadius: "6px", fontSize: "11px", color: "#fff" }} 
-          />
-          <ReferenceArea y1={limiteMin} y2={limiteMax} fill="#10b981" fillOpacity={0.03} stroke="#10b981" strokeOpacity={0.15} strokeDasharray="3 3" />
-          <Line type="monotone" dataKey="temp" stroke="#0ea5e9" strokeWidth={2} dot={<CustomDot />} activeDot={{ r: 4 }} isAnimationActive={false} />
-        </ComposedChart>
-      </ResponsiveContainer>
-    </div>
-  );
-}
 
 // ========================================================
 // COMPONENTE PRINCIPAL (DASHBOARD V2)
@@ -204,6 +160,24 @@ export default function DashboardV2() {
       setIsSubmitting(false);
     }
   };
+  async function handleIniciarViaje(viajeId: string) {
+  setIsSubmitting(true);
+  try {
+    const res = await fetch(`${API_URL}/viaje/${viajeId}/iniciar`, { method: 'PATCH' });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err?.message || `Error ${res.status}`);
+    }
+    const actualizado = await res.json();
+    setViajes((cur) => cur.map((v) => (v.id === actualizado.id ? actualizado : v)));
+    setViajeSeleccionado(actualizado);
+  } catch (error) {
+    console.error('Error iniciando viaje:', error);
+    alert(error instanceof Error ? error.message : 'No se pudo iniciar el viaje.');
+  } finally {
+    setIsSubmitting(false);
+  }
+}
 
   useEffect(() => {
     async function cargarViajes() {
@@ -323,6 +297,18 @@ export default function DashboardV2() {
                   </div>
                   <p className="text-[10px] text-slate-400 font-mono">Prod: {viaje.tipo_producto || "No especificado"}</p>
                   <p className="text-[10px] text-slate-500 font-mono">Val: ${Number(viaje.valor_comercial || 0).toLocaleString()}</p>
+
+                  {viaje.estado === 'pendiente' && (
+                    <div className="mt-2">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleIniciarViaje(viaje.id); }}
+                        disabled={isSubmitting}
+                        className="text-xs font-bold px-3 py-1 rounded bg-amber-500 text-black hover:opacity-90"
+                      >
+                        {isSubmitting ? 'Iniciando...' : '▶ Iniciar viaje'}
+                      </button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
