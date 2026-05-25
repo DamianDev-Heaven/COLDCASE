@@ -117,7 +117,16 @@ export default function RouteMap({
         (currentContainer as unknown as { _leaflet_id?: number })._leaflet_id = undefined;
       }
     };
-  }, [center, zoom, leaflet]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [leaflet]);
+
+  const centerLat = center[0];
+  const centerLon = center[1];
+  useEffect(() => {
+    if (mapRef.current && leaflet) {
+      mapRef.current.setView([centerLat, centerLon], zoom, { animate: false });
+    }
+  }, [centerLat, centerLon, zoom, leaflet]);
 
   useEffect(() => {
     if (!layerRef.current || !leaflet || !containerRef.current?.isConnected) {
