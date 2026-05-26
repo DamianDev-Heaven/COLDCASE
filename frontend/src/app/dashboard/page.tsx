@@ -18,10 +18,14 @@ import {
   X,
   Truck,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Network,
   Users,
   Map,
   Cpu,
+  PanelLeft,
+  PanelRight,
 } from "lucide-react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
@@ -106,6 +110,8 @@ export default function Dashboard() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isZepModalOpen, setIsZepModalOpen] = useState(false);
   const [telemetryList, setTelemetryList] = useState<TelemetryPoint[]>([]);
+  const [isLeftCollapsed, setIsLeftCollapsed] = useState(false);
+  const [isRightCollapsed, setIsRightCollapsed] = useState(false);
 
   const [contingencyStats, setContingencyStats] = useState<{
     dbStatus: string;
@@ -149,6 +155,16 @@ export default function Dashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isTelemetryLoading, setIsTelemetryLoading] = useState(false);
   const [currentUser, setCurrentUser] = useState<UserSession | null>(null);
+
+  useEffect(() => {
+    const timers = [
+      setTimeout(() => window.dispatchEvent(new Event("resize")), 50),
+      setTimeout(() => window.dispatchEvent(new Event("resize")), 150),
+      setTimeout(() => window.dispatchEvent(new Event("resize")), 300),
+      setTimeout(() => window.dispatchEvent(new Event("resize")), 450),
+    ];
+    return () => timers.forEach(clearTimeout);
+  }, [isLeftCollapsed, isRightCollapsed, sidebarExpanded]);
 
   const [selectedEmpresa, setSelectedEmpresa] = useState("");
   const [transporteIdForm, setTransporteIdForm] = useState("");
@@ -641,6 +657,26 @@ export default function Dashboard() {
             <Truck className="w-3.5 h-3.5 opacity-60" />
             Simulador
           </a>
+          <div className="flex items-center gap-1 bg-slate-950/40 border border-white/5 p-1 rounded-xl">
+            <button
+              onClick={() => setIsLeftCollapsed((c) => !c)}
+              className={`p-1.5 rounded-lg transition-all duration-200 cursor-pointer ${
+                !isLeftCollapsed ? "text-cyan-400 bg-cyan-500/10" : "text-slate-500 hover:text-slate-300"
+              }`}
+              title={isLeftCollapsed ? "Mostrar lista de viajes" : "Ocultar lista de viajes"}
+            >
+              <PanelLeft className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setIsRightCollapsed((c) => !c)}
+              className={`p-1.5 rounded-lg transition-all duration-200 cursor-pointer ${
+                !isRightCollapsed ? "text-cyan-400 bg-cyan-500/10" : "text-slate-500 hover:text-slate-300"
+              }`}
+              title={isRightCollapsed ? "Mostrar panel de IA" : "Ocultar panel de IA"}
+            >
+              <PanelRight className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       </header>
 
@@ -737,7 +773,9 @@ export default function Dashboard() {
           <main className={`flex-1 flex p-3 gap-3 overflow-hidden h-full transition-[margin-left] duration-300 ease-in-out ${sidebarExpanded ? "ml-[240px]" : "ml-[64px]"}`}>
 
             {/* Lista lateral activos */}
-            <aside className="w-[290px] h-full flex flex-col bg-slate-900/30 backdrop-blur-xl border border-white/[0.05] hover:border-cyan-500/10 rounded-2xl overflow-hidden shrink-0 shadow-2xl transition-colors duration-500">
+            <aside className={`h-full flex flex-col bg-slate-900/30 backdrop-blur-xl border border-white/[0.05] hover:border-cyan-500/10 rounded-2xl overflow-hidden shrink-0 shadow-2xl transition-all duration-300 ${
+              isLeftCollapsed ? "w-0 opacity-0 pointer-events-none border-none p-0 m-0" : "w-[290px]"
+            }`}>
               <div className="p-4 border-b border-white/[0.05]">
                 <div className="flex justify-between items-center">
                   <h2 className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">Activos</h2>
@@ -839,7 +877,9 @@ export default function Dashboard() {
             </div>
 
             {/* Columna derecha: IA */}
-            <aside className="w-[330px] h-full shrink-0">
+            <aside className={`h-full shrink-0 transition-all duration-300 ${
+              isRightCollapsed ? "w-0 opacity-0 pointer-events-none border-none p-0 m-0" : "w-[330px]"
+            }`}>
               <AiInsightsPanel viaje={viajeSeleccionado} telemetryList={telemetryList} apiUrl={API_URL} onOpenZepModal={() => setIsZepModalOpen(true)} />
             </aside>
           </main>
@@ -849,7 +889,9 @@ export default function Dashboard() {
           <main className={`flex-1 flex p-3 gap-3 overflow-hidden h-full transition-[margin-left] duration-300 ease-in-out ${sidebarExpanded ? "ml-[240px]" : "ml-[64px]"}`}>
 
             {/* Lista lateral histórica */}
-            <aside className="w-[290px] h-full flex flex-col bg-slate-900/30 backdrop-blur-xl border border-white/[0.05] hover:border-cyan-500/10 rounded-2xl overflow-hidden shrink-0 shadow-2xl transition-colors duration-500">
+            <aside className={`h-full flex flex-col bg-slate-900/30 backdrop-blur-xl border border-white/[0.05] hover:border-cyan-500/10 rounded-2xl overflow-hidden shrink-0 shadow-2xl transition-all duration-300 ${
+              isLeftCollapsed ? "w-0 opacity-0 pointer-events-none border-none p-0 m-0" : "w-[290px]"
+            }`}>
               <div className="p-4 border-b border-white/[0.05]">
                 <div className="flex justify-between items-center mb-3">
                   <h2 className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">Auditorías</h2>
@@ -946,7 +988,9 @@ export default function Dashboard() {
               </div>
             </div>
 
-            <aside className="w-[330px] h-full shrink-0">
+            <aside className={`h-full shrink-0 transition-all duration-300 ${
+              isRightCollapsed ? "w-0 opacity-0 pointer-events-none border-none p-0 m-0" : "w-[330px]"
+            }`}>
               <AiInsightsPanel viaje={viajeSeleccionado} telemetryList={telemetryList} apiUrl={API_URL} onOpenZepModal={() => setIsZepModalOpen(true)} />
             </aside>
           </main>

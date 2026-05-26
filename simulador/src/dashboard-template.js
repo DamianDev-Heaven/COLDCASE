@@ -609,6 +609,13 @@ function renderDashboardPage() {
 				font-size: 10px;
 			}
 		}
+		.tab-nav-btn.active, .ai-tab-nav-btn.active {
+			color: #fff !important;
+			border-bottom-color: var(--cyan) !important;
+		}
+		.tab-nav-btn:hover, .ai-tab-nav-btn:hover {
+			color: #fff !important;
+		}
 	</style>
 </head>
 <body>
@@ -623,87 +630,98 @@ function renderDashboardPage() {
 		<div style="display: flex; gap: 8px; align-items: center;">
 			<button id="toggleBtn" class="btn primary">Pausar</button>
 			<button id="stepBtn" class="btn">Forzar ciclo</button>
-			<button id="syncBtn" class="btn">Sincronizar</button>
-			<button id="openDashboardBtn" class="btn warn">Dashboard V2</button>
+			<button id="openDashboardBtn" class="btn warn">Ir al Dashboard</button>
 		</div>
 	</header>
 
 	<div class="shell">
 		<!-- COLUMNA 1: CONTROL DE WORKER & LISTADO DE VIAJES (IZQUIERDA) -->
-		<aside class="sidebar">
-			<div class="panel">
-				<div class="eyebrow" style="margin-bottom: 2px;">Simulación Global</div>
-				<h1 class="title" style="font-size: 1.25rem; margin-bottom: 8px; color: #fff;">Consola de Worker</h1>
-				
-				<div class="stat-grid" style="grid-template-columns: repeat(2, 1fr); gap: 6px; margin-top: 8px;">
-					<div class="metric" style="padding: 8px 10px;"><span style="font-size: 8px;">Sims Activas</span><strong id="activeTrips" style="font-size: 1.1rem; margin-top: 2px;">0</strong></div>
-					<div class="metric" style="padding: 8px 10px;"><span style="font-size: 8px;">Total Ticks</span><strong id="sentTrips" style="font-size: 1.1rem; margin-top: 2px;">0</strong></div>
-					<div class="metric" style="padding: 8px 10px;"><span style="font-size: 8px;">Anomalías</span><strong id="incidentTrips" style="font-size: 1.1rem; margin-top: 2px;">0</strong></div>
-					<div class="metric" style="padding: 8px 10px;"><span style="font-size: 8px;">Última Sync</span><strong id="lastSync" style="font-size: 8px; font-family: monospace; margin-top: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">-</strong></div>
-				</div>
-				
-				<!-- Global Simulation Speed / Turbo Control -->
-				<div style="margin-top: 10px; padding: 10px 12px; border-radius: 10px; background: rgba(15, 23, 42, 0.3); border: 1px solid rgba(255, 255, 255, 0.04); display: flex; align-items: center; justify-content: space-between; gap: 10px;">
-					<div>
-						<div style="font-size: 11px; font-weight: 700; color: #e2e8f0;">Avance Rápido (Modo Turbo)</div>
-						<div style="font-size: 9px; color: var(--muted); margin-top: 1px;">Ticks de 2s y saltos de tramo</div>
+		<aside class="sidebar" style="display: flex; flex-direction: column; gap: 12px; height: 100%;">
+			<div class="sidebar-tabs-nav" style="display: flex; border-bottom: 1px solid rgba(255,255,255,0.06); margin-bottom: 4px; width: 100%; shrink: 0;">
+				<button class="tab-nav-btn active" onclick="switchSidebarTab('tab-trips')" style="flex: 1; padding: 10px; background: transparent; border: none; border-bottom: 2px solid var(--cyan); color: #fff; font-size: 11px; font-weight: 700; cursor: pointer; text-transform: uppercase; letter-spacing: 0.05em; transition: all 0.2s ease;">Viajes</button>
+				<button class="tab-nav-btn" onclick="switchSidebarTab('tab-resilience')" style="flex: 1; padding: 10px; background: transparent; border: none; border-bottom: 2px solid transparent; color: var(--muted); font-size: 11px; font-weight: 700; cursor: pointer; text-transform: uppercase; letter-spacing: 0.05em; transition: all 0.2s ease;">Fallas & Worker</button>
+			</div>
+
+			<!-- CONTENIDO DE PESTAÑA: VIAJES -->
+			<div id="tab-trips" class="tab-content" style="display: flex; flex-direction: column; gap: 12px; flex: 1; min-height: 0;">
+				<div class="panel" style="shrink: 0; padding: 12px;">
+					<div class="eyebrow" style="margin-bottom: 2px;">Resumen de Control</div>
+					<div class="stat-grid" style="grid-template-columns: repeat(2, 1fr); gap: 6px; margin-top: 4px;">
+						<div class="metric" style="padding: 6px 8px;"><span style="font-size: 8px;">Sims Activas</span><strong id="activeTrips" style="font-size: 1.05rem; margin-top: 2px;">0</strong></div>
+						<div class="metric" style="padding: 6px 8px;"><span style="font-size: 8px;">Total Ticks</span><strong id="sentTrips" style="font-size: 1.05rem; margin-top: 2px;">0</strong></div>
+						<div class="metric" style="padding: 6px 8px;"><span style="font-size: 8px;">Anomalías</span><strong id="incidentTrips" style="font-size: 1.05rem; margin-top: 2px;">0</strong></div>
+						<div class="metric" style="padding: 6px 8px;"><span style="font-size: 8px;">Última Sync</span><strong id="lastSync" style="font-size: 8px; font-family: monospace; margin-top: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">-</strong></div>
 					</div>
-					<label class="switch">
-						<input type="checkbox" id="turboToggle">
-						<span class="slider"></span>
-					</label>
 				</div>
-				
-				<!-- Probabilistic Gate Opening Toggle -->
-				<div style="margin-top: 6px; padding: 10px 12px; border-radius: 10px; background: rgba(15, 23, 42, 0.3); border: 1px solid rgba(255, 255, 255, 0.04); display: flex; align-items: center; justify-content: space-between; gap: 10px;">
-					<div>
-						<div style="font-size: 11px; font-weight: 700; color: #e2e8f0;">Simulación de Compuerta</div>
-						<div style="font-size: 9px; color: var(--muted); margin-top: 1px;">Aperturas físicas automáticas</div>
-					</div>
-					<label class="switch">
-						<input type="checkbox" id="gateToggle" checked>
-						<span class="slider"></span>
-					</label>
+				<div class="panel" style="flex: 1; display: flex; flex-direction: column; min-height: 0; padding-bottom: 12px;">
+					<div class="eyebrow" style="margin-bottom: 4px;">Monitoreo de Flota</div>
+					<span style="font-size: 10px; color: var(--muted); display: block; margin-bottom: 8px;">Selecciona una ruta en curso para auditar</span>
+					<div class="stack" id="tripList"></div>
 				</div>
 			</div>
-			
-			<!-- NUEVO PANEL: SIMULACIÓN DE CONECTIVIDAD Y RESILIENCIA (SIN EMOJIS, PREMIUM) -->
-			<div class="panel" style="shrink: 0; background: rgba(10, 15, 29, 0.4);">
-				<div class="eyebrow" style="margin-bottom: 2px;">Resiliencia & Fallas</div>
-				<h2 class="title" style="font-size: 1rem; margin-bottom: 8px; color: #fff;">Control de Infraestructura & Fallas</h2>
-				
-				<!-- Fallo IoT Toggle -->
-				<div style="padding: 10px 12px; border-radius: 10px; background: rgba(15, 23, 42, 0.3); border: 1px solid rgba(255, 255, 255, 0.04); display: flex; align-items: center; justify-content: space-between; gap: 10px;">
-					<div>
-						<div style="font-size: 11px; font-weight: 700; color: #e2e8f0;">Falla de Señal IoT</div>
-						<div style="font-size: 9px; color: var(--muted); margin-top: 1px;">Simula desconexión celular del camión</div>
-					</div>
-					<label class="switch">
-						<input type="checkbox" id="iotFailureToggle">
-						<span class="slider"></span>
-					</label>
-				</div>
-				
-				<!-- Worker Cola IA Toggle -->
-				<div style="margin-top: 6px; padding: 10px 12px; border-radius: 10px; background: rgba(15, 23, 42, 0.3); border: 1px solid rgba(255, 255, 255, 0.04); display: flex; align-items: center; justify-content: space-between; gap: 10px;">
-					<div>
-						<div style="font-size: 11px; font-weight: 700; color: #e2e8f0;">Worker de Diagnóstico IA</div>
-						<div style="font-size: 9px; color: var(--muted); margin-top: 1px; display: flex; align-items: center; gap: 4px;">
-							<span class="led-indicator" id="workerLed" style="width:6px; height:6px; margin-right:4px;"></span>
-							<span id="workerStatusText">Cargando...</span>
+
+			<!-- CONTENIDO DE PESTAÑA: FALLAS & INFRAESTRUCTURA -->
+			<div id="tab-resilience" class="tab-content" style="display: none; flex-direction: column; gap: 12px;">
+				<div class="panel">
+					<div class="eyebrow" style="margin-bottom: 2px;">Simulación Global</div>
+					<h1 class="title" style="font-size: 1.15rem; margin-bottom: 8px; color: #fff;">Consola de Worker</h1>
+					
+					<!-- Global Simulation Speed / Turbo Control -->
+					<div style="margin-top: 10px; padding: 10px 12px; border-radius: 10px; background: rgba(15, 23, 42, 0.3); border: 1px solid rgba(255, 255, 255, 0.04); display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+						<div>
+							<div style="font-size: 11px; font-weight: 700; color: #e2e8f0;">Avance Rápido (Modo Turbo)</div>
+							<div style="font-size: 9px; color: var(--muted); margin-top: 1px;">Ticks de 2s y saltos de tramo</div>
 						</div>
+						<label class="switch">
+							<input type="checkbox" id="turboToggle">
+							<span class="slider"></span>
+						</label>
 					</div>
-					<label class="switch">
-						<input type="checkbox" id="queueToggle" checked>
-						<span class="slider"></span>
-					</label>
+					
+					<!-- Probabilistic Gate Opening Toggle -->
+					<div style="margin-top: 6px; padding: 10px 12px; border-radius: 10px; background: rgba(15, 23, 42, 0.3); border: 1px solid rgba(255, 255, 255, 0.04); display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+						<div>
+							<div style="font-size: 11px; font-weight: 700; color: #e2e8f0;">Simulación de Compuerta</div>
+							<div style="font-size: 9px; color: var(--muted); margin-top: 1px;">Aperturas físicas automáticas</div>
+						</div>
+						<label class="switch">
+							<input type="checkbox" id="gateToggle" checked>
+							<span class="slider"></span>
+						</label>
+					</div>
 				</div>
-			</div>
-			
-			<div class="panel" style="flex: 1; display: flex; flex-direction: column; min-height: 0; padding-bottom: 12px;">
-				<div class="eyebrow" style="margin-bottom: 4px;">Monitoreo de Flota</div>
-				<span style="font-size: 11px; color: var(--muted); display: block; margin-bottom: 8px;">Selecciona una ruta en curso para auditar</span>
-				<div class="stack" id="tripList"></div>
+				
+				<div class="panel" style="background: rgba(10, 15, 29, 0.4);">
+					<div class="eyebrow" style="margin-bottom: 2px;">Resiliencia & Red</div>
+					<h2 class="title" style="font-size: 1rem; margin-bottom: 8px; color: #fff;">Control de Infraestructura</h2>
+					
+					<!-- Fallo IoT Toggle -->
+					<div style="padding: 10px 12px; border-radius: 10px; background: rgba(15, 23, 42, 0.3); border: 1px solid rgba(255, 255, 255, 0.04); display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+						<div>
+							<div style="font-size: 11px; font-weight: 700; color: #e2e8f0;">Falla de Señal IoT</div>
+							<div style="font-size: 9px; color: var(--muted); margin-top: 1px;">Simula desconexión celular del camión</div>
+						</div>
+						<label class="switch">
+							<input type="checkbox" id="iotFailureToggle">
+							<span class="slider"></span>
+						</label>
+					</div>
+					
+					<!-- Worker Cola IA Toggle -->
+					<div style="margin-top: 6px; padding: 10px 12px; border-radius: 10px; background: rgba(15, 23, 42, 0.3); border: 1px solid rgba(255, 255, 255, 0.04); display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+						<div>
+							<div style="font-size: 11px; font-weight: 700; color: #e2e8f0;">Worker de Diagnóstico IA</div>
+							<div style="font-size: 9px; color: var(--muted); margin-top: 1px; display: flex; align-items: center; gap: 4px;">
+								<span class="led-indicator" id="workerLed" style="width:6px; height:6px; margin-right:4px;"></span>
+								<span id="workerStatusText">Cargando...</span>
+							</div>
+						</div>
+						<label class="switch">
+							<input type="checkbox" id="queueToggle" checked>
+							<span class="slider"></span>
+						</label>
+					</div>
+				</div>
 			</div>
 		</aside>
 
@@ -753,105 +771,144 @@ function renderDashboardPage() {
 		</section>
 
 		<!-- COLUMNA 3: COGNICIÓN E INTEGRACIÓN IA (DERECHA) -->
-		<aside class="workspace-ai">
-			<!-- Telemetría actual instantánea -->
-			<section class="card" style="padding:14px; shrink: 0;">
-				<div class="eyebrow" style="color:var(--emerald); margin-bottom:8px; font-size: 9px; letter-spacing: 0.2em;">Métricas Instantáneas</div>
-				<div class="metrics" style="grid-template-columns: repeat(2, 1fr); gap: 8px;">
-					<div class="metric">
-						<span>Temperatura</span>
-						<strong id="tempNow">-</strong>
-					</div>
-					<div class="metric">
-						<span>Humedad</span>
-						<strong id="humidityNow">-</strong>
-					</div>
-					<div class="metric">
-						<span>Batería</span>
-						<strong id="batteryNow">-</strong>
-					</div>
-					<div class="metric">
-						<span>Lecturas</span>
-						<strong id="telemetryCount">-</strong>
-					</div>
-				</div>
-			</section>
-
-			<!-- NUEVO PANEL: AUDITOR EN VIVO DE REDIS & BULLMQ (SIN EMOJIS, PREMIUM) -->
-			<section class="card" style="padding:14px; shrink: 0; border: 1px solid rgba(14, 165, 233, 0.15); background: linear-gradient(135deg, rgba(10, 15, 29, 0.8) 0%, rgba(5, 7, 15, 0.95) 100%);">
-				<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-					<div class="eyebrow" style="color:var(--cyan); font-size: 9px; letter-spacing: 0.15em; margin-bottom: 0;">Auditor en Vivo de Redis & BullMQ</div>
-					<span class="tag" id="redisConnTag" style="font-size: 8px; font-weight: 800; background: rgba(16, 185, 129, 0.08); color: var(--emerald); border: 1px solid rgba(16, 185, 129, 0.15);">REDIS OK</span>
-				</div>
-				
-				<div class="metrics" style="grid-template-columns: repeat(2, 1fr); gap: 6px; margin-top: 4px;">
-					<div class="metric" style="padding: 6px 8px; background: rgba(15, 23, 42, 0.35);">
-						<span style="font-size: 8px; color: var(--muted);">En Espera (Waiting)</span>
-						<strong id="queueWaiting" style="color: var(--amber); font-size: 1rem; margin-top: 2px;">0</strong>
-					</div>
-					<div class="metric" style="padding: 6px 8px; background: rgba(15, 23, 42, 0.35);">
-						<span style="font-size: 8px; color: var(--muted);">Procesando (Active)</span>
-						<strong id="queueActive" style="color: var(--cyan); font-size: 1rem; margin-top: 2px;">0</strong>
-					</div>
-					<div class="metric" style="padding: 6px 8px; background: rgba(15, 23, 42, 0.35);">
-						<span style="font-size: 8px; color: var(--muted);">Completados (Done)</span>
-						<strong id="queueCompleted" style="color: var(--emerald); font-size: 1rem; margin-top: 2px;">0</strong>
-					</div>
-					<div class="metric" style="padding: 6px 8px; background: rgba(15, 23, 42, 0.35);">
-						<span style="font-size: 8px; color: var(--muted);">Fallidos (Failed)</span>
-						<strong id="queueFailed" style="color: var(--rose); font-size: 1rem; margin-top: 2px;">0</strong>
-					</div>
-				</div>
-				
-				<div style="font-size: 9px; color: var(--muted); margin-top: 8px; text-align: center; border-top: 1px solid rgba(255,255,255,0.03); padding-top: 6px; font-family: monospace;">
-					Canal IA: ia-analysis-queue (Concurrencia: 1)
-				</div>
-			</section>
-
-			<!-- Selected Trip Manual Incident Triggers -->
-			<div class="panel" style="shrink: 0; padding: 14px;">
-				<div class="eyebrow" style="margin-bottom: 8px; font-size: 9px; letter-spacing: 0.2em;">Inyector de Anomalías</div>
-				
-				<div style="padding: 8px 12px; border-radius: 8px; background: rgba(15, 23, 42, 0.35); border: 1px solid rgba(255,255,255,0.04); display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
-					<span style="font-size: 11px; font-weight: 700; color: #cbd5e1;">Falla de Compresor</span>
-					<label class="switch">
-						<input type="checkbox" id="compressorToggle">
-						<span class="slider"></span>
-					</label>
-				</div>
-				
-				<div style="padding: 8px 12px; border-radius: 8px; background: rgba(15, 23, 42, 0.35); border: 1px solid rgba(255,255,255,0.04); display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
-					<span style="font-size: 11px; font-weight: 700; color: #cbd5e1;">Desvío de Ruta (GPS)</span>
-					<label class="switch">
-						<input type="checkbox" id="deviationToggle">
-						<span class="slider"></span>
-					</label>
-				</div>
-				
-				<button id="forceGateBtn" class="btn" style="width: 100%; margin-top: 4px; padding: 7px 12px; font-size: 10px; font-weight: 700; border-radius: 8px; background: rgba(148, 163, 184, 0.08); border: 1px solid rgba(255,255,255,0.06); color: #cbd5e1; cursor: pointer;">
-					Simular Apertura de Compuerta (Manual)
-				</button>
+		<aside class="workspace-ai" style="display: flex; flex-direction: column; gap: 12px; height: 100%;">
+			<div class="ai-tabs-nav" style="display: flex; border-bottom: 1px solid rgba(255,255,255,0.06); margin-bottom: 4px; width: 100%; shrink: 0;">
+				<button class="ai-tab-nav-btn active" onclick="switchAiTab('tab-telemetry')" style="flex: 1; padding: 10px; background: transparent; border: none; border-bottom: 2px solid var(--cyan); color: #fff; font-size: 11px; font-weight: 700; cursor: pointer; text-transform: uppercase; letter-spacing: 0.05em; transition: all 0.2s ease;">Telemetría</button>
+				<button class="ai-tab-nav-btn" onclick="switchAiTab('tab-failures')" style="flex: 1; padding: 10px; background: transparent; border: none; border-bottom: 2px solid transparent; color: var(--muted); font-size: 11px; font-weight: 700; cursor: pointer; text-transform: uppercase; letter-spacing: 0.05em; transition: all 0.2s ease;">Inyector & Colas</button>
 			</div>
 
-			<!-- Alertas y diagnósticos de Zep & Groq -->
-			<section class="feed-card">
-				<div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap; margin-bottom:10px;">
-					<div>
-						<div class="eyebrow" style="font-size: 9px;">Línea de Eventos (IA)</div>
-						<div class="muted" id="backendSummary" style="font-size:10px; margin-top: 2px;">Sin información disponible.</div>
+			<!-- CONTENIDO DE PESTAÑA: TELEMETRÍA -->
+			<div id="tab-telemetry" class="ai-tab-content" style="display: flex; flex-direction: column; gap: 12px; flex: 1; min-height: 0;">
+				<!-- Telemetría actual instantánea -->
+				<section class="card" style="padding: 12px; shrink: 0;">
+					<div class="eyebrow" style="color:var(--emerald); margin-bottom:6px; font-size: 9px; letter-spacing: 0.2em;">Métricas Instantáneas</div>
+					<div class="metrics" style="grid-template-columns: repeat(2, 1fr); gap: 6px;">
+						<div class="metric">
+							<span>Temperatura</span>
+							<strong id="tempNow">-</strong>
+						</div>
+						<div class="metric">
+							<span>Humedad</span>
+							<strong id="humidityNow">-</strong>
+						</div>
+						<div class="metric">
+							<span>Batería</span>
+							<strong id="batteryNow">-</strong>
+						</div>
+						<div class="metric">
+							<span>Lecturas</span>
+							<strong id="telemetryCount">-</strong>
+						</div>
 					</div>
-					<div class="muted font-mono" id="lastTick" style="font-size:9px; font-weight: 600;">Sin tick aún.</div>
+				</section>
+
+				<!-- Alertas y diagnósticos de Zep & Groq -->
+				<section class="feed-card" style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
+					<div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap; margin-bottom:10px;">
+						<div>
+							<div class="eyebrow" style="font-size: 9px;">Línea de Eventos (IA)</div>
+							<div class="muted" id="backendSummary" style="font-size:10px; margin-top: 2px;">Sin información disponible.</div>
+						</div>
+						<div class="muted font-mono" id="lastTick" style="font-size:9px; font-weight: 600;">Sin tick.</div>
+					</div>
+					<div class="feed-list" id="feedList" style="flex: 1; overflow-y: auto;">
+						<div class="empty">Esperando telemetría...</div>
+					</div>
+				</section>
+			</div>
+
+			<!-- CONTENIDO DE PESTAÑA: INYECTOR & COLAS -->
+			<div id="tab-failures" class="ai-tab-content" style="display: none; flex-direction: column; gap: 12px;">
+				<!-- Selected Trip Manual Incident Triggers -->
+				<div class="panel" style="padding: 12px;">
+					<div class="eyebrow" style="margin-bottom: 8px; font-size: 9px; letter-spacing: 0.2em;">Inyector de Anomalías</div>
+					
+					<div style="padding: 8px 12px; border-radius: 8px; background: rgba(15, 23, 42, 0.35); border: 1px solid rgba(255,255,255,0.04); display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+						<span style="font-size: 11px; font-weight: 700; color: #cbd5e1;">Falla de Compresor</span>
+						<label class="switch">
+							<input type="checkbox" id="compressorToggle">
+							<span class="slider"></span>
+						</label>
+					</div>
+					
+					<div style="padding: 8px 12px; border-radius: 8px; background: rgba(15, 23, 42, 0.35); border: 1px solid rgba(255,255,255,0.04); display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+						<span style="font-size: 11px; font-weight: 700; color: #cbd5e1;">Desvío de Ruta (GPS)</span>
+						<label class="switch">
+							<input type="checkbox" id="deviationToggle">
+							<span class="slider"></span>
+						</label>
+					</div>
+					
+					<button id="forceGateBtn" class="btn" style="width: 100%; margin-top: 4px; padding: 7px 12px; font-size: 10px; font-weight: 700; border-radius: 8px; background: rgba(148, 163, 184, 0.08); border: 1px solid rgba(255,255,255,0.06); color: #cbd5e1; cursor: pointer;">
+						Simular Apertura de Compuerta (Manual)
+					</button>
 				</div>
-				<div class="feed-list" id="feedList">
-					<div class="empty">Esperando telemetría...</div>
-				</div>
-			</section>
+
+				<!-- NUEVO PANEL: AUDITOR EN VIVO DE REDIS & BULLMQ -->
+				<section class="card" style="padding:12px; border: 1px solid rgba(14, 165, 233, 0.15); background: linear-gradient(135deg, rgba(10, 15, 29, 0.8) 0%, rgba(5, 7, 15, 0.95) 100%);">
+					<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+						<div class="eyebrow" style="color:var(--cyan); font-size: 9px; letter-spacing: 0.15em; margin-bottom: 0;">Redis & BullMQ IA Queue</div>
+						<span class="tag" id="redisConnTag" style="font-size: 8px; font-weight: 800; background: rgba(16, 185, 129, 0.08); color: var(--emerald); border: 1px solid rgba(16, 185, 129, 0.15);">REDIS OK</span>
+					</div>
+					
+					<div class="metrics" style="grid-template-columns: repeat(2, 1fr); gap: 6px; margin-top: 4px;">
+						<div class="metric" style="padding: 6px 8px; background: rgba(15, 23, 42, 0.35);">
+							<span style="font-size: 8px; color: var(--muted);">En Espera (Waiting)</span>
+							<strong id="queueWaiting" style="color: var(--amber); font-size: 1rem; margin-top: 2px;">0</strong>
+						</div>
+						<div class="metric" style="padding: 6px 8px; background: rgba(15, 23, 42, 0.35);">
+							<span style="font-size: 8px; color: var(--muted);">Procesando (Active)</span>
+							<strong id="queueActive" style="color: var(--cyan); font-size: 1rem; margin-top: 2px;">0</strong>
+						</div>
+						<div class="metric" style="padding: 6px 8px; background: rgba(15, 23, 42, 0.35);">
+							<span style="font-size: 8px; color: var(--muted);">Completados (Done)</span>
+							<strong id="queueCompleted" style="color: var(--emerald); font-size: 1rem; margin-top: 2px;">0</strong>
+						</div>
+						<div class="metric" style="padding: 6px 8px; background: rgba(15, 23, 42, 0.35);">
+							<span style="font-size: 8px; color: var(--muted);">Fallidos (Failed)</span>
+							<strong id="queueFailed" style="color: var(--rose); font-size: 1rem; margin-top: 2px;">0</strong>
+						</div>
+					</div>
+					
+					<div style="font-size: 9px; color: var(--muted); margin-top: 8px; text-align: center; border-top: 1px solid rgba(255,255,255,0.03); padding-top: 6px; font-family: monospace;">
+						ia-analysis-queue (Concurrencia: 1)
+					</div>
+				</section>
+			</div>
 		</aside>
 	</div>
 
 
 	<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 	<script>
+		function switchSidebarTab(tabId) {
+			document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
+			document.getElementById(tabId).style.display = tabId === 'tab-trips' ? 'flex' : 'block';
+			
+			const buttons = document.querySelectorAll('.tab-nav-btn');
+			buttons[0].classList.toggle('active', tabId === 'tab-trips');
+			buttons[0].style.borderBottomColor = tabId === 'tab-trips' ? 'var(--cyan)' : 'transparent';
+			buttons[0].style.color = tabId === 'tab-trips' ? '#fff' : 'var(--muted)';
+			
+			buttons[1].classList.toggle('active', tabId === 'tab-resilience');
+			buttons[1].style.borderBottomColor = tabId === 'tab-resilience' ? 'var(--cyan)' : 'transparent';
+			buttons[1].style.color = tabId === 'tab-resilience' ? '#fff' : 'var(--muted)';
+		}
+
+		function switchAiTab(tabId) {
+			document.querySelectorAll('.ai-tab-content').forEach(el => el.style.display = 'none');
+			document.getElementById(tabId).style.display = tabId === 'tab-telemetry' ? 'flex' : 'block';
+			
+			const buttons = document.querySelectorAll('.ai-tab-nav-btn');
+			buttons[0].classList.toggle('active', tabId === 'tab-telemetry');
+			buttons[0].style.borderBottomColor = tabId === 'tab-telemetry' ? 'var(--cyan)' : 'transparent';
+			buttons[0].style.color = tabId === 'tab-telemetry' ? '#fff' : 'var(--muted)';
+			
+			buttons[1].classList.toggle('active', tabId === 'tab-failures');
+			buttons[1].style.borderBottomColor = tabId === 'tab-failures' ? 'var(--cyan)' : 'transparent';
+			buttons[1].style.color = tabId === 'tab-failures' ? '#fff' : 'var(--muted)';
+		}
+
 		function toggleGuide() {
 			const content = document.getElementById('guideContent');
 			const arrow = document.getElementById('guideArrow');
@@ -883,7 +940,6 @@ function renderDashboardPage() {
 		const deviationToggle = document.getElementById('deviationToggle');
 		const forceGateBtn = document.getElementById('forceGateBtn');
 		const stepBtn = document.getElementById('stepBtn');
-		const syncBtn = document.getElementById('syncBtn');
 		const openDashboardBtn = document.getElementById('openDashboardBtn');
 		const tripList = document.getElementById('tripList');
 		const connectionState = document.getElementById('connectionState');
@@ -1561,18 +1617,8 @@ function renderDashboardPage() {
 			}
 		});
 
-		syncBtn.addEventListener('click', async () => {
-			syncBtn.disabled = true;
-			try {
-				await postJson('/api/simulation/refresh');
-				await refreshState();
-			} finally {
-				syncBtn.disabled = false;
-			}
-		});
-
 		openDashboardBtn.addEventListener('click', () => {
-			window.open('http://localhost:3001/dashboard-v2', '_blank', 'noreferrer');
+			window.open('http://localhost:3001/dashboard', '_blank', 'noreferrer');
 		});
 
 		if (gateToggle) {
