@@ -102,6 +102,43 @@ export default function DashboardV2() {
   const [isZepModalOpen, setIsZepModalOpen] = useState(false);
   const [telemetryList, setTelemetryList] = useState<TelemetryPoint[]>([]);
 
+  const [contingencyStats, setContingencyStats] = useState<{
+    dbStatus: string;
+    size: number;
+    backendStatus: "up" | "down";
+  }>({
+    dbStatus: "up",
+    size: 0,
+    backendStatus: "up",
+  });
+
+  useEffect(() => {
+    async function checkHealth() {
+      try {
+        const res = await fetch(`${API_URL}/telemetria/contingency/stats`);
+        if (res.ok) {
+          const data = await res.json();
+          setContingencyStats({
+            dbStatus: data.dbStatus || "up",
+            size: data.size || 0,
+            backendStatus: "up",
+          });
+        } else {
+          setContingencyStats((prev) => ({ ...prev, backendStatus: "down" }));
+        }
+      } catch {
+        setContingencyStats({
+          dbStatus: "down",
+          size: 0,
+          backendStatus: "down",
+        });
+      }
+    }
+    checkHealth();
+    const interval = setInterval(checkHealth, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
   const [sidebarExpanded, setSidebarExpanded] = useState(false);
   const [currentView, setCurrentView] = useState<"overview" | "compliance" | "graph-explorer">("overview");
   const [searchQuery, setSearchQuery] = useState("");
@@ -544,8 +581,37 @@ export default function DashboardV2() {
             </h1>
           </div>
           <div className="hidden md:flex items-center gap-2">
-            <StatusPill label="Backend" />
-            <StatusPill label="Base de Datos" />
+            <StatusPill label="Backend" status={contingencyStats.backendStatus} />
+            <StatusPill label="Base de Datos" status={contingencyStats.size > 0 ? "degraded" : (contingencyStats.dbStatus === "up" ? "up" : "down")} />
+            {contingencyStats.size > 0 && (
+              <div className="flex items-center gap-2 bg-amber-500/10 border border-amber-500/20 px-3 py-1 rounded-lg text-amber-300 text-[10px] font-mono animate-pulse">
+                <span>⚠️ {contingencyStats.size} en cola Redis</span>
+                {contingencyStats.dbStatus === "up" && (
+                  <button
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      try {
+                        await fetch(`${API_URL}/telemetria/contingency/retry`, { method: "POST" });
+                        const res = await fetch(`${API_URL}/telemetria/contingency/stats`);
+                        if (res.ok) {
+                          const data = await res.json();
+                          setContingencyStats({
+                            dbStatus: data.dbStatus || "up",
+                            size: data.size || 0,
+                            backendStatus: "up",
+                          });
+                        }
+                      } catch (err) {
+                        console.error(err);
+                      }
+                    }}
+                    className="bg-amber-500 hover:bg-amber-400 text-slate-950 px-2 py-0.5 rounded text-[8px] font-bold uppercase transition-colors cursor-pointer ml-1"
+                  >
+                    Reintentar
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-2.5">
@@ -669,7 +735,7 @@ export default function DashboardV2() {
             <div className="flex-1 flex flex-col gap-3 h-full min-w-0">
               <div className="flex-1 bg-slate-900/30 backdrop-blur-xl border border-white/[0.05] hover:border-cyan-500/10 rounded-2xl relative overflow-hidden shadow-2xl z-10 transition-colors duration-500">
                 {viajeSeleccionado && waypointsViajeActivo.length === 2 ? (
-                  <RouteMap viajeId={viajeSeleccionado.id} waypoints={waypointsViajeActivo} routePreviewApiUrl={API_URL} />
+                  <RouteMap viajeId={viajeSeleccionado.id} waypoints={waypointsViajeActivo} telemetryPoints={telemetryList} routePreviewApiUrl={API_URL} />
                 ) : (
                   <div className="w-full h-full flex flex-col items-center justify-center text-slate-600 gap-3">
                     <div className="w-10 h-10 border-2 border-slate-700 border-t-cyan-500 rounded-full animate-spin" />
@@ -790,7 +856,7 @@ export default function DashboardV2() {
             <div className="flex-1 flex flex-col gap-3 h-full min-w-0">
               <div className="flex-1 bg-slate-900/30 backdrop-blur-xl border border-white/[0.05] hover:border-cyan-500/10 rounded-2xl relative overflow-hidden shadow-2xl z-10 transition-colors duration-500">
                 {viajeSeleccionado && waypointsViajeActivo.length === 2 ? (
-                  <RouteMap viajeId={viajeSeleccionado.id} waypoints={waypointsViajeActivo} routePreviewApiUrl={API_URL} />
+                  <RouteMap viajeId={viajeSeleccionado.id} waypoints={waypointsViajeActivo} telemetryPoints={telemetryList} routePreviewApiUrl={API_URL} />
                 ) : (
                   <div className="w-full h-full flex flex-col items-center justify-center text-slate-600 gap-3">
                     <div className="w-10 h-10 border-2 border-slate-700 border-t-cyan-500 rounded-full animate-spin" />
@@ -1360,12 +1426,25 @@ export default function DashboardV2() {
 
 // ─── MICRO COMPONENTS ──────────────────────────────────────────────────────────
 
-function StatusPill({ label }: { label: string }) {
+function StatusPill({ label, status }: { label: string; status: "up" | "down" | "degraded" }) {
+  const dotColorClass =
+    status === "up"
+      ? "bg-emerald-500"
+      : status === "degraded"
+      ? "bg-amber-500"
+      : "bg-rose-500";
+  const pingColorClass =
+    status === "up"
+      ? "bg-emerald-400"
+      : status === "degraded"
+      ? "bg-amber-400"
+      : "bg-rose-400";
+
   return (
     <div className="flex items-center gap-1.5 bg-slate-950/50 border border-white/[0.06] px-2.5 py-1 rounded-lg">
       <span className="relative flex h-1.5 w-1.5 shrink-0">
-        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
+        <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${pingColorClass} opacity-75`} />
+        <span className={`relative inline-flex rounded-full h-1.5 w-1.5 ${dotColorClass}`} />
       </span>
       <span className="text-[9px] font-mono text-slate-500 uppercase tracking-wider">{label}</span>
     </div>

@@ -39,6 +39,90 @@ const runtimeState = {
 
 const simulationMap = new Map();
 
+const fs = require('fs');
+const path = require('path');
+
+const STATE_FILE_PATH = process.env.STATE_FILE_PATH || path.join(__dirname, 'data', 'simulator_state.json');
+
+function saveState() {
+	try {
+		const serialized = {
+			paused: runtimeState.paused,
+			selectedTripId: runtimeState.selectedTripId,
+			gateOpeningEnabled: runtimeState.gateOpeningEnabled,
+			turboMode: runtimeState.turboMode,
+			iotFailure: runtimeState.iotFailure,
+			simulations: [...simulationMap.entries()].map(([viajeId, state]) => ({
+				viajeId,
+				progressIndex: state.progressIndex,
+				progressStep: state.progressStep,
+				direction: state.direction,
+				telemetryCount: state.telemetryCount,
+				incidentCount: state.incidentCount,
+				lastTelemetryAt: state.lastTelemetryAt,
+				lastIncident: state.lastIncident,
+				lastPayload: state.lastPayload,
+				battery: state.battery,
+				status: state.status,
+				backendEstado: state.backendEstado,
+				compressorFailed: state.compressorFailed,
+				routeDeviated: state.routeDeviated,
+				gateOpenTicks: state.gateOpenTicks,
+				history: state.history,
+			}))
+		};
+		const dir = path.dirname(STATE_FILE_PATH);
+		if (!fs.existsSync(dir)) {
+			fs.mkdirSync(dir, { recursive: true });
+		}
+		fs.writeFileSync(STATE_FILE_PATH, JSON.stringify(serialized, null, 2), 'utf8');
+	} catch (err) {
+		console.error('Error al guardar el estado del simulador:', err);
+	}
+}
+
+function loadState() {
+	try {
+		if (fs.existsSync(STATE_FILE_PATH)) {
+			const data = fs.readFileSync(STATE_FILE_PATH, 'utf8');
+			const parsed = JSON.parse(data);
+
+			runtimeState.paused = !!parsed.paused;
+			runtimeState.selectedTripId = parsed.selectedTripId || null;
+			runtimeState.gateOpeningEnabled = parsed.gateOpeningEnabled !== false;
+			runtimeState.turboMode = !!parsed.turboMode;
+			runtimeState.iotFailure = !!parsed.iotFailure;
+
+			if (Array.isArray(parsed.simulations)) {
+				for (const sim of parsed.simulations) {
+					simulationMap.set(sim.viajeId, {
+						viajeId: sim.viajeId,
+						progressIndex: sim.progressIndex || 0,
+						progressStep: sim.progressStep || 0,
+						direction: sim.direction || 1,
+						telemetryCount: sim.telemetryCount || 0,
+						incidentCount: sim.incidentCount || 0,
+						lastTelemetryAt: sim.lastTelemetryAt || null,
+						lastIncident: sim.lastIncident || null,
+						lastPayload: sim.lastPayload || null,
+						battery: sim.battery || 100,
+						status: sim.status || 'activo',
+						backendEstado: sim.backendEstado || 'pendiente',
+						compressorFailed: !!sim.compressorFailed,
+						routeDeviated: !!sim.routeDeviated,
+						gateOpenTicks: sim.gateOpenTicks || 0,
+						history: sim.history || [],
+						routePoints: [],
+					});
+				}
+			}
+			console.log(`Estado del simulador cargado exitosamente desde ${STATE_FILE_PATH}`);
+		}
+	} catch (err) {
+		console.error('Error al cargar el estado del simulador:', err);
+	}
+}
+
 function logEvent(level, message, viajeId = null) {
 	runtimeState.logs.unshift({
 		id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
@@ -192,6 +276,7 @@ async function tickSimulation() {
 	});
 
 	await Promise.all(ticks);
+	saveState();
 }
 
 async function readBody(req) {
@@ -218,6 +303,7 @@ async function handleApiRequest(req, res, pathname) {
 		if (payload.viajeId && simulationMap.has(payload.viajeId)) {
 			runtimeState.selectedTripId = payload.viajeId;
 			logEvent('info', `Viaje seleccionado: ${payload.viajeId}`, payload.viajeId);
+			saveState();
 		}
 
 		res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
@@ -228,6 +314,7 @@ async function handleApiRequest(req, res, pathname) {
 	if (req.method === 'POST' && pathname === '/api/simulation/toggle') {
 		runtimeState.paused = !runtimeState.paused;
 		logEvent('info', runtimeState.paused ? 'Simulación pausada manualmente.' : 'Simulación reanudada manualmente.');
+		saveState();
 		res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
 		res.end(JSON.stringify({ paused: runtimeState.paused }));
 		return true;
@@ -237,6 +324,7 @@ async function handleApiRequest(req, res, pathname) {
 		const payload = await readBody(req);
 		runtimeState.gateOpeningEnabled = payload.enabled !== undefined ? !!payload.enabled : !runtimeState.gateOpeningEnabled;
 		logEvent('info', runtimeState.gateOpeningEnabled ? 'Eventos probabilísticos de apertura de compuerta ACTIVADOS.' : 'Eventos probabilísticos de apertura de compuerta DESACTIVADOS.');
+		saveState();
 		res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
 		res.end(JSON.stringify({ gateOpeningEnabled: runtimeState.gateOpeningEnabled }));
 		return true;
@@ -248,6 +336,7 @@ async function handleApiRequest(req, res, pathname) {
 			const state = simulationMap.get(payload.viajeId);
 			state.compressorFailed = payload.enabled !== undefined ? !!payload.enabled : !state.compressorFailed;
 			logEvent('warn', state.compressorFailed ? `Simulador: Compresor APAGADO (Falla) para viaje ${payload.viajeId}.` : `Simulador: Compresor ENCENDIDO (Normal) para viaje ${payload.viajeId}.`, payload.viajeId);
+			saveState();
 			res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
 			res.end(JSON.stringify({ viajeId: payload.viajeId, compressorFailed: state.compressorFailed }));
 		} else {
@@ -263,6 +352,7 @@ async function handleApiRequest(req, res, pathname) {
 			const state = simulationMap.get(payload.viajeId);
 			state.routeDeviated = payload.enabled !== undefined ? !!payload.enabled : !state.routeDeviated;
 			logEvent('warn', state.routeDeviated ? `Simulador: Camión DESVIADO de su ruta OSRM para viaje ${payload.viajeId}.` : `Simulador: Camión REGRESADO a su ruta OSRM para viaje ${payload.viajeId}.`, payload.viajeId);
+			saveState();
 			res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
 			res.end(JSON.stringify({ viajeId: payload.viajeId, routeDeviated: state.routeDeviated }));
 		} else {
@@ -276,6 +366,7 @@ async function handleApiRequest(req, res, pathname) {
 		const payload = await readBody(req);
 		runtimeState.turboMode = payload.enabled !== undefined ? !!payload.enabled : !runtimeState.turboMode;
 		logEvent('info', runtimeState.turboMode ? 'Simulador: Modo Turbo ACTIVADO (Ticks rápidos cada 2s + avance acelerado).' : 'Simulador: Modo Turbo DESACTIVADO (Ticks normales).');
+		saveState();
 		
 		scheduleNextTick();
 
@@ -291,6 +382,7 @@ async function handleApiRequest(req, res, pathname) {
 			? 'Simulador: Enlace de sensores IoT APAGADO (Pérdida de señal celular activa).' 
 			: 'Simulador: Enlace de sensores IoT ENCENDIDO (Señal celular normal).'
 		);
+		saveState();
 		res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
 		res.end(JSON.stringify({ iotFailure: runtimeState.iotFailure }));
 		return true;
@@ -340,6 +432,7 @@ async function handleApiRequest(req, res, pathname) {
 			const state = simulationMap.get(payload.viajeId);
 			state.gateOpenTicks = 4;
 			logEvent('warn', `Simulador: Apertura MANUAL de compuerta forzada para viaje ${payload.viajeId}.`, payload.viajeId);
+			saveState();
 			res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
 			res.end(JSON.stringify({ viajeId: payload.viajeId, gateOpenTicks: state.gateOpenTicks }));
 		} else {
@@ -442,6 +535,8 @@ function scheduleNextTick() {
 		scheduleNextTick();
 	}, currentInterval);
 }
+
+loadState();
 
 syncActiveTrips()
 	.then(() => {

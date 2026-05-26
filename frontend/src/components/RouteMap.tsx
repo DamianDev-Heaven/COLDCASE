@@ -23,6 +23,7 @@ type RouteMapProps = {
   zoom?: number;
   routePreviewApiUrl?: string;
   incidentMarkers?: IncidentMarker[];
+  telemetryPoints?: Array<{ lat: number | string; lon: number | string; temp?: number; bateria?: number | null; humedad?: number | null }>;
 };
 
 type PreviewStatus = "idle" | "loading" | "osrm" | "fallback";
@@ -35,6 +36,7 @@ export default function RouteMap({
   zoom = 12,
   routePreviewApiUrl,
   incidentMarkers = [],
+  telemetryPoints = [],
 }: RouteMapProps) {
   const [leaflet, setLeaflet] = useState<null | typeof import("leaflet")>(null);
   const [previewRoute, setPreviewRoute] = useState<Waypoint[] | null>(null);
@@ -193,6 +195,86 @@ export default function RouteMap({
       bounds.extend(routeLine.getBounds());
     }
 
+    if (telemetryPoints && telemetryPoints.length > 0) {
+      const pathPoints = telemetryPoints
+        .map((p) => {
+          const lat = Number(p.lat);
+          const lon = Number(p.lon);
+          return [lat, lon] as [number, number];
+        })
+        .filter(([lat, lon]) => Number.isFinite(lat) && Number.isFinite(lon));
+
+      if (pathPoints.length > 1) {
+        const poly = leaflet
+          .polyline(pathPoints, {
+            color: "#a78bfa",
+            weight: 3,
+            dashArray: "4, 6",
+            opacity: 0.8,
+          })
+          .addTo(layerRef.current!);
+        bounds.extend(poly.getBounds());
+      }
+
+      if (pathPoints.length > 0) {
+        const lastPoint = pathPoints[pathPoints.length - 1];
+        const lastTele = telemetryPoints[telemetryPoints.length - 1];
+        const tempVal = lastTele.temp;
+        
+        let nearestWp = waypoints[0];
+        let minD = Infinity;
+        let isDeviated = false;
+        if (waypoints.length > 0) {
+          for (const wp of waypoints) {
+            const d = Math.pow(wp.lat - lastPoint[0], 2) + Math.pow(wp.lon - lastPoint[1], 2);
+            if (d < minD) {
+              minD = d;
+              nearestWp = wp;
+            }
+          }
+          isDeviated = Math.sqrt(minD) > 0.0045;
+        }
+
+        if (isDeviated && nearestWp) {
+          const devLine = leaflet
+            .polyline([[nearestWp.lat, nearestWp.lon], lastPoint], {
+              color: "#f43f5e",
+              weight: 2,
+              dashArray: "3, 5",
+              opacity: 0.95,
+            })
+            .addTo(layerRef.current!);
+          bounds.extend(devLine.getBounds());
+        }
+
+        const isBatteryCritical = lastTele.bateria != null && lastTele.bateria <= 5;
+        const iconColor = isDeviated ? "bg-rose-500 shadow-rose-500/30" : (isBatteryCritical ? "bg-amber-500 shadow-amber-500/30" : "bg-cyan-500 shadow-cyan-500/30");
+        
+        const truckIcon = leaflet.divIcon({
+          html: `<div class="relative flex h-6 w-6 items-center justify-center rounded-full ${iconColor} border border-slate-900 shadow-xl animate-pulse">
+            <svg class="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 18.75a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 0 1-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124l-.318-5.085a2.25 2.25 0 0 0-2.247-2.115H16.5V9.75A2.25 2.25 0 0 0 14.25 7.5H5.25A2.25 2.25 0 0 0 3 9.75v5.625c0 .621.504 1.125 1.125 1.125H5.25m14-5.25L16.5 7.5h-3m3 4.5h2" />
+            </svg>
+          </div>`,
+          className: "custom-truck-icon",
+          iconSize: [24, 24],
+          iconAnchor: [12, 12],
+        });
+
+        const marker = leaflet
+          .marker(lastPoint, { icon: truckIcon })
+          .addTo(layerRef.current!)
+          .bindTooltip(`Camión: ${tempVal}°C | Batería: ${lastTele.bateria ?? 'N/A'}% ${isDeviated ? '[Desviado]' : ''}`, { 
+            direction: "top", 
+            permanent: true,
+            offset: [0, -10],
+            className: "bg-slate-950 border-slate-800 text-[10px] text-white font-mono rounded px-2 py-1 shadow"
+          });
+        
+        bounds.extend(marker.getLatLng());
+      }
+    }
+
     const map = mapRef.current;
 
     if (!map || !map.getContainer()?.isConnected) {
@@ -225,7 +307,7 @@ export default function RouteMap({
         console.error("Leaflet map update skipped:", error);
       }
     });
-  }, [leaflet, waypoints, previewRoute, previewStatus, routePreviewApiUrl, incidentMarkers]);
+  }, [leaflet, waypoints, previewRoute, previewStatus, routePreviewApiUrl, incidentMarkers, telemetryPoints]);
 
   useEffect(() => {
     let active = true;

@@ -61,7 +61,17 @@ export class IncidenteService {
 
   async findAll() {
     const result = await this.db.query<IncidenteRow>(
-      'SELECT id, viaje_id, telemetria_id, tipo_alerta, valor_detectado, umbral_permitido, timestamp_bd FROM incidente ORDER BY timestamp_bd DESC, id DESC',
+      `SELECT i.id, i.viaje_id, i.telemetria_id, i.tipo_alerta, i.valor_detectado, i.umbral_permitido, i.timestamp_bd,
+              COALESCE((SELECT MAX(valor_registrado) FROM incidente_evento WHERE incidente_id = i.id AND tipo_evento = 'PICO_ACTUALIZADO'), i.valor_pico, i.valor_detectado) AS valor_pico,
+              (SELECT timestamp_evento FROM incidente_evento WHERE incidente_id = i.id AND tipo_evento = 'RESUELTO' ORDER BY timestamp_evento DESC LIMIT 1) AS timestamp_fin,
+              COALESCE((SELECT TRUE FROM incidente_evento WHERE incidente_id = i.id AND tipo_evento = 'RESUELTO' LIMIT 1), FALSE) AS resuelta,
+              CASE 
+                WHEN EXISTS (SELECT 1 FROM incidente_evento WHERE incidente_id = i.id AND tipo_evento = 'RESUELTO') THEN 'resuelta'
+                WHEN i.tipo_alerta = 'TEMP_ALTA' AND (SELECT temp FROM telemetria WHERE viaje_id = i.viaje_id ORDER BY timestamp_sensor DESC, id DESC LIMIT 1) <= i.umbral_permitido THEN 'resolviendo'
+                ELSE 'activa'
+              END AS estado
+       FROM incidente i
+       ORDER BY i.timestamp_bd DESC, i.id DESC`,
     );
 
     return result.rows;
@@ -69,7 +79,18 @@ export class IncidenteService {
 
   async findByViaje(viajeId: string) {
     const result = await this.db.query<IncidenteRow>(
-      'SELECT id, viaje_id, telemetria_id, tipo_alerta, valor_detectado, umbral_permitido, timestamp_bd FROM incidente WHERE viaje_id = $1 ORDER BY timestamp_bd DESC, id DESC',
+      `SELECT i.id, i.viaje_id, i.telemetria_id, i.tipo_alerta, i.valor_detectado, i.umbral_permitido, i.timestamp_bd,
+              COALESCE((SELECT MAX(valor_registrado) FROM incidente_evento WHERE incidente_id = i.id AND tipo_evento = 'PICO_ACTUALIZADO'), i.valor_pico, i.valor_detectado) AS valor_pico,
+              (SELECT timestamp_evento FROM incidente_evento WHERE incidente_id = i.id AND tipo_evento = 'RESUELTO' ORDER BY timestamp_evento DESC LIMIT 1) AS timestamp_fin,
+              COALESCE((SELECT TRUE FROM incidente_evento WHERE incidente_id = i.id AND tipo_evento = 'RESUELTO' LIMIT 1), FALSE) AS resuelta,
+              CASE 
+                WHEN EXISTS (SELECT 1 FROM incidente_evento WHERE incidente_id = i.id AND tipo_evento = 'RESUELTO') THEN 'resuelta'
+                WHEN i.tipo_alerta = 'TEMP_ALTA' AND (SELECT temp FROM telemetria WHERE viaje_id = i.viaje_id ORDER BY timestamp_sensor DESC, id DESC LIMIT 1) <= i.umbral_permitido THEN 'resolviendo'
+                ELSE 'activa'
+              END AS estado
+       FROM incidente i
+       WHERE i.viaje_id = $1
+       ORDER BY i.timestamp_bd DESC, i.id DESC`,
       [viajeId],
     );
 
@@ -78,7 +99,17 @@ export class IncidenteService {
 
   async findOne(id: string) {
     const result = await this.db.query<IncidenteRow>(
-      'SELECT id, viaje_id, telemetria_id, tipo_alerta, valor_detectado, umbral_permitido, timestamp_bd FROM incidente WHERE id = $1',
+      `SELECT i.id, i.viaje_id, i.telemetria_id, i.tipo_alerta, i.valor_detectado, i.umbral_permitido, i.timestamp_bd,
+              COALESCE((SELECT MAX(valor_registrado) FROM incidente_evento WHERE incidente_id = i.id AND tipo_evento = 'PICO_ACTUALIZADO'), i.valor_pico, i.valor_detectado) AS valor_pico,
+              (SELECT timestamp_evento FROM incidente_evento WHERE incidente_id = i.id AND tipo_evento = 'RESUELTO' ORDER BY timestamp_evento DESC LIMIT 1) AS timestamp_fin,
+              COALESCE((SELECT TRUE FROM incidente_evento WHERE incidente_id = i.id AND tipo_evento = 'RESUELTO' LIMIT 1), FALSE) AS resuelta,
+              CASE 
+                WHEN EXISTS (SELECT 1 FROM incidente_evento WHERE incidente_id = i.id AND tipo_evento = 'RESUELTO') THEN 'resuelta'
+                WHEN i.tipo_alerta = 'TEMP_ALTA' AND (SELECT temp FROM telemetria WHERE viaje_id = i.viaje_id ORDER BY timestamp_sensor DESC, id DESC LIMIT 1) <= i.umbral_permitido THEN 'resolviendo'
+                ELSE 'activa'
+              END AS estado
+       FROM incidente i
+       WHERE i.id = $1`,
       [id],
     );
 

@@ -1,0 +1,57 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+  namespace: coldcase
+spec:
+  ports:
+    - port: 3000
+      targetPort: 3000
+  selector:
+    app: backend
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: coldcase
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      containers:
+        - name: backend
+          image: coldcase-backend:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: DATABASE_URL
+              value: "postgresql://postgres:postgres@db:5432/postgres?schema=public"
+            - name: REDIS_HOST
+              value: "redis"
+            - name: REDIS_PORT
+              value: "6379"
+            - name: OSRM_BASE_URL
+              value: "http://osrm:5000"
+            - name: PORT
+              value: "3000"
+          ports:
+            - containerPort: 3000
+          # Define standard readiness and liveness probes to showcase self-healing
+          readinessProbe:
+            httpGet:
+              path: /munin/health # We have a MuninController or health endpoint
+              port: 3000
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /munin/health
+              port: 3000
+            initialDelaySeconds: 20
+            periodSeconds: 20

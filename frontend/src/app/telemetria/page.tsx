@@ -31,6 +31,10 @@ type IncidenteRecord = {
   valor_detectado: number;
   umbral_permitido: number;
   timestamp_bd: string;
+  valor_pico?: number | null;
+  timestamp_fin?: string | null;
+  resuelta?: boolean;
+  estado?: "activa" | "resolviendo" | "resuelta";
 };
 
 type ViajeRecord = {
@@ -59,6 +63,18 @@ const badgeClassNames: Record<IncidenteRecord["tipo_alerta"], string> = {
   TEMP_ALTA: "border-rose-400/30 bg-rose-500/10 text-rose-100",
   FUERA_RUTA: "border-amber-400/30 bg-amber-500/10 text-amber-100",
   BATERIA_BAJA: "border-cyan-400/30 bg-cyan-500/10 text-cyan-100",
+};
+
+const statusBadgeClassNames: Record<"activa" | "resolviendo" | "resuelta", string> = {
+  activa: "border-rose-400/30 bg-rose-500/10 text-rose-300",
+  resolviendo: "border-amber-400/30 bg-amber-500/10 text-amber-300",
+  resuelta: "border-emerald-400/30 bg-emerald-500/10 text-emerald-300",
+};
+
+const statusLabels: Record<"activa" | "resolviendo" | "resuelta", string> = {
+  activa: "Activa",
+  resolviendo: "Estabilizando",
+  resuelta: "Resuelta",
 };
 
 export default function TelemetriaPage() {
@@ -370,20 +386,31 @@ export default function TelemetriaPage() {
                           <p className="text-xs uppercase tracking-[0.3em] text-slate-500">{incidente.id}</p>
                           <h4 className="mt-2 text-base font-semibold">Viaje {incidente.viaje_id}</h4>
                         </div>
-                        <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${badgeClassNames[incidente.tipo_alerta]}`}>{incidente.tipo_alerta}</span>
+                        <div className="flex gap-2">
+                          <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${badgeClassNames[incidente.tipo_alerta]}`}>{incidente.tipo_alerta}</span>
+                          {incidente.estado && (
+                            <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${statusBadgeClassNames[incidente.estado]}`}>{statusLabels[incidente.estado]}</span>
+                          )}
+                        </div>
                       </div>
-                      <div className="mt-4 grid gap-3 sm:grid-cols-3 text-sm text-slate-300">
+                      <div className="mt-4 grid gap-3 sm:grid-cols-4 text-sm text-slate-300">
                         <div>
                           <p className="text-slate-500">Detectado</p>
                           <p className="mt-1 font-semibold text-slate-100">{incidente.valor_detectado}</p>
+                        </div>
+                        <div>
+                          <p className="text-slate-500">Valor Pico</p>
+                          <p className="mt-1 font-semibold text-slate-100">{incidente.valor_pico ?? incidente.valor_detectado}</p>
                         </div>
                         <div>
                           <p className="text-slate-500">Umbral</p>
                           <p className="mt-1 font-semibold text-slate-100">{incidente.umbral_permitido}</p>
                         </div>
                         <div>
-                          <p className="text-slate-500">Fecha</p>
-                          <p className="mt-1 font-semibold text-slate-100">{new Date(incidente.timestamp_bd).toLocaleString()}</p>
+                          <p className="text-slate-500">{incidente.estado === "resuelta" ? "Resuelto el" : "Fecha Inicio"}</p>
+                          <p className="mt-1 font-semibold text-slate-100">
+                            {new Date(incidente.estado === "resuelta" && incidente.timestamp_fin ? incidente.timestamp_fin : incidente.timestamp_bd).toLocaleString()}
+                          </p>
                         </div>
                       </div>
                     </article>

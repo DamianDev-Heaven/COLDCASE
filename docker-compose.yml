@@ -93,12 +93,16 @@ services:
       dockerfile: Dockerfile
       target: development
     ports:
+      # NOTA DE EVALUACIÓN: Para aislamiento total en producción, elimina este bloque ports.
+      # Los contenedores de coldcase_net se comunicarán internamente usando http://simulador:4000.
       - "4000:4000"
     volumes:
       - ./simulador:/usr/src/app
+      - simulator_data:/usr/src/app/data
     environment:
       API_URL: ${SIMULADOR_API_URL:-http://backend:3000}
       PORT: ${SIMULADOR_PORT:-4000}
+      STATE_FILE_PATH: /usr/src/app/data/simulator_state.json
     depends_on:
       - backend
     networks:
@@ -122,6 +126,7 @@ volumes:
   pgdata:
   backend_node_modules:
   frontend_node_modules:
+  simulator_data:
 
 networks:
   coldcase_net:

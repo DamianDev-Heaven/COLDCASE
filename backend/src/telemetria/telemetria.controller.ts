@@ -21,6 +21,16 @@ export class TelemetriaController {
     return this.telemetriaService.findByViaje(viajeId);
   }
 
+  @Get('contingency/stats')
+  getContingencyStats() {
+    return this.telemetriaService.getContingencyStats();
+  }
+
+  @Post('contingency/retry')
+  retryContingency() {
+    return this.telemetriaService.retryContingency();
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.telemetriaService.findOne(Number(id));

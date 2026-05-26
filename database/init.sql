@@ -375,3 +375,12 @@ ALTER TABLE incidente ADD COLUMN IF NOT EXISTS timestamp_fin TIMESTAMP;
 ALTER TABLE incidente ADD COLUMN IF NOT EXISTS valor_pico FLOAT;
 ALTER TABLE analisis_ia ALTER COLUMN telemetria_id DROP NOT NULL;
 ALTER TABLE analisis_ia ADD COLUMN IF NOT EXISTS incidente_id UUID REFERENCES incidente(id) ON DELETE CASCADE;
+
+-- Tabla para almacenar los eventos de estado/actualizaciones de incidente (Append-only)
+CREATE TABLE IF NOT EXISTS incidente_evento (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    incidente_id UUID NOT NULL REFERENCES incidente(id) ON DELETE CASCADE,
+    tipo_evento VARCHAR(50) NOT NULL, -- 'PICO_ACTUALIZADO', 'RESUELTO'
+    valor_registrado FLOAT,
+    timestamp_evento TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
