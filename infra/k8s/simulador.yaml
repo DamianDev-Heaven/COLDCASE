@@ -1,0 +1,59 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: simulador-pvc
+  namespace: coldcase
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: simulador
+  namespace: coldcase
+spec:
+  ports:
+    - port: 4000
+      targetPort: 4000
+  selector:
+    app: simulador
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: simulador
+  namespace: coldcase
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: simulador
+  template:
+    metadata:
+      labels:
+        app: simulador
+    spec:
+      containers:
+        - name: simulador
+          image: coldcase-simulador:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: API_URL
+              value: "http://backend:3000"
+            - name: PORT
+              value: "4000"
+            - name: STATE_FILE_PATH
+              value: "/usr/src/app/data/simulator_state.json"
+          ports:
+            - containerPort: 4000
+          volumeMounts:
+            - name: simulador-storage
+              mountPath: /usr/src/app/data
+      volumes:
+        - name: simulador-storage
+          persistentVolumeClaim:
+            claimName: simulador-pvc

@@ -61,6 +61,8 @@ function createTripState(viaje) {
 		history: [],
 		compressorFailed: false,
 		routeDeviated: false,
+		gateOpenTicks: 0,
+		offlineBuffer: [],
 	};
 }
 

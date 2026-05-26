@@ -1,0 +1,46 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: isolate-simulador
+  namespace: coldcase
+spec:
+  podSelector:
+    matchLabels:
+      app: simulador
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Only allow connections from backend pods
+    - from:
+        - podSelector:
+            matchLabels:
+              app: backend
+      ports:
+        - protocol: TCP
+          port: 4000
+    # Allow frontend pods if direct browser routing via node.js server-side proxies is configured
+    - from:
+        - podSelector:
+            matchLabels:
+              app: frontend
+      ports:
+        - protocol: TCP
+          port: 4000
+  egress:
+    # Allow simulator to talk to backend and DNS resolver
+    - to:
+        - podSelector:
+            matchLabels:
+              app: backend
+      ports:
+        - protocol: TCP
+          port: 3000
+    - to:
+        - namespaceSelector: {}
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53

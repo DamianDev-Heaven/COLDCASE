@@ -239,6 +239,10 @@ CREATE INDEX IF NOT EXISTS idx_analisis_ia_viaje ON analisis_ia(viaje_id);
 -- DATOS SEMILLA
 -- ============================================
 
+INSERT INTO usuario (email, password, rol) VALUES
+    ('admin@coldcase.com', '$2b$10$oUQJQDtRsbQerCalkZctXuC/759uYPda8CB2n4mao.rhJrX3lTggG', 'Admin')
+ON CONFLICT (email) DO NOTHING;
+
 INSERT INTO empresa (id, nombre, lat, lon) VALUES
     ('11111111-1111-4111-8111-111111111111', 'Coldcase Central', 13.692900, -89.218200),
     ('22222222-2222-4222-8222-222222222222', 'Coldcase Occidente', 13.980000, -89.559700)
@@ -375,3 +379,12 @@ ALTER TABLE incidente ADD COLUMN IF NOT EXISTS timestamp_fin TIMESTAMP;
 ALTER TABLE incidente ADD COLUMN IF NOT EXISTS valor_pico FLOAT;
 ALTER TABLE analisis_ia ALTER COLUMN telemetria_id DROP NOT NULL;
 ALTER TABLE analisis_ia ADD COLUMN IF NOT EXISTS incidente_id UUID REFERENCES incidente(id) ON DELETE CASCADE;
+
+-- Tabla para almacenar los eventos de estado/actualizaciones de incidente (Append-only)
+CREATE TABLE IF NOT EXISTS incidente_evento (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    incidente_id UUID NOT NULL REFERENCES incidente(id) ON DELETE CASCADE,
+    tipo_evento VARCHAR(50) NOT NULL, -- 'PICO_ACTUALIZADO', 'RESUELTO'
+    valor_registrado FLOAT,
+    timestamp_evento TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
