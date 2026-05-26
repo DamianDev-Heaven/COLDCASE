@@ -69,6 +69,7 @@ function saveState() {
 				routeDeviated: state.routeDeviated,
 				gateOpenTicks: state.gateOpenTicks,
 				history: state.history,
+				offlineBuffer: state.offlineBuffer || [],
 			}))
 		};
 		const dir = path.dirname(STATE_FILE_PATH);
@@ -113,6 +114,7 @@ function loadState() {
 						gateOpenTicks: sim.gateOpenTicks || 0,
 						history: sim.history || [],
 						routePoints: [],
+						offlineBuffer: sim.offlineBuffer || [],
 					});
 				}
 			}
@@ -219,6 +221,62 @@ async function tickSimulation() {
 		const state = ensureTripState(viaje, simulationMap);
 		const sample = buildSample(viaje, state, runtimeState, logEvent);
 
+		// Si el enlace de sensores IoT está caído (pérdida de señal), guardar en buffer local
+		if (runtimeState.iotFailure) {
+			state.offlineBuffer = state.offlineBuffer || [];
+			state.offlineBuffer.push(sample.payload);
+			logEvent('warn', `Simulador: Pérdida de señal. Almacenando telemetría en búfer local (${state.offlineBuffer.length} lecturas).`, viaje.id);
+			
+			// Avanzar físicamente de todos modos
+			const reachedEnd = advanceRouteState(state, runtimeState);
+			if (reachedEnd) {
+				logEvent('info', `Simulador: Viaje ${viaje.id} completó su ruta offline. Datos retenidos hasta reconexión.`, viaje.id);
+			}
+			return;
+		}
+
+		// Si recupera conexión y tiene datos retenidos offline, transmitirlos en orden cronológico
+		if (state.offlineBuffer && state.offlineBuffer.length > 0) {
+			logEvent('info', `Simulador: Conectividad recuperada. Transmitiendo ${state.offlineBuffer.length} lecturas retenidas en búfer...`, viaje.id);
+			const pending = [...state.offlineBuffer];
+			state.offlineBuffer = []; // Limpiar para evitar duplicaciones si falla en el medio
+			
+			let sentCount = 0;
+			for (const payload of pending) {
+				try {
+					// bypass temporal de la validación de fallo de señal de postTelemetry para este vaciado
+					const response = await postTelemetry(payload, API_URL, { ...runtimeState, iotFailure: false });
+					state.history.unshift({
+						id: response.id || `${Date.now()}`,
+						temp: Number(payload.temp),
+						battery: Number(payload.bateria),
+						lat: Number(payload.lat),
+						lon: Number(payload.lon),
+						timestamp: response.received_at || payload.timestamp_sensor,
+						incidente_id: response.incidente_id || null,
+						ia_diagnosis: response.ia_diagnosis || null,
+					});
+					state.history = state.history.slice(0, 12);
+					state.lastPayload = payload;
+					state.lastIncident = response.incidente_id || null;
+					state.incidentCount += response.incidente_id ? 1 : 0;
+					runtimeState.totalSent += 1;
+					runtimeState.totalIncidents += response.incidente_id ? 1 : 0;
+					sentCount++;
+				} catch (err) {
+					// Si falla alguna transmisión, devolver las restantes al búfer
+					const remaining = pending.slice(sentCount);
+					state.offlineBuffer = [...remaining, ...state.offlineBuffer];
+					logEvent('error', `Error al vaciar búfer offline para viaje ${viaje.id}: ${err.message}. Retenidos: ${state.offlineBuffer.length}`, viaje.id);
+					break;
+				}
+			}
+			if (sentCount > 0) {
+				logEvent('success', `Simulador: Búfer vaciado. Transmitidos ${sentCount} reportes offline para viaje ${viaje.id}.`, viaje.id);
+			}
+		}
+
+		// Transmitir la lectura actual
 		try {
 			const response = await postTelemetry(sample.payload, API_URL, runtimeState);
 			state.history.unshift({
@@ -432,6 +490,22 @@ async function handleApiRequest(req, res, pathname) {
 			const state = simulationMap.get(payload.viajeId);
 			state.gateOpenTicks = 4;
 			logEvent('warn', `Simulador: Apertura MANUAL de compuerta forzada para viaje ${payload.viajeId}.`, payload.viajeId);
+			saveState();
+			res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+			res.end(JSON.stringify({ viajeId: payload.viajeId, gateOpenTicks: state.gateOpenTicks }));
+		} else {
+			res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+			res.end(JSON.stringify({ error: 'Viaje no encontrado o inactivo.' }));
+		}
+		return true;
+	}
+
+	if (req.method === 'POST' && pathname === '/api/simulation/close-gate') {
+		const payload = await readBody(req);
+		if (payload.viajeId && simulationMap.has(payload.viajeId)) {
+			const state = simulationMap.get(payload.viajeId);
+			state.gateOpenTicks = 0;
+			logEvent('success', `Simulador: Cierre MANUAL de compuerta para viaje ${payload.viajeId}.`, payload.viajeId);
 			saveState();
 			res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
 			res.end(JSON.stringify({ viajeId: payload.viajeId, gateOpenTicks: state.gateOpenTicks }));

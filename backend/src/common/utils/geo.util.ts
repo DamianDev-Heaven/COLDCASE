@@ -97,10 +97,29 @@ export class GeoUtils {
     if (waypoints.length === 0) {
       return Infinity;
     }
+    if (waypoints.length === 1) {
+      return this.haversineKm(point.lat, point.lon, waypoints[0].lat, waypoints[0].lon);
+    }
 
     let minKm = Infinity;
-    for (const wp of waypoints) {
-      const dist = this.haversineKm(point.lat, point.lon, wp.lat, wp.lon);
+    for (let i = 0; i < waypoints.length - 1; i++) {
+      const p1 = waypoints[i];
+      const p2 = waypoints[i + 1];
+
+      const dx = p2.lon - p1.lon;
+      const dy = p2.lat - p1.lat;
+
+      let t = 0;
+      const denom = dx * dx + dy * dy;
+      if (denom > 0) {
+        t = ((point.lon - p1.lon) * dx + (point.lat - p1.lat) * dy) / denom;
+        t = Math.max(0, Math.min(1, t));
+      }
+
+      const closestLat = p1.lat + t * dy;
+      const closestLon = p1.lon + t * dx;
+
+      const dist = this.haversineKm(point.lat, point.lon, closestLat, closestLon);
       if (dist < minKm) {
         minKm = dist;
       }

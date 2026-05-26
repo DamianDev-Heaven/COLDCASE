@@ -48,8 +48,12 @@ export class DbService implements OnModuleDestroy, OnModuleInit {
         incidente_id UUID NOT NULL REFERENCES incidente(id) ON DELETE CASCADE,
         tipo_evento VARCHAR(50) NOT NULL,
         valor_registrado FLOAT,
-        timestamp_evento TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        timestamp_evento TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        comentario TEXT
       );
+    `);
+    await this.query(`
+      ALTER TABLE incidente_evento ADD COLUMN IF NOT EXISTS comentario TEXT;
     `);
     console.log('[DbService] Inicialización de esquema de incidente_evento completada.');
   }

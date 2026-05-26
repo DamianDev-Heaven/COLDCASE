@@ -95,8 +95,6 @@ export class IaAnalysisService {
   private readonly analysisMode: 'auto' | 'deterministic' | 'llm';
   private readonly defaultModelName: string;
 
-  private static readonly REALTIME_MODEL = 'llama3-70b-8192';
-
   constructor(
     private readonly configService: ConfigService,
     private readonly db: DbService,
@@ -553,37 +551,6 @@ export class IaAnalysisService {
     };
   }
 
-  private buildPrompt(args: {
-    iotId: string;
-    temperaturaActual: number;
-    bateriaActual: number;
-    limiteMaxTemp: number;
-    margenDesvioKm: number;
-    routeMetrics: RouteMetrics;
-  }): string {
-    const {
-      iotId,
-      temperaturaActual,
-      bateriaActual,
-      limiteMaxTemp,
-      margenDesvioKm,
-      routeMetrics,
-    } = args;
-    return [
-      'Eres un analista de IA para logística de cadena de frio y seguimiento de rutas.',
-      'Responde siempre con un JSON puro y sin texto adicional.',
-      `IoT: ${iotId}`,
-      `Temperatura actual: ${temperaturaActual}°C`,
-      `Bateria actual: ${bateriaActual}%`,
-      `Limite maximo de temperatura: ${limiteMaxTemp}°C`,
-      `Margen de desvio: ${margenDesvioKm} km`,
-      `Distancia de la ruta: ${routeMetrics.distanciaRutaKm != null ? `${routeMetrics.distanciaRutaKm.toFixed(2)} km` : 'no disponible'}`,
-      `Desvio actual: ${routeMetrics.desvioKm != null ? `${routeMetrics.desvioKm.toFixed(2)} km` : 'no disponible'}`,
-      `OSRM usado: ${routeMetrics.osrmUsado ? 'si' : 'no'}`,
-      'Propiedades requeridas: "nivel_riesgo" (CRITICO, ALTO o MODERADO), "diagnostico_tecnico" y "accion_mitigacion".',
-    ].join('\n');
-  }
-
   private async loadViajeContext(
     viajeId: string | undefined,
   ): Promise<ViajeContext | null> {
@@ -752,7 +719,7 @@ export class IaAnalysisService {
             { role: 'system', content: systemPrompt },
             { role: 'user', content: userPrompt },
           ],
-          model: IaAnalysisService.REALTIME_MODEL,
+          model: this.defaultModelName,
           response_format: { type: 'json_object' },
           temperature: 0.1,
         },
@@ -1024,7 +991,7 @@ export class IaAnalysisService {
   }): Promise<AnalisisIaResultado> {
     const versionModelo =
       data.fuente === 'groq_llm'
-        ? IaAnalysisService.REALTIME_MODEL
+        ? this.defaultModelName
         : 'reglas_deterministas_v1';
 
     const result = await this.db.query<AnalisisIaRow>(

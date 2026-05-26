@@ -450,4 +450,81 @@ export class ViajeService {
     // 4. Retorno Inmediato del estado del viaje actualizado
     return this.findOne(id);
   }
+
+  async enviarComandoSimulador(id: string, comando: string, enabled?: boolean) {
+    const simuladorUrl = process.env.SIMULADOR_URL || 'http://simulador:4000';
+    
+    // Validar que el viaje exista
+    await this.findOne(id);
+
+    let path = '';
+    let bodyPayload: any = { viajeId: id };
+
+    if (comando === 'encender-compresor') {
+      path = '/api/simulation/toggle-compressor';
+      bodyPayload.enabled = false; // Encender compresor = apagar falla
+    } else if (comando === 'apagar-compresor') {
+      path = '/api/simulation/toggle-compressor';
+      bodyPayload.enabled = true; // Simular falla compresor
+    } else if (comando === 'corregir-desvio') {
+      path = '/api/simulation/toggle-deviation';
+      bodyPayload.enabled = false; // Reincorporar = apagar desvío
+    } else if (comando === 'provocar-desvio') {
+      path = '/api/simulation/toggle-deviation';
+      bodyPayload.enabled = true; // Simular desvío de ruta
+    } else if (comando === 'cerrar-compuerta') {
+      path = '/api/simulation/close-gate';
+    } else if (comando === 'abrir-compuerta') {
+      path = '/api/simulation/force-gate'; // Simular apertura de compuerta
+    } else if (comando === 'toggle-signal-loss') {
+      path = '/api/simulation/toggle-iot-link';
+      bodyPayload = { enabled }; // Para el estado global de señal
+    } else {
+      throw new Error(`Comando no reconocido: ${comando}`);
+    }
+
+    try {
+      const response = await fetch(`${simuladorUrl}${path}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(bodyPayload),
+      });
+
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(`El simulador retornó error: ${text}`);
+      }
+
+      return await response.json();
+    } catch (err: any) {
+      throw new Error(`Error de comunicación con el simulador: ${err.message}`);
+    }
+  }
+
+  async getEstadoSimulador(id: string) {
+    const simuladorUrl = process.env.SIMULADOR_URL || 'http://simulador:4000';
+    try {
+      const response = await fetch(`${simuladorUrl}/api/state`);
+      if (!response.ok) {
+        return null;
+      }
+      const data = await response.json();
+      const tripSim = data.simulations?.find((s: any) => s.viajeId === id);
+      return {
+        iotFailure: !!data.iotFailure,
+        paused: !!data.paused,
+        turboMode: !!data.turboMode,
+        trip: tripSim ? {
+          viajeId: tripSim.viajeId,
+          compressorFailed: !!tripSim.compressorFailed,
+          routeDeviated: !!tripSim.routeDeviated,
+          gateOpenTicks: Number(tripSim.gateOpenTicks || 0),
+          offlineBufferLength: Number(tripSim.offlineBuffer?.length || (tripSim.offlineBufferLength ?? 0)),
+          status: tripSim.status,
+        } : null,
+      };
+    } catch {
+      return null;
+    }
+  }
 }

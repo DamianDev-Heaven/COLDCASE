@@ -40,4 +40,17 @@ export class ViajeController {
   finalizar(@Param('id') id: string) {
     return this.viajeService.finalizar(id);
   }
+
+  @Post(':id/comando-simulador')
+  enviarComandoSimulador(
+    @Param('id') id: string,
+    @Body() body: { comando: string; enabled?: boolean },
+  ) {
+    return this.viajeService.enviarComandoSimulador(id, body.comando, body.enabled);
+  }
+
+  @Get(':id/simulador-estado')
+  getEstadoSimulador(@Param('id') id: string) {
+    return this.viajeService.getEstadoSimulador(id);
+  }
 }
