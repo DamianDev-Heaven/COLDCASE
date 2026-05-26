@@ -44,7 +44,8 @@ export class TelemetriaService {
     private readonly incidenteService: IncidenteService,
     private readonly iaAnalysisService: IaAnalysisService,
     @InjectQueue('ia-analysis-queue') private readonly iaQueue: Queue,
-    @InjectQueue('telemetria-contingency-queue') private readonly contingencyQueue: Queue,
+    @InjectQueue('telemetria-contingency-queue')
+    private readonly contingencyQueue: Queue,
     private readonly tempDetector: TemperatureAnomalyDetector,
     private readonly batteryDetector: BatteryAnomalyDetector,
     private readonly routeDetector: RouteDeviationDetector,
@@ -90,8 +91,11 @@ export class TelemetriaService {
             },
           });
           ia_diagnosis = 'Análisis encolado para procesamiento en lote';
-        } catch (err: any) {
-          console.warn(`Error al encolar análisis IA en tiempo real: ${err.message}`);
+        } catch (err) {
+          const errorMsg = err instanceof Error ? err.message : String(err);
+          console.warn(
+            `Error al encolar análisis IA en tiempo real: ${errorMsg}`,
+          );
         }
       }
 
@@ -99,33 +103,37 @@ export class TelemetriaService {
         ...result,
         ia_diagnosis,
       };
-    } catch (err: any) {
+    } catch (err) {
       // Si es un error de validación (4xx), propagarlo normalmente
-      if (err.status && err.status < 500) {
-        throw err;
+      if (err && typeof err === 'object' && 'status' in err) {
+        const status = (err as Record<string, unknown>).status;
+        if (typeof status === 'number' && status < 500) {
+          throw err;
+        }
       }
 
-      console.error('Fallo de escritura en base de datos. Activando contingencia BullMQ:', err.message);
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      console.error(
+        'Fallo de escritura en base de datos. Activando contingencia BullMQ:',
+        errorMsg,
+      );
 
       try {
         // Encolar telemetría con ID de trabajo único para de-duplicación
         const jobId = `${payload.viaje_id}-${payload.timestamp_sensor}`;
-        await this.contingencyQueue.add(
-          'process-contingency',
-          payload,
-          {
-            jobId,
-            attempts: 20,
-            backoff: {
-              type: 'exponential',
-              delay: 10000,
-            },
+        await this.contingencyQueue.add('process-contingency', payload, {
+          jobId,
+          attempts: 20,
+          backoff: {
+            type: 'exponential',
+            delay: 10000,
           },
-        );
+        });
 
         return {
           contingency: true,
-          message: 'Telemetría guardada en cola de contingencia temporal por fallo en base de datos.',
+          message:
+            'Telemetría guardada en cola de contingencia temporal por fallo en base de datos.',
           id: -1,
           viaje_id: payload.viaje_id,
           lat: String(payload.lat),
@@ -142,8 +150,13 @@ export class TelemetriaService {
           timestamp_bd: null,
           ia_diagnosis: 'En espera de restablecimiento de base de datos',
         };
-      } catch (redisErr: any) {
-        console.error('Error crítico: Redis también falló al guardar en contingencia:', redisErr.message);
+      } catch (redisErr) {
+        const redisMsg =
+          redisErr instanceof Error ? redisErr.message : String(redisErr);
+        console.error(
+          'Error crítico: Redis también falló al guardar en contingencia:',
+          redisMsg,
+        );
         throw err;
       }
     }
@@ -215,21 +228,30 @@ export class TelemetriaService {
         );
       }
 
-      let incidente: any | null = null;
+      let incidente: IncidenteRow | null = null;
       let encolarIa = false;
-      let incidenteParaIa: any | null = null;
+      let incidenteParaIa: IncidenteRow | null = null;
 
       // 3. Evaluar anomalías usando detectores en cadena de responsabilidad
-      const detectors = [this.tempDetector, this.batteryDetector, this.routeDetector];
+      const detectors = [
+        this.tempDetector,
+        this.batteryDetector,
+        this.routeDetector,
+      ];
       for (const detector of detectors) {
-        const result = await detector.evaluate(payload, telemetria.id, viaje, client);
+        const result = await detector.evaluate(
+          payload,
+          telemetria.id,
+          viaje,
+          client,
+        );
         if (result && result.incidente) {
-          incidente = result.incidente;
+          incidente = result.incidente as IncidenteRow;
           if (result.encolarIa) {
             encolarIa = true;
           }
           if (result.incidenteParaIa) {
-            incidenteParaIa = result.incidenteParaIa;
+            incidenteParaIa = result.incidenteParaIa as IncidenteRow;
           }
           break;
         }
@@ -294,18 +316,28 @@ export class TelemetriaService {
     }
 
     try {
-      const counts = await this.contingencyQueue.getJobCounts('wait', 'active', 'delayed', 'failed');
-      const size = (counts.wait || 0) + (counts.active || 0) + (counts.delayed || 0) + (counts.failed || 0);
+      const counts = await this.contingencyQueue.getJobCounts(
+        'wait',
+        'active',
+        'delayed',
+        'failed',
+      );
+      const size =
+        (counts.wait || 0) +
+        (counts.active || 0) +
+        (counts.delayed || 0) +
+        (counts.failed || 0);
       return {
         dbStatus,
         size,
         counts,
       };
-    } catch (err: any) {
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
       return {
         dbStatus,
         size: 0,
-        error: err.message,
+        error: errorMsg,
       };
     }
   }
@@ -317,8 +349,9 @@ export class TelemetriaService {
         await job.retry();
       }
       return { retriedCount: failedJobs.length };
-    } catch (err: any) {
-      return { error: err.message };
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      return { error: errorMsg };
     }
   }
 }

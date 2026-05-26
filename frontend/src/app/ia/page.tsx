@@ -39,6 +39,16 @@ interface Viaje {
   limite_min_temp?: number;
 }
 
+interface Incidente {
+  id: string;
+  resuelta: boolean;
+  tipo_alerta: string;
+  timestamp_bd: string;
+  umbral_permitido: number;
+  valor_detectado: number;
+  comentario_resolucion?: string | null;
+}
+
 type SimState = {
   iotFailure: boolean;
   paused: boolean;
@@ -109,7 +119,7 @@ export default function IaPage() {
   const [dropOpen, setDropOpen] = useState(false);
   const dropRef = useRef<HTMLDivElement>(null);
   const [simState, setSimState] = useState<SimState>(null);
-  const [incidentes, setIncidentes] = useState<any[]>([]);
+  const [incidentes, setIncidentes] = useState<Incidente[]>([]);
   const [incFilter, setIncFilter] = useState<"activas" | "resueltas" | "todas">("activas");
 
   // Load active trips for control tab
@@ -140,6 +150,7 @@ export default function IaPage() {
   // Poll simulator state
   useEffect(() => {
     if (!viajeSeleccionado?.id) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSimState(null);
       return;
     }
@@ -158,6 +169,7 @@ export default function IaPage() {
   // Poll incidents
   useEffect(() => {
     if (!viajeSeleccionado?.id) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setIncidentes([]);
       return;
     }
@@ -651,7 +663,7 @@ export default function IaPage() {
                           ))}
                           {filtered.length > 20 && (
                             <div className="text-center text-[9px] font-mono text-slate-500 py-2 border border-dashed border-slate-700 rounded-xl">
-                              +{filtered.length - 20} más · usa "Cerrar todas" para limpiar masivamente
+                              +{filtered.length - 20} más · usa &quot;Cerrar todas&quot; para limpiar masivamente
                             </div>
                           )}
                           {filtered.length === 0 && (

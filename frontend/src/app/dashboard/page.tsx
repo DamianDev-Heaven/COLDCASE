@@ -18,11 +18,8 @@ import {
   X,
   Truck,
   ChevronDown,
-  ChevronLeft,
-  ChevronRight,
   Network,
   Users,
-  Map,
   Cpu,
   PanelLeft,
   PanelRight,
@@ -1755,7 +1752,7 @@ function NavItem({
   view?: string;
   currentView?: string;
   sidebarExpanded: boolean;
-  onNavigate?: (v: any) => void;
+  onNavigate?: (v: string) => void;
   href?: string;
 }) {
   const isActive = view ? currentView === view : false;

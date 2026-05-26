@@ -32,7 +32,9 @@ export class RouteDeviationDetector implements AnomalyDetector {
       }
 
       // Parse, downsample and check distance
-      const parsedWaypoints = GeoUtils.parseRouteWaypoints(viaje.ruta_waypoints);
+      const parsedWaypoints = GeoUtils.parseRouteWaypoints(
+        viaje.ruta_waypoints,
+      );
       if (parsedWaypoints.length === 0) {
         return null;
       }
@@ -55,9 +57,10 @@ export class RouteDeviationDetector implements AnomalyDetector {
 
         return { incidente: newIncident };
       }
-    } catch (err: any) {
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
       console.warn(
-        `[RouteDeviationDetector] Error al evaluar desviación de ruta (no se bloqueará la telemetría): ${err.message}`,
+        `[RouteDeviationDetector] Error al evaluar desviación de ruta (no se bloqueará la telemetría): ${errorMsg}`,
       );
     }
 

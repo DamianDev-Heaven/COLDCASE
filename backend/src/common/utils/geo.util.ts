@@ -25,47 +25,64 @@ export class GeoUtils {
     const sinDlat = Math.sin(dLat / 2);
     const sinDlon = Math.sin(dLon / 2);
     const a =
-      sinDlat * sinDlat +
-      sinDlon * sinDlon * Math.cos(lat1) * Math.cos(lat2);
+      sinDlat * sinDlat + sinDlon * sinDlon * Math.cos(lat1) * Math.cos(lat2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
   }
 
-  static parseRouteWaypoints(data: any): RouteWaypoint[] {
+  static parseRouteWaypoints(data: unknown): RouteWaypoint[] {
     if (!data) return [];
 
     // Case 1: Simple Array [{ lat, lon }]
     if (Array.isArray(data)) {
-      return data
-        .map((p: any) => {
-          const lat = Number(p?.lat ?? p?.latitude);
-          const lon = Number(p?.lon ?? p?.longitude);
-          return { lat, lon };
+      const arrayData = data as unknown[];
+      return arrayData
+        .map((p) => {
+          if (p && typeof p === 'object') {
+            const item = p as Record<string, unknown>;
+            const lat = Number(item.lat ?? item.latitude);
+            const lon = Number(item.lon ?? item.longitude);
+            return { lat, lon };
+          }
+          return null;
         })
-        .filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lon));
+        .filter(
+          (p): p is RouteWaypoint =>
+            p !== null && Number.isFinite(p.lat) && Number.isFinite(p.lon),
+        );
     }
 
     // Case 2: GeoJSON FeatureCollection
-    if (data && typeof data === 'object') {
-      const features = data.features;
+    if (typeof data === 'object') {
+      const geoData = data as Record<string, unknown>;
+      const features = geoData.features;
       if (Array.isArray(features) && features.length > 0) {
-        const geometry = features[0]?.geometry;
-        if (
-          geometry &&
-          geometry.type === 'LineString' &&
-          Array.isArray(geometry.coordinates)
-        ) {
-          return geometry.coordinates
-            .map((c: any) => {
-              if (Array.isArray(c) && c.length >= 2) {
-                return { lon: Number(c[0]), lat: Number(c[1]) };
-              }
-              return null;
-            })
-            .filter(
-              (p): p is RouteWaypoint =>
-                p !== null && Number.isFinite(p.lat) && Number.isFinite(p.lon),
-            );
+        const firstFeature = features[0] as unknown;
+        if (firstFeature && typeof firstFeature === 'object') {
+          const featureObj = firstFeature as Record<string, unknown>;
+          const geometry = featureObj.geometry;
+          if (geometry && typeof geometry === 'object') {
+            const geomObj = geometry as Record<string, unknown>;
+            if (
+              geomObj.type === 'LineString' &&
+              Array.isArray(geomObj.coordinates)
+            ) {
+              const coords = geomObj.coordinates as unknown[];
+              return coords
+                .map((c) => {
+                  if (Array.isArray(c) && c.length >= 2) {
+                    return { lon: Number(c[0]), lat: Number(c[1]) };
+                  }
+                  return null;
+                })
+                .filter(
+                  (p): p is RouteWaypoint =>
+                    p !== null &&
+                    Number.isFinite(p.lat) &&
+                    Number.isFinite(p.lon),
+                );
+            }
+          }
         }
       }
     }
@@ -98,7 +115,12 @@ export class GeoUtils {
       return Infinity;
     }
     if (waypoints.length === 1) {
-      return this.haversineKm(point.lat, point.lon, waypoints[0].lat, waypoints[0].lon);
+      return this.haversineKm(
+        point.lat,
+        point.lon,
+        waypoints[0].lat,
+        waypoints[0].lon,
+      );
     }
 
     let minKm = Infinity;
@@ -119,7 +141,12 @@ export class GeoUtils {
       const closestLat = p1.lat + t * dy;
       const closestLon = p1.lon + t * dx;
 
-      const dist = this.haversineKm(point.lat, point.lon, closestLat, closestLon);
+      const dist = this.haversineKm(
+        point.lat,
+        point.lon,
+        closestLat,
+        closestLon,
+      );
       if (dist < minKm) {
         minKm = dist;
       }

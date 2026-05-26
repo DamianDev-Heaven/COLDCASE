@@ -29,10 +29,7 @@ export class IncidenteController {
   }
 
   @Post(':id/resolver')
-  resolver(
-    @Param('id') id: string,
-    @Body() body: { comentario: string },
-  ) {
+  resolver(@Param('id') id: string, @Body() body: { comentario: string }) {
     return this.incidenteService.resolver(id, body.comentario);
   }
 }

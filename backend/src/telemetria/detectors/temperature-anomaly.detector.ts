@@ -4,6 +4,17 @@ import { AnomalyDetector, AnomalyResult } from './anomaly-detector.interface';
 import { CreateTelemetriaDto } from '../dto/create-telemetria.dto';
 import { IncidenteService } from '../../incidente/incidente.service';
 
+interface ActiveIncidentRow {
+  id: string;
+  viaje_id: string;
+  telemetria_id: number;
+  tipo_alerta: string;
+  valor_detectado: number;
+  umbral_permitido: number;
+  timestamp_bd: string;
+  valor_pico: number;
+}
+
 @Injectable()
 export class TemperatureAnomalyDetector implements AnomalyDetector {
   constructor(private readonly incidenteService: IncidenteService) {}
@@ -21,7 +32,7 @@ export class TemperatureAnomalyDetector implements AnomalyDetector {
   ): Promise<AnomalyResult | null> {
     // 1. Consultar Excursión Activa (TEMP_ALTA)
     // Se considera activa si no existe un evento de tipo 'RESUELTO' para el incidente
-    const activeIncidentResult = await client.query<any>(
+    const activeIncidentResult = await client.query<ActiveIncidentRow>(
       `SELECT i.id, i.viaje_id, i.telemetria_id, i.tipo_alerta, i.valor_detectado, i.umbral_permitido, i.timestamp_bd,
               COALESCE((SELECT valor_registrado FROM incidente_evento WHERE incidente_id = i.id AND tipo_evento = 'PICO_ACTUALIZADO' ORDER BY timestamp_evento DESC LIMIT 1), i.valor_pico, i.valor_detectado) as valor_pico
        FROM incidente i

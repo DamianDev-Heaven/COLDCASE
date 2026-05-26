@@ -24,9 +24,10 @@ export class DbService implements OnModuleDestroy, OnModuleInit {
         await this.query('SELECT 1');
         connected = true;
         break;
-      } catch (err: any) {
+      } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : String(err);
         console.warn(
-          `[DbService] Error de conexión a la base de datos (Intento ${attempt}/${maxRetries}): ${err.message}`,
+          `[DbService] Error de conexión a la base de datos (Intento ${attempt}/${maxRetries}): ${errorMsg}`,
         );
         if (attempt < maxRetries) {
           await new Promise((resolve) => setTimeout(resolve, delayMs));
@@ -55,7 +56,9 @@ export class DbService implements OnModuleDestroy, OnModuleInit {
     await this.query(`
       ALTER TABLE incidente_evento ADD COLUMN IF NOT EXISTS comentario TEXT;
     `);
-    console.log('[DbService] Inicialización de esquema de incidente_evento completada.');
+    console.log(
+      '[DbService] Inicialización de esquema de incidente_evento completada.',
+    );
   }
 
   async onModuleDestroy() {

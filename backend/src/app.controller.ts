@@ -19,11 +19,12 @@ export class AppController {
     try {
       await this.db.query('SELECT 1');
       return { status: 'ok', db: 'up' };
-    } catch (err: any) {
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
       throw new ServiceUnavailableException({
         status: 'down',
         db: 'down',
-        error: err.message,
+        error: message,
       });
     }
   }

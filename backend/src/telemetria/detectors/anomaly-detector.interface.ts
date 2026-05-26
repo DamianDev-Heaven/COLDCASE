@@ -2,9 +2,9 @@ import { PoolClient } from 'pg';
 import { CreateTelemetriaDto } from '../dto/create-telemetria.dto';
 
 export interface AnomalyResult {
-  incidente: any | null;
+  incidente: unknown;
   encolarIa?: boolean;
-  incidenteParaIa?: any | null;
+  incidenteParaIa?: unknown;
 }
 
 export interface AnomalyDetector {

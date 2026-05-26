@@ -16,6 +16,21 @@ type FeatureCollectionRoute = {
   }>;
 };
 
+interface SimulatorState {
+  iotFailure?: boolean;
+  paused?: boolean;
+  turboMode?: boolean;
+  simulations?: Array<{
+    viajeId: string;
+    compressorFailed?: boolean;
+    routeDeviated?: boolean;
+    gateOpenTicks?: number;
+    offlineBuffer?: unknown[];
+    offlineBufferLength?: number;
+    status?: string;
+  }>;
+}
+
 @Injectable()
 export class ViajeService {
   constructor(
@@ -453,12 +468,12 @@ export class ViajeService {
 
   async enviarComandoSimulador(id: string, comando: string, enabled?: boolean) {
     const simuladorUrl = process.env.SIMULADOR_URL || 'http://simulador:4000';
-    
+
     // Validar que el viaje exista
     await this.findOne(id);
 
     let path = '';
-    let bodyPayload: any = { viajeId: id };
+    let bodyPayload: { viajeId?: string; enabled?: boolean } = { viajeId: id };
 
     if (comando === 'encender-compresor') {
       path = '/api/simulation/toggle-compressor';
@@ -495,9 +510,10 @@ export class ViajeService {
         throw new Error(`El simulador retornó error: ${text}`);
       }
 
-      return await response.json();
-    } catch (err: any) {
-      throw new Error(`Error de comunicación con el simulador: ${err.message}`);
+      return (await response.json()) as unknown;
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      throw new Error(`Error de comunicación con el simulador: ${errorMsg}`);
     }
   }
 
@@ -508,20 +524,25 @@ export class ViajeService {
       if (!response.ok) {
         return null;
       }
-      const data = await response.json();
-      const tripSim = data.simulations?.find((s: any) => s.viajeId === id);
+      const data = (await response.json()) as SimulatorState;
+      const tripSim = data.simulations?.find((s) => s.viajeId === id);
       return {
         iotFailure: !!data.iotFailure,
         paused: !!data.paused,
         turboMode: !!data.turboMode,
-        trip: tripSim ? {
-          viajeId: tripSim.viajeId,
-          compressorFailed: !!tripSim.compressorFailed,
-          routeDeviated: !!tripSim.routeDeviated,
-          gateOpenTicks: Number(tripSim.gateOpenTicks || 0),
-          offlineBufferLength: Number(tripSim.offlineBuffer?.length || (tripSim.offlineBufferLength ?? 0)),
-          status: tripSim.status,
-        } : null,
+        trip: tripSim
+          ? {
+              viajeId: tripSim.viajeId,
+              compressorFailed: !!tripSim.compressorFailed,
+              routeDeviated: !!tripSim.routeDeviated,
+              gateOpenTicks: Number(tripSim.gateOpenTicks || 0),
+              offlineBufferLength: Number(
+                tripSim.offlineBuffer?.length ||
+                  (tripSim.offlineBufferLength ?? 0),
+              ),
+              status: tripSim.status,
+            }
+          : null,
       };
     } catch {
       return null;

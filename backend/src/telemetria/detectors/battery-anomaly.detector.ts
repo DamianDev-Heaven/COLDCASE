@@ -19,7 +19,7 @@ export class BatteryAnomalyDetector implements AnomalyDetector {
     client: PoolClient,
   ): Promise<AnomalyResult | null> {
     const batteryLimit = TELEMETRY_CONSTANTS.BATTERY_THRESHOLD;
-    
+
     if (payload.bateria != null && Number(payload.bateria) <= batteryLimit) {
       const newIncident = await this.incidenteService.create({
         viaje_id: viaje.id,

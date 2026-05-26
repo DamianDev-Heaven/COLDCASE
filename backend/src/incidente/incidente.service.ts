@@ -128,8 +128,9 @@ export class IncidenteService {
   async resolver(id: string, comentario: string): Promise<IncidenteRow> {
     await this.findOne(id); // Verifica existencia del incidente
 
-    const textResolucion = comentario?.trim() || 'Cierre manual por el operador';
-    
+    const textResolucion =
+      comentario?.trim() || 'Cierre manual por el operador';
+
     // Inserción en incidente_evento para event sourcing
     await this.db.query(
       'INSERT INTO incidente_evento (incidente_id, tipo_evento, comentario) VALUES ($1, $2, $3)',
@@ -145,7 +146,10 @@ export class IncidenteService {
     return this.findOne(id);
   }
 
-  async resolverTodas(viajeId: string, comentario?: string): Promise<{ resueltas: number }> {
+  async resolverTodas(
+    viajeId: string,
+    comentario?: string,
+  ): Promise<{ resueltas: number }> {
     const texto = comentario?.trim() || 'Cierre masivo por el operador';
 
     // Find all active incidents for this trip
