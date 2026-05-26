@@ -1749,10 +1749,10 @@ function NavItem({
 }: {
   icon: React.ElementType;
   label: string;
-  view?: string;
-  currentView?: string;
+  view?: "overview" | "compliance" | "graph-explorer";
+  currentView?: "overview" | "compliance" | "graph-explorer";
   sidebarExpanded: boolean;
-  onNavigate?: (v: string) => void;
+  onNavigate?: (v: "overview" | "compliance" | "graph-explorer") => void;
   href?: string;
 }) {
   const isActive = view ? currentView === view : false;
@@ -1784,7 +1784,11 @@ function NavItem({
         </Link>
       ) : (
         <button
-          onClick={() => onNavigate?.(view)}
+          onClick={() => {
+            if (view) {
+              onNavigate?.(view);
+            }
+          }}
           className="w-full text-left bg-transparent p-0 border-0 outline-none cursor-pointer"
         >
           {content}
