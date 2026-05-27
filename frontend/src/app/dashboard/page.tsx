@@ -24,7 +24,6 @@ import {
   PanelLeft,
   PanelRight,
   Building,
-  Layers,
   MapPin,
 } from "lucide-react";
 
@@ -75,6 +74,13 @@ interface Transporte {
   estado: string;
 }
 
+interface PerfilProducto {
+  id: string;
+  nombre: string;
+  limite_min_temp: number;
+  limite_max_temp: number;
+}
+
 interface TelemetryPoint {
   id?: string | number;
   viaje_id: string;
@@ -101,7 +107,7 @@ export default function Dashboard() {
   const [viajes, setViajes] = useState<Viaje[]>([]);
   const [sucursales, setSucursales] = useState<Sucursal[]>([]);
   const [transportes, setTransportes] = useState<Transporte[]>([]);
-  const [perfiles, setPerfiles] = useState<any[]>([]);
+  const [perfiles, setPerfiles] = useState<PerfilProducto[]>([]);
   const [viajeSeleccionado, setViajeSeleccionado] = useState<Viaje | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -2119,7 +2125,8 @@ function AdminPanel({ apiUrl }: { apiUrl: string }) {
   };
 
   useEffect(() => {
-    loadData();
+    void loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [apiUrl]);
 
   const handleCreateEmpresa = async (e: React.FormEvent) => {
@@ -2142,8 +2149,9 @@ function AdminPanel({ apiUrl }: { apiUrl: string }) {
       setEmpresaNombre("");
       setFeedback({ type: "success", message: "Empresa creada correctamente." });
       await loadData();
-    } catch (err: any) {
-      setFeedback({ type: "error", message: err.message || "Error al crear la empresa." });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Error al crear la empresa.";
+      setFeedback({ type: "error", message: msg });
     } finally {
       setIsLoading(false);
     }
@@ -2181,8 +2189,9 @@ function AdminPanel({ apiUrl }: { apiUrl: string }) {
       setSucursalLon("");
       setFeedback({ type: "success", message: "Sucursal registrada correctamente." });
       await loadData();
-    } catch (err: any) {
-      setFeedback({ type: "error", message: err.message || "Error al crear la sucursal." });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Error al crear la sucursal.";
+      setFeedback({ type: "error", message: msg });
     } finally {
       setIsLoading(false);
     }
@@ -2238,8 +2247,9 @@ function AdminPanel({ apiUrl }: { apiUrl: string }) {
       setTransporteCapacidad("");
       setFeedback({ type: "success", message: "Vehículo y sensor IoT registrados correctamente." });
       await loadData();
-    } catch (err: any) {
-      setFeedback({ type: "error", message: err.message || "Error al registrar el transporte." });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Error al registrar el transporte.";
+      setFeedback({ type: "error", message: msg });
     } finally {
       setIsLoading(false);
     }
@@ -2476,7 +2486,7 @@ function AdminPanel({ apiUrl }: { apiUrl: string }) {
               <select
                 required
                 value={transporteEstado}
-                onChange={(e) => setTransporteEstado(e.target.value as any)}
+                onChange={(e) => setTransporteEstado(e.target.value as "Activo" | "Mantenimiento")}
                 className="w-full bg-[#0a0d15] border border-slate-800 rounded-lg px-3 py-2 text-[11px] text-slate-200 outline-none cursor-pointer transition focus:border-purple-500/50"
               >
                 <option value="Activo">Activo</option>
