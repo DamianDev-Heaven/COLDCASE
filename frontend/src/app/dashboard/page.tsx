@@ -2125,8 +2125,34 @@ function AdminPanel({ apiUrl }: { apiUrl: string }) {
   };
 
   useEffect(() => {
-    void loadData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const fetchInitialData = async () => {
+      setIsLoading(true);
+      try {
+        const [resEmp, resSuc, resTrans] = await Promise.all([
+          fetch(`${apiUrl}/empresa`),
+          fetch(`${apiUrl}/sucursal`),
+          fetch(`${apiUrl}/transporte`),
+        ]);
+        if (resEmp.ok) {
+          const empData = await resEmp.json();
+          setEmpresas(Array.isArray(empData) ? empData : []);
+        }
+        if (resSuc.ok) {
+          const sucData = await resSuc.json();
+          setSucursales(Array.isArray(sucData) ? sucData : []);
+        }
+        if (resTrans.ok) {
+          const transData = await resTrans.json();
+          setTransportes(Array.isArray(transData) ? transData : []);
+        }
+      } catch (err) {
+        console.error("Error al cargar datos administrativos:", err);
+        setFeedback({ type: "error", message: "No pudimos conectar con el backend." });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    void fetchInitialData();
   }, [apiUrl]);
 
   const handleCreateEmpresa = async (e: React.FormEvent) => {
