@@ -37,12 +37,15 @@ export class GateSecurityDetector implements AnomalyDetector {
     let dest: { lat: number; lon: number } | null = null;
 
     if (viaje.sucursal_origen_id || viaje.sucursal_destino_id) {
-      const ids = [viaje.sucursal_origen_id, viaje.sucursal_destino_id].filter(Boolean);
+      const ids = [viaje.sucursal_origen_id, viaje.sucursal_destino_id].filter(
+        Boolean,
+      );
       if (ids.length > 0) {
-        const sucursalesResult = await client.query<{ id: string; lat: string; lon: string }>(
-          'SELECT id, lat, lon FROM sucursal WHERE id = ANY($1)',
-          [ids],
-        );
+        const sucursalesResult = await client.query<{
+          id: string;
+          lat: string;
+          lon: string;
+        }>('SELECT id, lat, lon FROM sucursal WHERE id = ANY($1)', [ids]);
 
         for (const row of sucursalesResult.rows) {
           if (row.id === viaje.sucursal_origen_id) {
@@ -66,14 +69,24 @@ export class GateSecurityDetector implements AnomalyDetector {
     let nearDest = false;
 
     if (origin) {
-      const dist = GeoUtils.haversineKm(payload.lat, payload.lon, origin.lat, origin.lon);
+      const dist = GeoUtils.haversineKm(
+        payload.lat,
+        payload.lon,
+        origin.lat,
+        origin.lon,
+      );
       if (dist <= geofenceRadiusKm) {
         nearOrigin = true;
       }
     }
 
     if (dest) {
-      const dist = GeoUtils.haversineKm(payload.lat, payload.lon, dest.lat, dest.lon);
+      const dist = GeoUtils.haversineKm(
+        payload.lat,
+        payload.lon,
+        dest.lat,
+        dest.lon,
+      );
       if (dist <= geofenceRadiusKm) {
         nearDest = true;
       }
@@ -124,7 +137,9 @@ export class GateSecurityDetector implements AnomalyDetector {
 
       if (activeIncident) {
         // Consultar los últimos 3 pings registrados
-        const lastPingsResult = await client.query<{ compuerta_abierta: boolean }>(
+        const lastPingsResult = await client.query<{
+          compuerta_abierta: boolean;
+        }>(
           'SELECT compuerta_abierta FROM telemetria WHERE viaje_id = $1 ORDER BY timestamp_sensor DESC, id DESC LIMIT 3',
           [viaje.id],
         );
@@ -132,8 +147,7 @@ export class GateSecurityDetector implements AnomalyDetector {
 
         // Si todos los últimos pings (hasta 3) tienen la compuerta cerrada
         const gracePeriodMet =
-          lastPings.length >= 3 &&
-          lastPings.every((p) => !p.compuerta_abierta);
+          lastPings.length >= 3 && lastPings.every((p) => !p.compuerta_abierta);
 
         if (gracePeriodMet) {
           await client.query(
@@ -142,7 +156,7 @@ export class GateSecurityDetector implements AnomalyDetector {
           );
 
           await client.query(
-            "UPDATE incidente SET resuelta = true, timestamp_fin = CURRENT_TIMESTAMP WHERE id = $1",
+            'UPDATE incidente SET resuelta = true, timestamp_fin = CURRENT_TIMESTAMP WHERE id = $1',
             [activeIncident.id],
           );
 

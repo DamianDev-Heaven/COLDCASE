@@ -55,10 +55,27 @@ describe('Detectors de Anomalías de Telemetría', () => {
   describe('HumidityAnomalyDetector', () => {
     it('debería retornar null si la humedad está dentro del rango', async () => {
       const client = createMockPoolClient({});
-      const payload = { viaje_id: 'v-1', lat: 10, lon: 10, temp: 5, humedad: 70, timestamp_sensor: 'now' };
-      const viaje = { id: 'v-1', limite_min_humedad: 60, limite_max_humedad: 80, estado: 'en_curso' };
+      const payload = {
+        viaje_id: 'v-1',
+        lat: 10,
+        lon: 10,
+        temp: 5,
+        humedad: 70,
+        timestamp_sensor: 'now',
+      };
+      const viaje = {
+        id: 'v-1',
+        limite_min_humedad: 60,
+        limite_max_humedad: 80,
+        estado: 'en_curso',
+      };
 
-      const result = await humidityDetector.evaluate(payload, 100, viaje, client);
+      const result = await humidityDetector.evaluate(
+        payload,
+        100,
+        viaje,
+        client,
+      );
 
       expect(result).toBeNull();
       expect(mockIncidenteService.create).not.toHaveBeenCalled();
@@ -66,27 +83,54 @@ describe('Detectors de Anomalías de Telemetría', () => {
 
     it('debería registrar incidente si la humedad excede el rango máximo', async () => {
       const client = createMockPoolClient({ incidentes: [] });
-      const payload = { viaje_id: 'v-1', lat: 10, lon: 10, temp: 5, humedad: 90, timestamp_sensor: 'now' };
-      const viaje = { id: 'v-1', limite_min_humedad: 60, limite_max_humedad: 80, estado: 'en_curso' };
+      const payload = {
+        viaje_id: 'v-1',
+        lat: 10,
+        lon: 10,
+        temp: 5,
+        humedad: 90,
+        timestamp_sensor: 'now',
+      };
+      const viaje = {
+        id: 'v-1',
+        limite_min_humedad: 60,
+        limite_max_humedad: 80,
+        estado: 'en_curso',
+      };
       const mockIncident = { id: 'inc-1', tipo_alerta: 'HUMEDAD_FUERA_RANGO' };
       mockIncidenteService.create.mockResolvedValue(mockIncident);
 
-      const result = await humidityDetector.evaluate(payload, 100, viaje, client);
+      const result = await humidityDetector.evaluate(
+        payload,
+        100,
+        viaje,
+        client,
+      );
 
       expect(result).toEqual({ incidente: mockIncident });
-      expect(mockIncidenteService.create).toHaveBeenCalledWith(expect.objectContaining({
-        viaje_id: 'v-1',
-        tipo_alerta: 'HUMEDAD_FUERA_RANGO',
-        valor_detectado: 90,
-        umbral_permitido: 80,
-      }));
+      expect(mockIncidenteService.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          viaje_id: 'v-1',
+          tipo_alerta: 'HUMEDAD_FUERA_RANGO',
+          valor_detectado: 90,
+          umbral_permitido: 80,
+        }),
+      );
     });
   });
 
   describe('MktAnomalyDetector', () => {
     it('debería retornar null si hay menos de 5 lecturas de telemetría', async () => {
-      const client = createMockPoolClient({ telemetria: [{ temp: '5.0' }, { temp: '6.0' }] });
-      const payload = { viaje_id: 'v-1', lat: 10, lon: 10, temp: 5, timestamp_sensor: 'now' };
+      const client = createMockPoolClient({
+        telemetria: [{ temp: '5.0' }, { temp: '6.0' }],
+      });
+      const payload = {
+        viaje_id: 'v-1',
+        lat: 10,
+        lon: 10,
+        temp: 5,
+        timestamp_sensor: 'now',
+      };
       const viaje = { id: 'v-1', limite_max_temp: 10, estado: 'en_curso' };
 
       const result = await mktDetector.evaluate(payload, 100, viaje, client);
@@ -106,7 +150,13 @@ describe('Detectors de Anomalías de Telemetría', () => {
         ],
         incidentes: [],
       });
-      const payload = { viaje_id: 'v-1', lat: 10, lon: 10, temp: 15, timestamp_sensor: 'now' };
+      const payload = {
+        viaje_id: 'v-1',
+        lat: 10,
+        lon: 10,
+        temp: 15,
+        timestamp_sensor: 'now',
+      };
       const viaje = { id: 'v-1', limite_max_temp: 10, estado: 'en_curso' };
       const mockIncident = { id: 'inc-mkt', tipo_alerta: 'MKT_EXCEDIDO' };
       mockIncidenteService.create.mockResolvedValue(mockIncident);
@@ -114,21 +164,21 @@ describe('Detectors de Anomalías de Telemetría', () => {
       const result = await mktDetector.evaluate(payload, 100, viaje, client);
 
       expect(result).toEqual({ incidente: mockIncident });
-      expect(mockIncidenteService.create).toHaveBeenCalledWith(expect.objectContaining({
-        viaje_id: 'v-1',
-        tipo_alerta: 'MKT_EXCEDIDO',
-        valor_detectado: 15,
-        umbral_permitido: 10,
-      }));
+      expect(mockIncidenteService.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          viaje_id: 'v-1',
+          tipo_alerta: 'MKT_EXCEDIDO',
+          valor_detectado: 15,
+          umbral_permitido: 10,
+        }),
+      );
     });
   });
 
   describe('GateSecurityDetector', () => {
     it('no debería alertar si la compuerta se abre cerca de la sucursal de origen (<100m)', async () => {
       const client = createMockPoolClient({
-        sucursales: [
-          { id: 'origin-1', lat: '13.6929', lon: '-89.2182' },
-        ],
+        sucursales: [{ id: 'origin-1', lat: '13.6929', lon: '-89.2182' }],
         incidentes: [],
       });
       const payload = {
@@ -146,7 +196,12 @@ describe('Detectors de Anomalías de Telemetría', () => {
         estado: 'en_curso',
       };
 
-      const result = await gateSecurityDetector.evaluate(payload, 100, viaje, client);
+      const result = await gateSecurityDetector.evaluate(
+        payload,
+        100,
+        viaje,
+        client,
+      );
 
       expect(result).toBeNull();
       expect(mockIncidenteService.create).not.toHaveBeenCalled();
@@ -162,8 +217,8 @@ describe('Detectors de Anomalías de Telemetría', () => {
       });
       const payload = {
         viaje_id: 'v-1',
-        lat: 13.7500,
-        lon: -89.3000,
+        lat: 13.75,
+        lon: -89.3,
         temp: 5,
         compuerta_abierta: true,
         timestamp_sensor: 'now',
@@ -174,18 +229,28 @@ describe('Detectors de Anomalías de Telemetría', () => {
         sucursal_destino_id: 'dest-1',
         estado: 'en_curso',
       };
-      const mockIncident = { id: 'inc-gate', tipo_alerta: 'APERTURA_NO_AUTORIZADA' };
+      const mockIncident = {
+        id: 'inc-gate',
+        tipo_alerta: 'APERTURA_NO_AUTORIZADA',
+      };
       mockIncidenteService.create.mockResolvedValue(mockIncident);
 
-      const result = await gateSecurityDetector.evaluate(payload, 100, viaje, client);
+      const result = await gateSecurityDetector.evaluate(
+        payload,
+        100,
+        viaje,
+        client,
+      );
 
       expect(result).toEqual({ incidente: mockIncident });
-      expect(mockIncidenteService.create).toHaveBeenCalledWith(expect.objectContaining({
-        viaje_id: 'v-1',
-        tipo_alerta: 'APERTURA_NO_AUTORIZADA',
-        valor_detectado: 1,
-        umbral_permitido: 0,
-      }));
+      expect(mockIncidenteService.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          viaje_id: 'v-1',
+          tipo_alerta: 'APERTURA_NO_AUTORIZADA',
+          valor_detectado: 1,
+          umbral_permitido: 0,
+        }),
+      );
     });
   });
 });

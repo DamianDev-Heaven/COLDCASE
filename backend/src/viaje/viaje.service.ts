@@ -505,7 +505,9 @@ export class ViajeService {
     } else if (comando === 'cerrar-compuerta') {
       path = '/api/simulation/close-gate';
     } else if (comando === 'abrir-compuerta') {
-      throw new Error('El comando manual "abrir-compuerta" ha sido inhabilitado por políticas de seguridad.');
+      throw new Error(
+        'El comando manual "abrir-compuerta" ha sido inhabilitado por políticas de seguridad.',
+      );
     } else if (comando === 'toggle-signal-loss') {
       path = '/api/simulation/toggle-iot-link';
       bodyPayload = { enabled }; // Para el estado global de señal

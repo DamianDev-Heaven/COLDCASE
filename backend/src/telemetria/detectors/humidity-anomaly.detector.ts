@@ -33,8 +33,14 @@ export class HumidityAnomalyDetector implements AnomalyDetector {
       return null;
     }
 
-    const minHum = viaje.limite_min_humedad != null ? Number(viaje.limite_min_humedad) : null;
-    const maxHum = viaje.limite_max_humedad != null ? Number(viaje.limite_max_humedad) : null;
+    const minHum =
+      viaje.limite_min_humedad != null
+        ? Number(viaje.limite_min_humedad)
+        : null;
+    const maxHum =
+      viaje.limite_max_humedad != null
+        ? Number(viaje.limite_max_humedad)
+        : null;
 
     const fueraDeRango =
       (minHum != null && payload.humedad < minHum) ||
@@ -54,7 +60,8 @@ export class HumidityAnomalyDetector implements AnomalyDetector {
 
       if (!activeIncident) {
         const valorDetectado = payload.humedad;
-        const umbralPermitido = (maxHum != null && payload.humedad > maxHum) ? maxHum : (minHum ?? 0);
+        const umbralPermitido =
+          maxHum != null && payload.humedad > maxHum ? maxHum : (minHum ?? 0);
 
         const newIncident = await this.incidenteService.create({
           viaje_id: viaje.id,
@@ -92,7 +99,9 @@ export class HumidityAnomalyDetector implements AnomalyDetector {
           lastPings.length >= 3 &&
           lastPings.every((p) => {
             const h = Number(p.humedad);
-            return (minHum == null || h >= minHum) && (maxHum == null || h <= maxHum);
+            return (
+              (minHum == null || h >= minHum) && (maxHum == null || h <= maxHum)
+            );
           });
 
         if (gracePeriodMet) {
@@ -102,7 +111,7 @@ export class HumidityAnomalyDetector implements AnomalyDetector {
           );
 
           await client.query(
-            "UPDATE incidente SET resuelta = true, timestamp_fin = CURRENT_TIMESTAMP WHERE id = $1",
+            'UPDATE incidente SET resuelta = true, timestamp_fin = CURRENT_TIMESTAMP WHERE id = $1',
             [activeIncident.id],
           );
 

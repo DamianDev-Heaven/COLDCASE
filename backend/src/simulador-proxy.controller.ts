@@ -3,7 +3,8 @@ import * as express from 'express';
 
 @Controller()
 export class SimuladorProxyController {
-  private readonly simuladorUrl = process.env.SIMULADOR_URL || 'http://simulador:4000';
+  private readonly simuladorUrl =
+    process.env.SIMULADOR_URL || 'http://simulador:4000';
 
   @Get('simulador')
   async getConsole(@Res() res: express.Response) {
@@ -14,7 +15,9 @@ export class SimuladorProxyController {
       res.send(html);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
-      res.status(500).send(`Error de comunicación con el simulador: ${message}`);
+      res
+        .status(500)
+        .send(`Error de comunicación con el simulador: ${message}`);
     }
   }
 
@@ -24,20 +27,29 @@ export class SimuladorProxyController {
   }
 
   @All('api/simulation/*')
-  async proxySimulation(@Req() req: express.Request, @Res() res: express.Response) {
+  async proxySimulation(
+    @Req() req: express.Request,
+    @Res() res: express.Response,
+  ) {
     const wildcardPath = req.params[0] || '';
-    const path = wildcardPath ? `api/simulation/${wildcardPath}` : req.path.replace(/^\//, '');
+    const path = wildcardPath
+      ? `api/simulation/${wildcardPath}`
+      : req.path.replace(/^\//, '');
     await this.proxyRequest(req, res, path);
   }
 
-  private async proxyRequest(req: express.Request, res: express.Response, path: string) {
+  private async proxyRequest(
+    req: express.Request,
+    res: express.Response,
+    path: string,
+  ) {
     try {
       const url = `${this.simuladorUrl}/${path}`;
       const method = req.method;
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
       };
-      
+
       const fetchOptions: RequestInit = {
         method,
         headers,
@@ -49,13 +61,18 @@ export class SimuladorProxyController {
 
       const response = await fetch(url, fetchOptions);
       const data = await response.text();
-      
+
       res.status(response.status);
-      res.setHeader('Content-Type', response.headers.get('Content-Type') || 'application/json');
+      res.setHeader(
+        'Content-Type',
+        response.headers.get('Content-Type') || 'application/json',
+      );
       res.send(data);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
-      res.status(500).send({ message: `Error proxying request to simulator: ${message}` });
+      res
+        .status(500)
+        .send({ message: `Error proxying request to simulator: ${message}` });
     }
   }
 }
