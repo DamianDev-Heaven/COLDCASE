@@ -32,7 +32,7 @@ const runtimeState = {
 	activeTrips: 0,
 	simulations: [],
 	logs: [],
-	gateOpeningEnabled: true,
+	gateOpeningEnabled: false,
 	turboMode: false,
 	iotFailure: false,
 };
@@ -378,15 +378,7 @@ async function handleApiRequest(req, res, pathname) {
 		return true;
 	}
 
-	if (req.method === 'POST' && pathname === '/api/simulation/toggle-gate-opening') {
-		const payload = await readBody(req);
-		runtimeState.gateOpeningEnabled = payload.enabled !== undefined ? !!payload.enabled : !runtimeState.gateOpeningEnabled;
-		logEvent('info', runtimeState.gateOpeningEnabled ? 'Eventos probabilísticos de apertura de compuerta ACTIVADOS.' : 'Eventos probabilísticos de apertura de compuerta DESACTIVADOS.');
-		saveState();
-		res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-		res.end(JSON.stringify({ gateOpeningEnabled: runtimeState.gateOpeningEnabled }));
-		return true;
-	}
+
 
 	if (req.method === 'POST' && pathname === '/api/simulation/toggle-compressor') {
 		const payload = await readBody(req);
@@ -484,21 +476,7 @@ async function handleApiRequest(req, res, pathname) {
 		return true;
 	}
 
-	if (req.method === 'POST' && pathname === '/api/simulation/force-gate') {
-		const payload = await readBody(req);
-		if (payload.viajeId && simulationMap.has(payload.viajeId)) {
-			const state = simulationMap.get(payload.viajeId);
-			state.gateOpenTicks = 4;
-			logEvent('warn', `Simulador: Apertura MANUAL de compuerta forzada para viaje ${payload.viajeId}.`, payload.viajeId);
-			saveState();
-			res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-			res.end(JSON.stringify({ viajeId: payload.viajeId, gateOpenTicks: state.gateOpenTicks }));
-		} else {
-			res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
-			res.end(JSON.stringify({ error: 'Viaje no encontrado o inactivo.' }));
-		}
-		return true;
-	}
+
 
 	if (req.method === 'POST' && pathname === '/api/simulation/close-gate') {
 		const payload = await readBody(req);

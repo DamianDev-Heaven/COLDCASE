@@ -677,18 +677,6 @@ function renderDashboardPage() {
 							<span class="slider"></span>
 						</label>
 					</div>
-					
-					<!-- Probabilistic Gate Opening Toggle -->
-					<div style="margin-top: 6px; padding: 10px 12px; border-radius: 10px; background: rgba(15, 23, 42, 0.3); border: 1px solid rgba(255, 255, 255, 0.04); display: flex; align-items: center; justify-content: space-between; gap: 10px;">
-						<div>
-							<div style="font-size: 11px; font-weight: 700; color: #e2e8f0;">Simulación de Compuerta</div>
-							<div style="font-size: 9px; color: var(--muted); margin-top: 1px;">Aperturas físicas automáticas</div>
-						</div>
-						<label class="switch">
-							<input type="checkbox" id="gateToggle" checked>
-							<span class="slider"></span>
-						</label>
-					</div>
 				</div>
 				
 				<div class="panel" style="background: rgba(10, 15, 29, 0.4);">
@@ -838,10 +826,6 @@ function renderDashboardPage() {
 							<span class="slider"></span>
 						</label>
 					</div>
-					
-					<button id="forceGateBtn" class="btn" style="width: 100%; margin-top: 4px; padding: 7px 12px; font-size: 10px; font-weight: 700; border-radius: 8px; background: rgba(148, 163, 184, 0.08); border: 1px solid rgba(255,255,255,0.06); color: #cbd5e1; cursor: pointer;">
-						Simular Apertura de Compuerta (Manual)
-					</button>
 				</div>
 
 				<!-- NUEVO PANEL: AUDITOR EN VIVO DE REDIS & BULLMQ -->
@@ -925,7 +909,6 @@ function renderDashboardPage() {
 
 		const apiStateUrl = '/api/state';
 		const toggleBtn = document.getElementById('toggleBtn');
-		const gateToggle = document.getElementById('gateToggle');
 		const turboToggle = document.getElementById('turboToggle');
 		const iotFailureToggle = document.getElementById('iotFailureToggle');
 		const queueToggle = document.getElementById('queueToggle');
@@ -938,7 +921,6 @@ function renderDashboardPage() {
 		const queueFailed = document.getElementById('queueFailed');
 		const compressorToggle = document.getElementById('compressorToggle');
 		const deviationToggle = document.getElementById('deviationToggle');
-		const forceGateBtn = document.getElementById('forceGateBtn');
 		const stepBtn = document.getElementById('stepBtn');
 		const openDashboardBtn = document.getElementById('openDashboardBtn');
 		const tripList = document.getElementById('tripList');
@@ -1391,9 +1373,7 @@ function renderDashboardPage() {
 		}
 
 		function updatePage(state) {
-			if (gateToggle) {
-				gateToggle.checked = state.gateOpeningEnabled !== false;
-			}
+
 			if (turboToggle) {
 				turboToggle.checked = !!state.turboMode;
 			}
@@ -1482,9 +1462,7 @@ function renderDashboardPage() {
 					deviationToggle.checked = false;
 					deviationToggle.disabled = true;
 				}
-				if (forceGateBtn) {
-					forceGateBtn.disabled = true;
-				}
+
 				return;
 			}
 
@@ -1514,9 +1492,7 @@ function renderDashboardPage() {
 				deviationToggle.checked = !!simulation?.routeDeviated;
 				deviationToggle.disabled = false;
 			}
-			if (forceGateBtn) {
-				forceGateBtn.disabled = false;
-			}
+
 
 			if (renderedMapTripId !== viaje.id) {
 				mapWrap.innerHTML = renderMap(detail, simulation);
@@ -1621,18 +1597,7 @@ function renderDashboardPage() {
 			window.open('http://localhost:3001/dashboard', '_blank', 'noreferrer');
 		});
 
-		if (gateToggle) {
-			gateToggle.addEventListener('change', async () => {
-				gateToggle.disabled = true;
-				try {
-					await postJson('/api/simulation/toggle-gate-opening', { enabled: gateToggle.checked });
-				} catch (error) {
-					console.error(error);
-				} finally {
-					gateToggle.disabled = false;
-				}
-			});
-		}
+
 
 		if (turboToggle) {
 			turboToggle.addEventListener('change', async () => {
@@ -1708,22 +1673,7 @@ function renderDashboardPage() {
 			});
 		}
 
-		if (forceGateBtn) {
-			forceGateBtn.addEventListener('click', async () => {
-				const activeTrip = document.querySelector('.stack-item.active');
-				const viajeId = activeTrip ? activeTrip.getAttribute('data-trip-id') : null;
-				if (!viajeId) return;
 
-				forceGateBtn.disabled = true;
-				try {
-					await postJson('/api/simulation/force-gate', { viajeId });
-				} catch (error) {
-					console.error(error);
-				} finally {
-					forceGateBtn.disabled = false;
-				}
-			});
-		}
 
 		refreshState();
 		setInterval(refreshState, 3000);

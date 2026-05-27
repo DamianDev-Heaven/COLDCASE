@@ -23,10 +23,13 @@ import {
   Cpu,
   PanelLeft,
   PanelRight,
+  Building,
+  Layers,
+  MapPin,
 } from "lucide-react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
-const SIMULATOR_URL = process.env.NEXT_PUBLIC_SIMULADOR_URL || "http://localhost:4000";
+const SIMULATOR_URL = process.env.NEXT_PUBLIC_SIMULADOR_URL || "http://localhost:3000/simulador";
 
 type Sucursal = {
   id: string;
@@ -98,6 +101,7 @@ export default function Dashboard() {
   const [viajes, setViajes] = useState<Viaje[]>([]);
   const [sucursales, setSucursales] = useState<Sucursal[]>([]);
   const [transportes, setTransportes] = useState<Transporte[]>([]);
+  const [perfiles, setPerfiles] = useState<any[]>([]);
   const [viajeSeleccionado, setViajeSeleccionado] = useState<Viaje | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -148,7 +152,7 @@ export default function Dashboard() {
   }, []);
 
   const [sidebarExpanded, setSidebarExpanded] = useState(false);
-  const [currentView, setCurrentView] = useState<"overview" | "compliance" | "graph-explorer">("overview");
+  const [currentView, setCurrentView] = useState<"overview" | "compliance" | "graph-explorer" | "admin">("overview");
   const [searchQuery, setSearchQuery] = useState("");
   const [isTelemetryLoading, setIsTelemetryLoading] = useState(false);
   const [currentUser, setCurrentUser] = useState<UserSession | null>(null);
@@ -173,6 +177,9 @@ export default function Dashboard() {
   const [volumenM3Form, setVolumenM3Form] = useState("");
   const [limiteMaxTempForm, setLimiteMaxTempForm] = useState("5");
   const [limiteMinTempForm, setLimiteMinTempForm] = useState("1");
+  const [limiteMinHumForm, setLimiteMinHumForm] = useState("0");
+  const [limiteMaxHumForm, setLimiteMaxHumForm] = useState("100");
+  const [perfilProductoIdForm, setPerfilProductoIdForm] = useState("");
   const [estadoForm, setEstadoForm] = useState<"pendiente" | "en_curso">("pendiente");
   const [vehicleSearch, setVehicleSearch] = useState("");
   const [vehicleDropOpen, setVehicleDropOpen] = useState(false);
@@ -190,6 +197,9 @@ export default function Dashboard() {
     setVolumenM3Form("");
     setLimiteMaxTempForm("5");
     setLimiteMinTempForm("1");
+    setLimiteMinHumForm("0");
+    setLimiteMaxHumForm("100");
+    setPerfilProductoIdForm("");
     setEstadoForm("pendiente");
     setSubmitError(null);
     setVehicleSearch("");
@@ -444,6 +454,21 @@ export default function Dashboard() {
     printWindow.document.close();
   };
 
+  const handlePerfilChange = (perfilId: string) => {
+    setPerfilProductoIdForm(perfilId);
+    if (!perfilId) {
+      return;
+    }
+    const selected = perfiles.find((p) => p.id === perfilId);
+    if (selected) {
+      setLimiteMinTempForm(String(selected.limite_min_temp));
+      setLimiteMaxTempForm(String(selected.limite_max_temp));
+      setLimiteMinHumForm(String(selected.limite_min_humedad));
+      setLimiteMaxHumForm(String(selected.limite_max_humedad));
+      setTipoProductoForm(selected.nombre);
+    }
+  };
+
   const handleCreateViaje = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setSubmitError(null);
@@ -461,6 +486,9 @@ export default function Dashboard() {
       volumen_m3: Number(volumenM3Form || 0),
       limite_max_temp: Number(limiteMaxTempForm),
       limite_min_temp: Number(limiteMinTempForm),
+      limite_min_humedad: Number(limiteMinHumForm),
+      limite_max_humedad: Number(limiteMaxHumForm),
+      perfil_producto_id: perfilProductoIdForm || undefined,
       estado: estadoForm,
       ruta_waypoints: {},
     };
@@ -508,17 +536,20 @@ export default function Dashboard() {
   useEffect(() => {
     async function cargarViajes() {
       try {
-        const [viajesRes, transportesRes, sucursalesRes] = await Promise.all([
+        const [viajesRes, transportesRes, sucursalesRes, perfilesRes] = await Promise.all([
           fetch(`${API_URL}/viaje`),
           fetch(`${API_URL}/transporte`),
           fetch(`${API_URL}/sucursal`),
+          fetch(`${API_URL}/viaje/recetas/perfiles`),
         ]);
         const data = await viajesRes.json();
         const transportesData = await transportesRes.json();
         const sucursalesData = await sucursalesRes.json();
+        const perfilesData = await perfilesRes.json();
         setViajes(data);
         setTransportes(transportesData);
         setSucursales(Array.isArray(sucursalesData) ? sucursalesData : []);
+        setPerfiles(Array.isArray(perfilesData) ? perfilesData : []);
         if (data.length > 0) {
           setViajeSeleccionado((current) => {
             if (current) {
@@ -723,6 +754,7 @@ export default function Dashboard() {
                 {sidebarExpanded && (
                   <p className="text-[8px] font-bold text-slate-600 uppercase tracking-[0.15em] px-1 mt-4 mb-1">Administración</p>
                 )}
+                <NavItem icon={Building} label="Administrar Entidades" view="admin" currentView={currentView} sidebarExpanded={sidebarExpanded} onNavigate={setCurrentView} />
                 <NavItem icon={Users} label="Gestión de Usuarios" href="/register" sidebarExpanded={sidebarExpanded} />
               </>
             )}
@@ -991,6 +1023,10 @@ export default function Dashboard() {
               <AiInsightsPanel viaje={viajeSeleccionado} telemetryList={telemetryList} apiUrl={API_URL} onOpenZepModal={() => setIsZepModalOpen(true)} />
             </aside>
           </main>
+        ) : currentView === "admin" ? (
+          <main className={`flex-1 flex p-3 gap-3 overflow-hidden h-full transition-[margin-left] duration-300 ease-in-out ${sidebarExpanded ? "ml-[240px]" : "ml-[64px]"}`}>
+            <AdminPanel apiUrl={API_URL} />
+          </main>
         ) : (
           <main className={`flex-1 flex p-3 gap-3 overflow-hidden h-full transition-[margin-left] duration-300 ease-in-out ${sidebarExpanded ? "ml-[240px]" : "ml-[64px]"}`}>
             <GraphExplorer apiUrl={API_URL} />
@@ -1255,9 +1291,26 @@ export default function Dashboard() {
                   {/* Sección 3: Carga */}
                   <section className="flex flex-col gap-3.5">
                     <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">03 · Especificaciones de Carga</span>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">03 · Especificaciones de Carga y Recetario</span>
                       <div className="flex-1 h-px bg-slate-800/40" />
                     </div>
+
+                    <div className="w-full">
+                      <ModalField label="Recetario / Perfil de Producto (Auto-completa límites)">
+                        <ModalSelect
+                          value={perfilProductoIdForm}
+                          onChange={handlePerfilChange}
+                        >
+                          <option value="">Personalizado (Carga manual sin perfil)</option>
+                          {perfiles.map((p) => (
+                            <option key={p.id} value={p.id}>
+                              {p.nombre} (Temp: {p.limite_min_temp}°C a {p.limite_max_temp}°C, Hum: {p.limite_min_humedad}% a {p.limite_max_humedad}%)
+                            </option>
+                          ))}
+                        </ModalSelect>
+                      </ModalField>
+                    </div>
+
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <ModalField label="Tipo de Producto / Categoría">
                         <ModalInput
@@ -1265,6 +1318,7 @@ export default function Dashboard() {
                           placeholder="Ej: Vacunas, Lácteos, Flores..."
                           value={tipoProductoForm}
                           onChange={setTipoProductoForm}
+                          disabled={!!perfilProductoIdForm}
                         />
                       </ModalField>
                       <ModalField label="Valor Declarado (USD)">
@@ -1295,10 +1349,10 @@ export default function Dashboard() {
                     </div>
                   </section>
 
-                  {/* Sección 4: Temperatura y Estado */}
+                  {/* Sección 4: Temperatura, Humedad y Estado */}
                   <section className="flex flex-col gap-4">
                     <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">04 · Control Térmico y Operativo</span>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">04 · Control Térmico, Humedad y Operativo</span>
                       <div className="flex-1 h-px bg-slate-800/40" />
                     </div>
                     
@@ -1309,6 +1363,7 @@ export default function Dashboard() {
                           placeholder="1"
                           value={limiteMinTempForm}
                           onChange={setLimiteMinTempForm}
+                          disabled={!!perfilProductoIdForm}
                         />
                       </ModalField>
                       <ModalField label="Temp. Máxima Permitida (°C)">
@@ -1317,6 +1372,25 @@ export default function Dashboard() {
                           placeholder="5"
                           value={limiteMaxTempForm}
                           onChange={setLimiteMaxTempForm}
+                          disabled={!!perfilProductoIdForm}
+                        />
+                      </ModalField>
+                      <ModalField label="Humedad Mínima Permitida (%)">
+                        <ModalInput
+                          type="number"
+                          placeholder="0"
+                          value={limiteMinHumForm}
+                          onChange={setLimiteMinHumForm}
+                          disabled={!!perfilProductoIdForm}
+                        />
+                      </ModalField>
+                      <ModalField label="Humedad Máxima Permitida (%)">
+                        <ModalInput
+                          type="number"
+                          placeholder="100"
+                          value={limiteMaxHumForm}
+                          onChange={setLimiteMaxHumForm}
+                          disabled={!!perfilProductoIdForm}
                         />
                       </ModalField>
                     </div>
@@ -1338,8 +1412,11 @@ export default function Dashboard() {
                       </div>
                       <div className="shrink-0 text-right">
                         <p className="text-[8px] text-slate-400 uppercase tracking-widest font-mono">Margen de Seguridad</p>
-                        <p className="text-[12px] font-mono font-bold text-sky-300 mt-0.5">
-                          {limiteMinTempForm || "0"}°C a {limiteMaxTempForm || "0"}°C
+                        <p className="text-[11px] font-mono font-bold text-sky-300 mt-0.5">
+                          T: {limiteMinTempForm || "0"}°C a {limiteMaxTempForm || "0"}°C
+                        </p>
+                        <p className="text-[10px] font-mono font-bold text-sky-300/80">
+                          H: {limiteMinHumForm || "0"}% a {limiteMaxHumForm || "100"}%
                         </p>
                       </div>
                     </div>
@@ -1749,10 +1826,10 @@ function NavItem({
 }: {
   icon: React.ElementType;
   label: string;
-  view?: "overview" | "compliance" | "graph-explorer";
-  currentView?: "overview" | "compliance" | "graph-explorer";
+  view?: "overview" | "compliance" | "graph-explorer" | "admin";
+  currentView?: "overview" | "compliance" | "graph-explorer" | "admin";
   sidebarExpanded: boolean;
-  onNavigate?: (v: "overview" | "compliance" | "graph-explorer") => void;
+  onNavigate?: (v: "overview" | "compliance" | "graph-explorer" | "admin") => void;
   href?: string;
 }) {
   const isActive = view ? currentView === view : false;
@@ -1927,19 +2004,20 @@ function ModalSelect({
     </div>
   );
 }
-
 function ModalInput({
   type,
   placeholder,
   value,
   onChange,
   step,
+  disabled,
 }: {
   type: string;
   placeholder?: string;
   value: string;
   onChange: (v: string) => void;
   step?: string;
+  disabled?: boolean;
 }) {
   return (
     <input
@@ -1947,8 +2025,503 @@ function ModalInput({
       placeholder={placeholder}
       value={value}
       step={step}
+      disabled={disabled}
       onChange={(e) => onChange(e.target.value)}
-      className="w-full bg-[#0a0d15] border border-slate-800 rounded-lg px-3 py-2.5 text-[11px] text-slate-200 outline-none transition-all duration-200 focus:border-sky-500/50 focus:ring-2 focus:ring-sky-500/10 font-mono placeholder:text-slate-700"
+      className="w-full bg-[#0a0d15] border border-slate-800 rounded-lg px-3 py-2.5 text-[11px] text-slate-200 outline-none transition-all duration-200 focus:border-sky-500/50 focus:ring-2 focus:ring-sky-500/10 font-mono placeholder:text-slate-700 disabled:opacity-55 disabled:bg-[#07090e] disabled:cursor-not-allowed"
     />
+  );
+}
+
+// ─── ADMIN PANEL COMPONENT ───────────────────────────────────────────────────
+
+interface AdminEmpresa {
+  id: string;
+  nombre: string;
+}
+
+interface AdminSucursal {
+  id: string;
+  empresa_id: string;
+  empresa_nombre: string;
+  nombre: string;
+  direccion?: string | null;
+  lat: number | string;
+  lon: number | string;
+}
+
+interface AdminTransporte {
+  id: string;
+  placa: string;
+  iot_id: string;
+  empresa_id: string;
+  empresa_nombre?: string;
+  estado: "Activo" | "Mantenimiento";
+  capacidad?: number | string | null;
+}
+
+function AdminPanel({ apiUrl }: { apiUrl: string }) {
+  const [empresas, setEmpresas] = useState<AdminEmpresa[]>([]);
+  const [sucursales, setSucursales] = useState<AdminSucursal[]>([]);
+  const [transportes, setTransportes] = useState<AdminTransporte[]>([]);
+
+  const [isLoading, setIsLoading] = useState(false);
+  const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
+
+  // Form states
+  const [empresaNombre, setEmpresaNombre] = useState("");
+
+  const [sucursalEmpresaId, setSucursalEmpresaId] = useState("");
+  const [sucursalNombre, setSucursalNombre] = useState("");
+  const [sucursalDireccion, setSucursalDireccion] = useState("");
+  const [sucursalLat, setSucursalLat] = useState("");
+  const [sucursalLon, setSucursalLon] = useState("");
+
+  const [transporteEmpresaId, setTransporteEmpresaId] = useState("");
+  const [transportePlaca, setTransportePlaca] = useState("");
+  const [transporteEstado, setTransporteEstado] = useState<"Activo" | "Mantenimiento">("Activo");
+  const [transporteCapacidad, setTransporteCapacidad] = useState("");
+
+  const getHeaders = () => {
+    const token = localStorage.getItem("accessToken");
+    return {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    };
+  };
+
+  const loadData = async () => {
+    setIsLoading(true);
+    try {
+      const [resEmp, resSuc, resTrans] = await Promise.all([
+        fetch(`${apiUrl}/empresa`),
+        fetch(`${apiUrl}/sucursal`),
+        fetch(`${apiUrl}/transporte`),
+      ]);
+
+      if (resEmp.ok) {
+        const empData = await resEmp.json();
+        setEmpresas(Array.isArray(empData) ? empData : []);
+      }
+      if (resSuc.ok) {
+        const sucData = await resSuc.json();
+        setSucursales(Array.isArray(sucData) ? sucData : []);
+      }
+      if (resTrans.ok) {
+        const transData = await resTrans.json();
+        setTransportes(Array.isArray(transData) ? transData : []);
+      }
+    } catch (err) {
+      console.error("Error al cargar datos administrativos:", err);
+      setFeedback({ type: "error", message: "No pudimos conectar con el backend." });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, [apiUrl]);
+
+  const handleCreateEmpresa = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!empresaNombre.trim()) return;
+
+    setIsLoading(true);
+    setFeedback(null);
+    try {
+      const res = await fetch(`${apiUrl}/empresa`, {
+        method: "POST",
+        headers: getHeaders(),
+        body: JSON.stringify({ nombre: empresaNombre.trim() }),
+      });
+
+      if (!res.ok) {
+        throw new Error("No pudimos crear la empresa.");
+      }
+
+      setEmpresaNombre("");
+      setFeedback({ type: "success", message: "Empresa creada correctamente." });
+      await loadData();
+    } catch (err: any) {
+      setFeedback({ type: "error", message: err.message || "Error al crear la empresa." });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleCreateSucursal = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!sucursalEmpresaId || !sucursalNombre.trim() || !sucursalLat || !sucursalLon) {
+      setFeedback({ type: "error", message: "Por favor, completa todos los campos requeridos." });
+      return;
+    }
+
+    setIsLoading(true);
+    setFeedback(null);
+    try {
+      const res = await fetch(`${apiUrl}/sucursal`, {
+        method: "POST",
+        headers: getHeaders(),
+        body: JSON.stringify({
+          empresa_id: sucursalEmpresaId,
+          nombre: sucursalNombre.trim(),
+          direccion: sucursalDireccion.trim() || undefined,
+          lat: parseFloat(sucursalLat),
+          lon: parseFloat(sucursalLon),
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error("No pudimos crear la sucursal.");
+      }
+
+      setSucursalNombre("");
+      setSucursalDireccion("");
+      setSucursalLat("");
+      setSucursalLon("");
+      setFeedback({ type: "success", message: "Sucursal registrada correctamente." });
+      await loadData();
+    } catch (err: any) {
+      setFeedback({ type: "error", message: err.message || "Error al crear la sucursal." });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleCreateTransporte = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!transporteEmpresaId || !transportePlaca.trim()) {
+      setFeedback({ type: "error", message: "La placa y la empresa son obligatorias." });
+      return;
+    }
+
+    setIsLoading(true);
+    setFeedback(null);
+    try {
+      // 1. Register virtual IoT device first
+      const iotRes = await fetch(`${apiUrl}/iot`, {
+        method: "POST",
+        headers: getHeaders(),
+        body: JSON.stringify({
+          tipo_dispositivo: "Sensor Térmico GPS",
+          estado_conexion: "Activo",
+          ultimo_ping: new Date().toISOString(),
+          firmware_version: "v1.0.0",
+        }),
+      });
+
+      if (!iotRes.ok) {
+        throw new Error("No se pudo crear el dispositivo virtual IoT.");
+      }
+
+      const iotData = await iotRes.json();
+      const generatedIotId = iotData.id;
+
+      // 2. Register the vehicle (transporte)
+      const transRes = await fetch(`${apiUrl}/transporte`, {
+        method: "POST",
+        headers: getHeaders(),
+        body: JSON.stringify({
+          placa: transportePlaca.toUpperCase().trim(),
+          iot_id: generatedIotId,
+          empresa_id: transporteEmpresaId,
+          estado: transporteEstado,
+          capacidad: transporteCapacidad ? parseFloat(transporteCapacidad) : undefined,
+        }),
+      });
+
+      if (!transRes.ok) {
+        throw new Error("No se pudo crear el transporte.");
+      }
+
+      setTransportePlaca("");
+      setTransporteCapacidad("");
+      setFeedback({ type: "success", message: "Vehículo y sensor IoT registrados correctamente." });
+      await loadData();
+    } catch (err: any) {
+      setFeedback({ type: "error", message: err.message || "Error al registrar el transporte." });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="flex-grow flex flex-col h-full overflow-hidden p-6 gap-6 bg-[#080a0f] text-slate-100 select-none">
+      {/* HEADER */}
+      <div className="flex flex-col gap-1.5 border-b border-white/[0.05] pb-4">
+        <h2 className="text-base font-bold text-white uppercase tracking-wider flex items-center gap-2">
+          <Building className="w-5 h-5 text-cyan-400" />
+          Administrar Entidades Logísticas
+        </h2>
+        <p className="text-[11px] text-slate-400 font-mono">
+          Registra y gestiona las empresas, sucursales (geocercas) y vehículos de transporte con telemetría activa.
+        </p>
+      </div>
+
+      {/* FEEDBACK STATUS BANNER */}
+      {feedback && (
+        <div
+          className={`rounded-2xl border px-4 py-3 text-[11px] font-mono flex items-center justify-between shrink-0 shadow-lg ${
+            feedback.type === "success"
+              ? "border-emerald-400/40 bg-emerald-500/10 text-emerald-300"
+              : "border-rose-400/40 bg-rose-500/10 text-rose-300"
+          }`}
+        >
+          <span>{feedback.message}</span>
+          <button onClick={() => setFeedback(null)} className="text-slate-500 hover:text-white transition cursor-pointer">
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
+
+      {/* GRID CONTAINER */}
+      <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-6 overflow-hidden min-h-0">
+        
+        {/* COLUMN 1: EMPRESAS */}
+        <div className="bg-slate-900/30 border border-white/[0.05] hover:border-cyan-500/10 rounded-[1.5rem] p-5 flex flex-col gap-4 overflow-hidden shadow-2xl transition-all">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2 border-b border-white/[0.05] pb-3 shrink-0">
+            <Building className="w-4 h-4 text-cyan-400" />
+            1. Registrar Empresa
+          </h3>
+
+          <form onSubmit={handleCreateEmpresa} className="flex flex-col gap-3 shrink-0">
+            <div className="space-y-1.5">
+              <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">Nombre de Empresa</label>
+              <input
+                type="text"
+                required
+                value={empresaNombre}
+                onChange={(e) => setEmpresaNombre(e.target.value)}
+                placeholder="Ej. Exportadora del Norte"
+                className="w-full bg-[#0a0d15] border border-slate-800 rounded-lg px-3 py-2 text-[11px] text-slate-200 outline-none transition focus:border-cyan-500/50"
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={isLoading || !empresaNombre.trim()}
+              className="w-full bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-bold rounded-lg py-2 text-[10px] uppercase tracking-wider transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+            >
+              Registrar
+            </button>
+          </form>
+
+          <div className="flex-grow overflow-hidden flex flex-col gap-2 min-h-0">
+            <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider shrink-0 mt-2">Empresas Registradas ({empresas.length})</span>
+            <div className="flex-1 overflow-y-auto no-scrollbar space-y-2 pr-1">
+              {empresas.map((emp) => (
+                <div key={emp.id} className="bg-slate-950/40 border border-white/[0.03] rounded-xl p-3 flex flex-col gap-1 transition hover:border-white/[0.08]">
+                  <p className="text-[11px] font-bold text-white font-mono">{emp.nombre}</p>
+                  <p className="text-[8px] text-slate-600 font-mono truncate">ID: {emp.id}</p>
+                </div>
+              ))}
+              {empresas.length === 0 && (
+                <p className="text-slate-600 text-[10px] font-mono text-center py-8">Sin empresas registradas.</p>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* COLUMN 2: SUCURSALES */}
+        <div className="bg-slate-900/30 border border-white/[0.05] hover:border-cyan-500/10 rounded-[1.5rem] p-5 flex flex-col gap-4 overflow-hidden shadow-2xl transition-all">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2 border-b border-white/[0.05] pb-3 shrink-0">
+            <MapPin className="w-4 h-4 text-emerald-400" />
+            2. Registrar Sucursal
+          </h3>
+
+          <form onSubmit={handleCreateSucursal} className="flex flex-col gap-3 shrink-0">
+            <div className="space-y-1.5">
+              <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">Empresa</label>
+              <select
+                required
+                value={sucursalEmpresaId}
+                onChange={(e) => setSucursalEmpresaId(e.target.value)}
+                className="w-full bg-[#0a0d15] border border-slate-800 rounded-lg px-3 py-2 text-[11px] text-slate-200 outline-none cursor-pointer transition focus:border-emerald-500/50"
+              >
+                <option value="">Selecciona una empresa...</option>
+                {empresas.map((e) => (
+                  <option key={e.id} value={e.id}>{e.nombre}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">Nombre de Sucursal</label>
+              <input
+                type="text"
+                required
+                value={sucursalNombre}
+                onChange={(e) => setSucursalNombre(e.target.value)}
+                placeholder="Ej. Centro de Distribución A"
+                className="w-full bg-[#0a0d15] border border-slate-800 rounded-lg px-3 py-2 text-[11px] text-slate-200 outline-none transition focus:border-emerald-500/50"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1.5">
+                <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">Latitud (GPS)</label>
+                <input
+                  type="number"
+                  step="0.000001"
+                  required
+                  value={sucursalLat}
+                  onChange={(e) => setSucursalLat(e.target.value)}
+                  placeholder="Ej. 13.6929"
+                  className="w-full bg-[#0a0d15] border border-slate-800 rounded-lg px-3 py-2 text-[11px] text-slate-200 outline-none transition focus:border-emerald-500/50 font-mono"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">Longitud (GPS)</label>
+                <input
+                  type="number"
+                  step="0.000001"
+                  required
+                  value={sucursalLon}
+                  onChange={(e) => setSucursalLon(e.target.value)}
+                  placeholder="Ej. -89.2182"
+                  className="w-full bg-[#0a0d15] border border-slate-800 rounded-lg px-3 py-2 text-[11px] text-slate-200 outline-none transition focus:border-emerald-500/50 font-mono"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">Dirección (Opcional)</label>
+              <input
+                type="text"
+                value={sucursalDireccion}
+                onChange={(e) => setSucursalDireccion(e.target.value)}
+                placeholder="Calle 23 oriente, No. 5"
+                className="w-full bg-[#0a0d15] border border-slate-800 rounded-lg px-3 py-2 text-[11px] text-slate-200 outline-none transition focus:border-emerald-500/50"
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={isLoading || !sucursalEmpresaId || !sucursalNombre.trim()}
+              className="w-full bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold rounded-lg py-2 text-[10px] uppercase tracking-wider transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+            >
+              Registrar
+            </button>
+          </form>
+
+          <div className="flex-grow overflow-hidden flex flex-col gap-2 min-h-0">
+            <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider shrink-0 mt-2">Sucursales ({sucursales.length})</span>
+            <div className="flex-1 overflow-y-auto no-scrollbar space-y-2 pr-1">
+              {sucursales.map((suc) => (
+                <div key={suc.id} className="bg-slate-950/40 border border-white/[0.03] rounded-xl p-3 flex flex-col gap-1 transition hover:border-white/[0.08]">
+                  <div className="flex justify-between items-start gap-1">
+                    <p className="text-[11px] font-bold text-white font-mono">{suc.nombre}</p>
+                    <span className="text-[8px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded border border-white/5 font-mono">{suc.empresa_nombre}</span>
+                  </div>
+                  <p className="text-[9px] text-slate-500 font-mono">GPS: {suc.lat}, {suc.lon}</p>
+                  {suc.direccion && <p className="text-[9px] text-slate-500 italic mt-0.5">{suc.direccion}</p>}
+                </div>
+              ))}
+              {sucursales.length === 0 && (
+                <p className="text-slate-600 text-[10px] font-mono text-center py-8">Sin sucursales registradas.</p>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* COLUMN 3: VEHÍCULOS / TRANSPORTE */}
+        <div className="bg-slate-900/30 border border-white/[0.05] hover:border-cyan-500/10 rounded-[1.5rem] p-5 flex flex-col gap-4 overflow-hidden shadow-2xl transition-all">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2 border-b border-white/[0.05] pb-3 shrink-0">
+            <Truck className="w-4 h-4 text-purple-400" />
+            3. Registrar Vehículo
+          </h3>
+
+          <form onSubmit={handleCreateTransporte} className="flex flex-col gap-3 shrink-0">
+            <div className="space-y-1.5">
+              <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">Empresa Propietaria</label>
+              <select
+                required
+                value={transporteEmpresaId}
+                onChange={(e) => setTransporteEmpresaId(e.target.value)}
+                className="w-full bg-[#0a0d15] border border-slate-800 rounded-lg px-3 py-2 text-[11px] text-slate-200 outline-none cursor-pointer transition focus:border-purple-500/50"
+              >
+                <option value="">Selecciona una empresa...</option>
+                {empresas.map((e) => (
+                  <option key={e.id} value={e.id}>{e.nombre}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1.5">
+                <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">Placa (Patente)</label>
+                <input
+                  type="text"
+                  required
+                  value={transportePlaca}
+                  onChange={(e) => setTransportePlaca(e.target.value)}
+                  placeholder="Ej. P123-456"
+                  className="w-full bg-[#0a0d15] border border-slate-800 rounded-lg px-3 py-2 text-[11px] text-slate-200 outline-none transition focus:border-purple-500/50 font-mono uppercase"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">Capacidad (Kg)</label>
+                <input
+                  type="number"
+                  step="0.1"
+                  value={transporteCapacidad}
+                  onChange={(e) => setTransporteCapacidad(e.target.value)}
+                  placeholder="Ej. 15000"
+                  className="w-full bg-[#0a0d15] border border-slate-800 rounded-lg px-3 py-2 text-[11px] text-slate-200 outline-none transition focus:border-purple-500/50 font-mono"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">Estado Inicial</label>
+              <select
+                required
+                value={transporteEstado}
+                onChange={(e) => setTransporteEstado(e.target.value as any)}
+                className="w-full bg-[#0a0d15] border border-slate-800 rounded-lg px-3 py-2 text-[11px] text-slate-200 outline-none cursor-pointer transition focus:border-purple-500/50"
+              >
+                <option value="Activo">Activo</option>
+                <option value="Mantenimiento">Mantenimiento</option>
+              </select>
+            </div>
+
+            <button
+              type="submit"
+              disabled={isLoading || !transporteEmpresaId || !transportePlaca.trim()}
+              className="w-full bg-purple-600 hover:bg-purple-500 text-slate-950 font-bold rounded-lg py-2 text-[10px] uppercase tracking-wider transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+            >
+              Registrar
+            </button>
+          </form>
+
+          <div className="flex-grow overflow-hidden flex flex-col gap-2 min-h-0">
+            <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider shrink-0 mt-2">Vehículos & Dispositivos IoT ({transportes.length})</span>
+            <div className="flex-1 overflow-y-auto no-scrollbar space-y-2 pr-1">
+              {transportes.map((trans) => {
+                const owner = empresas.find(e => e.id === trans.empresa_id);
+                return (
+                  <div key={trans.id} className="bg-slate-950/40 border border-white/[0.03] rounded-xl p-3 flex flex-col gap-1 transition hover:border-white/[0.08]">
+                    <div className="flex justify-between items-start gap-1">
+                      <p className="text-[11px] font-bold text-white font-mono">{trans.placa}</p>
+                      <span className={`text-[8px] px-1.5 py-0.5 rounded border font-mono ${
+                        trans.estado === "Activo" 
+                          ? "bg-emerald-950/40 border-emerald-900/20 text-emerald-400"
+                          : "bg-rose-950/40 border-rose-900/20 text-rose-400"
+                      }`}>{trans.estado}</span>
+                    </div>
+                    {owner && <p className="text-[9px] text-slate-500 font-mono">Empresa: {owner.nombre}</p>}
+                    <p className="text-[8px] text-slate-600 font-mono truncate">IoT Link: {trans.iot_id}</p>
+                    {trans.capacidad && <p className="text-[9px] text-slate-500 font-mono">Capacidad: {Number(trans.capacidad).toLocaleString()} Kg</p>}
+                  </div>
+                );
+              })}
+              {transportes.length === 0 && (
+                <p className="text-slate-600 text-[10px] font-mono text-center py-8">Sin vehículos registrados.</p>
+              )}
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
   );
 }

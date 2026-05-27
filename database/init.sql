@@ -194,6 +194,31 @@ END $$;
 
 ALTER TYPE tipo_alerta_enum ADD VALUE IF NOT EXISTS 'TEMP_BAJA';
 ALTER TYPE tipo_alerta_enum ADD VALUE IF NOT EXISTS 'SIN_SENAL';
+ALTER TYPE tipo_alerta_enum ADD VALUE IF NOT EXISTS 'HUMEDAD_FUERA_RANGO';
+ALTER TYPE tipo_alerta_enum ADD VALUE IF NOT EXISTS 'MKT_EXCEDIDO';
+ALTER TYPE tipo_alerta_enum ADD VALUE IF NOT EXISTS 'APERTURA_NO_AUTORIZADA';
+
+CREATE TABLE IF NOT EXISTS perfil_producto (
+    id VARCHAR(50) PRIMARY KEY,
+    nombre VARCHAR(100) NOT NULL,
+    limite_min_temp FLOAT NOT NULL,
+    limite_max_temp FLOAT NOT NULL,
+    limite_min_humedad FLOAT NOT NULL,
+    limite_max_humedad FLOAT NOT NULL
+);
+
+INSERT INTO perfil_producto (id, nombre, limite_min_temp, limite_max_temp, limite_min_humedad, limite_max_humedad) VALUES
+    ('lacteos', 'Lácteos (Leche, Quesos)', 0, 4, 60, 80),
+    ('carnes', 'Carnes Frescas y Aves', -2, 2, 70, 85),
+    ('congelados', 'Congelados Ultra (Pescados, Helados)', -25, -18, 0, 100),
+    ('frutas', 'Frutas y Vegetales Frescos', 8, 12, 85, 95),
+    ('medicamentos', 'Medicamentos (CRT - Temp Ambiente Controlada)', 15, 25, 35, 65)
+ON CONFLICT (id) DO UPDATE SET
+    nombre = EXCLUDED.nombre,
+    limite_min_temp = EXCLUDED.limite_min_temp,
+    limite_max_temp = EXCLUDED.limite_max_temp,
+    limite_min_humedad = EXCLUDED.limite_min_humedad,
+    limite_max_humedad = EXCLUDED.limite_max_humedad;
 
 ALTER TABLE empresa ADD COLUMN IF NOT EXISTS lat DECIMAL(9,6);
 ALTER TABLE empresa ADD COLUMN IF NOT EXISTS lon DECIMAL(9,6);
@@ -205,6 +230,11 @@ ALTER TABLE viaje ADD COLUMN IF NOT EXISTS tipo_producto VARCHAR(100);
 ALTER TABLE viaje ADD COLUMN IF NOT EXISTS valor_comercial DECIMAL(12,2);
 ALTER TABLE viaje ADD COLUMN IF NOT EXISTS peso_kg DECIMAL(10,2);
 ALTER TABLE viaje ADD COLUMN IF NOT EXISTS volumen_m3 DECIMAL(10,2);
+ALTER TABLE viaje ADD COLUMN IF NOT EXISTS auditoria_ia TEXT;
+ALTER TABLE viaje ADD COLUMN IF NOT EXISTS limite_min_humedad FLOAT;
+ALTER TABLE viaje ADD COLUMN IF NOT EXISTS limite_max_humedad FLOAT;
+ALTER TABLE viaje ADD COLUMN IF NOT EXISTS perfil_producto_id VARCHAR(50) REFERENCES perfil_producto(id) ON DELETE SET NULL;
+ALTER TABLE telemetria ADD COLUMN IF NOT EXISTS compuerta_abierta BOOLEAN DEFAULT FALSE;
 
 UPDATE viaje
 SET sucursal_origen_id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
@@ -388,3 +418,63 @@ CREATE TABLE IF NOT EXISTS incidente_evento (
     valor_registrado FLOAT,
     timestamp_evento TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- ============================================
+-- RIGID DATA INTEGRITY: IMMUTABILITY TRIGGERS
+-- ============================================
+
+-- Función para impedir eliminación de registros
+CREATE OR REPLACE FUNCTION prevent_delete_immutable()
+RETURNS TRIGGER AS $$
+BEGIN
+    RAISE EXCEPTION 'Operación no permitida: los registros en esta tabla son inmutables y no se pueden eliminar.';
+END;
+$$ LANGUAGE plpgsql;
+
+-- Función para impedir actualización completa en tablas puramente inmutables
+CREATE OR REPLACE FUNCTION prevent_update_immutable()
+RETURNS TRIGGER AS $$
+BEGIN
+    RAISE EXCEPTION 'Operación no permitida: los registros en esta tabla son inmutables y no se pueden actualizar.';
+END;
+$$ LANGUAGE plpgsql;
+
+-- Función para proteger los campos base de un incidente permitiendo solo la resolución
+CREATE OR REPLACE FUNCTION prevent_update_incidente_fields()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF OLD.id IS DISTINCT FROM NEW.id OR
+       OLD.viaje_id IS DISTINCT FROM NEW.viaje_id OR
+       OLD.telemetria_id IS DISTINCT FROM NEW.telemetria_id OR
+       OLD.tipo_alerta IS DISTINCT FROM NEW.tipo_alerta OR
+       OLD.valor_detectado IS DISTINCT FROM NEW.valor_detectado OR
+       OLD.umbral_permitido IS DISTINCT FROM NEW.umbral_permitido OR
+       OLD.timestamp_bd IS DISTINCT FROM NEW.timestamp_bd OR
+       OLD.valor_pico IS DISTINCT FROM NEW.valor_pico THEN
+        RAISE EXCEPTION 'Operación no permitida: los campos base de un incidente son inmutables. Solo se permite actualizar "resuelta" y "timestamp_fin".';
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Aplicar triggers de eliminación
+CREATE OR REPLACE TRIGGER trg_prevent_delete_incidente
+BEFORE DELETE ON incidente
+FOR EACH ROW
+EXECUTE FUNCTION prevent_delete_immutable();
+
+CREATE OR REPLACE TRIGGER trg_prevent_delete_incidente_evento
+BEFORE DELETE ON incidente_evento
+FOR EACH ROW
+EXECUTE FUNCTION prevent_delete_immutable();
+
+-- Aplicar triggers de modificación
+CREATE OR REPLACE TRIGGER trg_prevent_update_incidente_evento
+BEFORE UPDATE ON incidente_evento
+FOR EACH ROW
+EXECUTE FUNCTION prevent_update_immutable();
+
+CREATE OR REPLACE TRIGGER trg_prevent_update_incidente_fields
+BEFORE UPDATE ON incidente
+FOR EACH ROW
+EXECUTE FUNCTION prevent_update_incidente_fields();

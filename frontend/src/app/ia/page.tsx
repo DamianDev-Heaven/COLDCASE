@@ -754,13 +754,6 @@ export default function IaPage() {
                       onToggle={() => handleSimCommand(simState?.trip?.routeDeviated ? "corregir-desvio" : "provocar-desvio")}
                     />
                     <FaultToggle
-                      label="Abrir Compuerta"
-                      description="Abre puerta trasera del contenedor"
-                      active={!!(simState?.trip?.gateOpenTicks && simState.trip.gateOpenTicks > 0)}
-                      disabled={!!(simState?.trip?.gateOpenTicks && simState.trip.gateOpenTicks > 0)}
-                      onToggle={() => handleSimCommand("abrir-compuerta")}
-                    />
-                    <FaultToggle
                       label="Pérdida de Señal"
                       description={`Store & Forward${(simState?.trip?.offlineBufferLength || 0) > 0 ? ` (${simState?.trip?.offlineBufferLength} en búfer)` : ""}`}
                       active={!!simState?.iotFailure}

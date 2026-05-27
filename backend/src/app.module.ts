@@ -14,6 +14,7 @@ import { TransporteModule } from './transporte/transporte.module';
 import { SucursalModule } from './sucursal/sucursal.module';
 import { ViajeModule } from './viaje/viaje.module';
 import { MuninController } from './munin/munin.controller';
+import { SimuladorProxyController } from './simulador-proxy.controller';
 
 @Module({
   imports: [
@@ -39,7 +40,7 @@ import { MuninController } from './munin/munin.controller';
     SucursalModule,
     ViajeModule,
   ],
-  controllers: [AppController, MuninController],
+  controllers: [AppController, MuninController, SimuladorProxyController],
   providers: [AppService],
 })
 export class AppModule {}

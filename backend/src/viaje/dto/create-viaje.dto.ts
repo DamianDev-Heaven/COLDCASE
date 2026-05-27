@@ -38,6 +38,22 @@ export class CreateViajeDto {
   limite_min_temp?: number;
 
   @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  limite_min_humedad?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  limite_max_humedad?: number;
+
+  @IsOptional()
+  @IsUUID()
+  perfil_producto_id?: string;
+
+  @IsOptional()
   @IsUUID()
   sucursal_origen_id?: string;
 

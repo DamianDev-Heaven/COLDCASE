@@ -9,6 +9,6 @@ export class RegisterDto {
   password: string;
 
   @IsString()
-  @IsIn(['Admin', 'Operador', 'Auditor'])
-  rol: 'Admin' | 'Operador' | 'Auditor';
+  @IsIn(['Admin', 'Operador'])
+  rol: 'Admin' | 'Operador';
 }
