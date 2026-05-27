@@ -79,6 +79,8 @@ interface PerfilProducto {
   nombre: string;
   limite_min_temp: number;
   limite_max_temp: number;
+  limite_min_humedad?: number | null;
+  limite_max_humedad?: number | null;
 }
 
 interface TelemetryPoint {
