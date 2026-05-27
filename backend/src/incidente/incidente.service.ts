@@ -6,7 +6,13 @@ type IncidenteRow = {
   id: string;
   viaje_id: string;
   telemetria_id: number;
-  tipo_alerta: 'TEMP_ALTA' | 'FUERA_RUTA' | 'BATERIA_BAJA' | 'HUMEDAD_FUERA_RANGO' | 'MKT_EXCEDIDO' | 'APERTURA_NO_AUTORIZADA';
+  tipo_alerta:
+    | 'TEMP_ALTA'
+    | 'FUERA_RUTA'
+    | 'BATERIA_BAJA'
+    | 'HUMEDAD_FUERA_RANGO'
+    | 'MKT_EXCEDIDO'
+    | 'APERTURA_NO_AUTORIZADA';
   valor_detectado: number;
   umbral_permitido: number;
   timestamp_bd: string;
@@ -23,7 +29,13 @@ export class IncidenteService {
   async create(payload: {
     viaje_id: string;
     telemetria_id: number;
-    tipo_alerta: 'TEMP_ALTA' | 'FUERA_RUTA' | 'BATERIA_BAJA' | 'HUMEDAD_FUERA_RANGO' | 'MKT_EXCEDIDO' | 'APERTURA_NO_AUTORIZADA';
+    tipo_alerta:
+      | 'TEMP_ALTA'
+      | 'FUERA_RUTA'
+      | 'BATERIA_BAJA'
+      | 'HUMEDAD_FUERA_RANGO'
+      | 'MKT_EXCEDIDO'
+      | 'APERTURA_NO_AUTORIZADA';
     valor_detectado: number;
     umbral_permitido: number;
     valor_pico?: number;

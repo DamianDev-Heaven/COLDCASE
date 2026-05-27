@@ -35,7 +35,7 @@ export class MktAnomalyDetector implements AnomalyDetector {
         'SELECT temp FROM telemetria WHERE viaje_id = $1 ORDER BY timestamp_sensor DESC, id DESC LIMIT $2',
         [viaje.id, limit],
       );
-      
+
       const rows = historyResult.rows;
       if (rows.length < 5) {
         // Necesitamos al menos 5 puntos para calcular un MKT representativo
@@ -47,13 +47,13 @@ export class MktAnomalyDetector implements AnomalyDetector {
       // Usando dH/R = 10000 K (basado en energía de activación de 83.144 kJ/mol y R = 8.3144 * 10^-3 kJ/mol*K)
       const DH_R = 10000;
       let sumExp = 0;
-      
+
       for (const row of rows) {
         const tempC = Number(row.temp);
         const tempK = tempC + 273.15; // Convertir a Kelvin
         sumExp += Math.exp(-DH_R / tempK);
       }
-      
+
       const averageExp = sumExp / rows.length;
       const mktK = DH_R / -Math.log(averageExp);
       const mktC = Number((mktK - 273.15).toFixed(2)); // Convertir de vuelta a Celsius
@@ -109,7 +109,7 @@ export class MktAnomalyDetector implements AnomalyDetector {
           );
 
           await client.query(
-            "UPDATE incidente SET resuelta = true, timestamp_fin = CURRENT_TIMESTAMP WHERE id = $1",
+            'UPDATE incidente SET resuelta = true, timestamp_fin = CURRENT_TIMESTAMP WHERE id = $1',
             [activeIncident.id],
           );
 
