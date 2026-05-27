@@ -11,12 +11,15 @@ import { IaAnalysisService } from '../ia/ia-analysis.service';
 import { TemperatureAnomalyDetector } from './detectors/temperature-anomaly.detector';
 import { BatteryAnomalyDetector } from './detectors/battery-anomaly.detector';
 import { RouteDeviationDetector } from './detectors/route-deviation.detector';
+import { HumidityAnomalyDetector } from './detectors/humidity-anomaly.detector';
+import { MktAnomalyDetector } from './detectors/mkt-anomaly.detector';
+import { GateSecurityDetector } from './detectors/gate-security.detector';
 
 type IncidenteRow = {
   id: string;
   viaje_id: string;
   telemetria_id: number;
-  tipo_alerta: 'TEMP_ALTA' | 'FUERA_RUTA' | 'BATERIA_BAJA';
+  tipo_alerta: 'TEMP_ALTA' | 'FUERA_RUTA' | 'BATERIA_BAJA' | 'HUMEDAD_FUERA_RANGO' | 'MKT_EXCEDIDO' | 'APERTURA_NO_AUTORIZADA';
   valor_detectado: number;
   umbral_permitido: number;
   timestamp_bd: string;
@@ -33,6 +36,7 @@ type TelemetriaRow = {
   temp: string;
   humedad: number | null;
   bateria: number | null;
+  compuerta_abierta: boolean;
   timestamp_sensor: string;
   received_at: string;
 };
@@ -49,6 +53,9 @@ export class TelemetriaService {
     private readonly tempDetector: TemperatureAnomalyDetector,
     private readonly batteryDetector: BatteryAnomalyDetector,
     private readonly routeDetector: RouteDeviationDetector,
+    private readonly humidityDetector: HumidityAnomalyDetector,
+    private readonly mktDetector: MktAnomalyDetector,
+    private readonly gateSecurityDetector: GateSecurityDetector,
   ) {}
 
   async create(payload: {
@@ -58,6 +65,7 @@ export class TelemetriaService {
     temp: number;
     humedad?: number;
     bateria?: number;
+    compuerta_abierta?: boolean;
     timestamp_sensor: string;
   }) {
     try {
@@ -141,6 +149,7 @@ export class TelemetriaService {
           temp: String(payload.temp),
           humedad: payload.humedad ?? null,
           bateria: payload.bateria == null ? null : Math.trunc(payload.bateria),
+          compuerta_abierta: payload.compuerta_abierta ?? false,
           timestamp_sensor: payload.timestamp_sensor,
           received_at: new Date().toISOString(),
           incidente_id: null,
@@ -169,6 +178,7 @@ export class TelemetriaService {
     temp: number;
     humedad?: number;
     bateria?: number;
+    compuerta_abierta?: boolean;
     timestamp_sensor: string;
   }) {
     return await this.db.transaction(async (client) => {
@@ -176,11 +186,15 @@ export class TelemetriaService {
       const viajeResult = await client.query<{
         id: string;
         limite_max_temp: number;
+        limite_min_humedad?: number | null;
+        limite_max_humedad?: number | null;
+        sucursal_origen_id?: string | null;
+        sucursal_destino_id?: string | null;
         ruta_waypoints?: unknown;
         margen_desvio_km?: number;
         estado: string;
       }>(
-        'SELECT id, limite_max_temp, ruta_waypoints, margen_desvio_km, estado FROM viaje WHERE id = $1',
+        'SELECT id, limite_max_temp, limite_min_humedad, limite_max_humedad, sucursal_origen_id, sucursal_destino_id, ruta_waypoints, margen_desvio_km, estado FROM viaje WHERE id = $1',
         [payload.viaje_id],
       );
 
@@ -206,10 +220,11 @@ export class TelemetriaService {
         temp: string;
         humedad: number | null;
         bateria: number | null;
+        compuerta_abierta: boolean;
         timestamp_sensor: string;
         received_at: string;
       }>(
-        'INSERT INTO telemetria (viaje_id, lat, lon, temp, humedad, bateria, timestamp_sensor) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, viaje_id, lat, lon, temp, humedad, bateria, timestamp_sensor, received_at',
+        'INSERT INTO telemetria (viaje_id, lat, lon, temp, humedad, bateria, compuerta_abierta, timestamp_sensor) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id, viaje_id, lat, lon, temp, humedad, bateria, compuerta_abierta, timestamp_sensor, received_at',
         [
           payload.viaje_id,
           payload.lat,
@@ -217,6 +232,7 @@ export class TelemetriaService {
           payload.temp,
           payload.humedad ?? null,
           payload.bateria == null ? null : Math.trunc(payload.bateria),
+          payload.compuerta_abierta ?? false,
           payload.timestamp_sensor,
         ],
       );
@@ -237,6 +253,9 @@ export class TelemetriaService {
         this.tempDetector,
         this.batteryDetector,
         this.routeDetector,
+        this.humidityDetector,
+        this.mktDetector,
+        this.gateSecurityDetector,
       ];
       for (const detector of detectors) {
         const result = await detector.evaluate(
@@ -272,7 +291,7 @@ export class TelemetriaService {
 
   async findAll() {
     const result = await this.db.query<TelemetriaRow>(
-      'SELECT id, viaje_id, lat, lon, temp, humedad, bateria, timestamp_sensor, received_at FROM telemetria ORDER BY received_at DESC, id DESC',
+      'SELECT id, viaje_id, lat, lon, temp, humedad, bateria, compuerta_abierta, timestamp_sensor, received_at FROM telemetria ORDER BY received_at DESC, id DESC',
     );
 
     return result.rows;
@@ -282,7 +301,7 @@ export class TelemetriaService {
     const result = await this.db.query<
       TelemetriaRow & { ia_diagnosis?: string }
     >(
-      `SELECT t.id, t.viaje_id, t.lat, t.lon, t.temp, t.humedad, t.bateria, t.timestamp_sensor, t.received_at, a.diagnostico_tecnico AS ia_diagnosis
+      `SELECT t.id, t.viaje_id, t.lat, t.lon, t.temp, t.humedad, t.bateria, t.compuerta_abierta, t.timestamp_sensor, t.received_at, a.diagnostico_tecnico AS ia_diagnosis
        FROM telemetria t
        LEFT JOIN analisis_ia a ON a.telemetria_id = t.id
        WHERE t.viaje_id = $1
@@ -295,7 +314,7 @@ export class TelemetriaService {
 
   async findOne(id: number) {
     const result = await this.db.query<TelemetriaRow>(
-      'SELECT id, viaje_id, lat, lon, temp, humedad, bateria, timestamp_sensor, received_at FROM telemetria WHERE id = $1',
+      'SELECT id, viaje_id, lat, lon, temp, humedad, bateria, compuerta_abierta, timestamp_sensor, received_at FROM telemetria WHERE id = $1',
       [id],
     );
 

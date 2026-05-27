@@ -8,7 +8,7 @@ import { JwtService } from '@nestjs/jwt';
 import bcrypt from 'bcrypt';
 import { DbService } from '../db/db.service';
 
-type Role = 'Admin' | 'Operador' | 'Auditor';
+type Role = 'Admin' | 'Operador';
 
 type UserRow = {
   id: string;
@@ -98,7 +98,7 @@ export class AuthService {
     payload: {
       email?: string;
       password?: string;
-      rol?: 'Admin' | 'Operador' | 'Auditor';
+      rol?: 'Admin' | 'Operador';
     },
   ) {
     const currentResult = await this.db.query<UserSummaryRow>(

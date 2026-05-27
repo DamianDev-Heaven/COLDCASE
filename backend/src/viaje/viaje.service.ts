@@ -208,6 +208,9 @@ export class ViajeService {
     transporte_id: string;
     limite_max_temp: number;
     limite_min_temp?: number;
+    limite_min_humedad?: number;
+    limite_max_humedad?: number;
+    perfil_producto_id?: string;
     tipo_producto?: string;
     valor_comercial?: number;
     peso_kg?: number;
@@ -281,11 +284,14 @@ export class ViajeService {
         };
 
     const result = await this.db.query(
-      'INSERT INTO viaje (transporte_id, limite_max_temp, limite_min_temp, tipo_producto, valor_comercial, peso_kg, volumen_m3, ruta_waypoints, margen_desvio_km, inicio_viaje, final_viaje, estado, sucursal_origen_id, sucursal_destino_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING id, transporte_id, limite_max_temp, limite_min_temp, tipo_producto, valor_comercial, peso_kg, volumen_m3, ruta_waypoints, margen_desvio_km, inicio_viaje, final_viaje, estado, sucursal_origen_id, sucursal_destino_id',
+      'INSERT INTO viaje (transporte_id, limite_max_temp, limite_min_temp, limite_min_humedad, limite_max_humedad, perfil_producto_id, tipo_producto, valor_comercial, peso_kg, volumen_m3, ruta_waypoints, margen_desvio_km, inicio_viaje, final_viaje, estado, sucursal_origen_id, sucursal_destino_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) RETURNING id, transporte_id, limite_max_temp, limite_min_temp, limite_min_humedad, limite_max_humedad, perfil_producto_id, tipo_producto, valor_comercial, peso_kg, volumen_m3, ruta_waypoints, margen_desvio_km, inicio_viaje, final_viaje, estado, sucursal_origen_id, sucursal_destino_id',
       [
         payload.transporte_id,
         payload.limite_max_temp,
         payload.limite_min_temp ?? null,
+        payload.limite_min_humedad ?? null,
+        payload.limite_max_humedad ?? null,
+        payload.perfil_producto_id ?? null,
         payload.tipo_producto ?? null,
         payload.valor_comercial ?? null,
         payload.peso_kg ?? null,
@@ -314,6 +320,9 @@ export class ViajeService {
         v.transporte_id,
         v.limite_max_temp,
         v.limite_min_temp,
+        v.limite_min_humedad,
+        v.limite_max_humedad,
+        v.perfil_producto_id,
         v.tipo_producto,
         v.valor_comercial,
         v.peso_kg,
@@ -352,6 +361,9 @@ export class ViajeService {
         v.transporte_id,
         v.limite_max_temp,
         v.limite_min_temp,
+        v.limite_min_humedad,
+        v.limite_max_humedad,
+        v.perfil_producto_id,
         v.tipo_producto,
         v.valor_comercial,
         v.peso_kg,
@@ -393,6 +405,9 @@ export class ViajeService {
         v.transporte_id,
         v.limite_max_temp,
         v.limite_min_temp,
+        v.limite_min_humedad,
+        v.limite_max_humedad,
+        v.perfil_producto_id,
         v.tipo_producto,
         v.valor_comercial,
         v.peso_kg,
@@ -490,7 +505,7 @@ export class ViajeService {
     } else if (comando === 'cerrar-compuerta') {
       path = '/api/simulation/close-gate';
     } else if (comando === 'abrir-compuerta') {
-      path = '/api/simulation/force-gate'; // Simular apertura de compuerta
+      throw new Error('El comando manual "abrir-compuerta" ha sido inhabilitado por políticas de seguridad.');
     } else if (comando === 'toggle-signal-loss') {
       path = '/api/simulation/toggle-iot-link';
       bodyPayload = { enabled }; // Para el estado global de señal
@@ -547,5 +562,19 @@ export class ViajeService {
     } catch {
       return null;
     }
+  }
+
+  async findPerfiles() {
+    const result = await this.db.query<{
+      id: string;
+      nombre: string;
+      limite_min_temp: string;
+      limite_max_temp: string;
+      limite_min_humedad: string;
+      limite_max_humedad: string;
+    }>(
+      'SELECT id, nombre, limite_min_temp, limite_max_temp, limite_min_humedad, limite_max_humedad FROM perfil_producto ORDER BY nombre ASC',
+    );
+    return result.rows;
   }
 }

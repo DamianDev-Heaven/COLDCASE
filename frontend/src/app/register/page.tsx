@@ -4,18 +4,18 @@ import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
-const roles = ["Admin", "Operador", "Auditor"] as const;
+const roles = ["Admin", "Operador"] as const;
 
 type UserPayload = {
   sub?: string;
   email?: string;
-  rol?: "Admin" | "Operador" | "Auditor";
+  rol?: "Admin" | "Operador";
 };
 
 type ManagedUser = {
   id: string;
   email: string;
-  rol: "Admin" | "Operador" | "Auditor";
+  rol: "Admin" | "Operador";
 };
 
 type EditUserState = {

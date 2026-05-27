@@ -162,6 +162,7 @@ function buildSample(viaje, state, runtimeState, logEvent) {
 		heatTransferCoef = 0.08;
 	}
 
+	const compuerta_abierta = state.gateOpenTicks > 0;
 	if (state.gateOpenTicks > 0) {
 		heatTransferCoef = 0.35;
 		if (!state.compressorFailed) {
@@ -198,6 +199,7 @@ function buildSample(viaje, state, runtimeState, logEvent) {
 		temp,
 		humedad: humidity,
 		bateria: battery,
+		compuerta_abierta,
 		timestamp_sensor: state.lastTelemetryAt,
 	};
 

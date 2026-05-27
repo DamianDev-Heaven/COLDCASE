@@ -101,3 +101,37 @@ jobs:
           push: false
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      # Build de prueba Simulador (Producción)
+      - name: Build Simulador (Producción)
+        uses: docker/build-push-action@v5
+        with:
+          context: ./simulador
+          file: ./simulador/Dockerfile
+          target: production
+          tags: coldcase/simulador:latest
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # Build de prueba OSRM
+      - name: Build OSRM
+        uses: docker/build-push-action@v5
+        with:
+          context: ./osrm
+          file: ./osrm/Dockerfile
+          tags: coldcase/osrm:latest
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # Build de prueba Munin
+      - name: Build Munin
+        uses: docker/build-push-action@v5
+        with:
+          context: ./infra/munin
+          file: ./infra/munin/Dockerfile
+          tags: coldcase/munin:latest
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

@@ -1,4 +1,5 @@
 import {
+  IsBoolean,
   IsDateString,
   IsLatitude,
   IsLongitude,
@@ -33,6 +34,10 @@ export class CreateTelemetriaDto {
   @Min(0)
   @Max(100)
   bateria?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  compuerta_abierta?: boolean;
 
   @IsDateString()
   timestamp_sensor: string;

@@ -26,6 +26,11 @@ export class ViajeController {
     return this.viajeService.findAll();
   }
 
+  @Get('recetas/perfiles')
+  findPerfiles() {
+    return this.viajeService.findPerfiles();
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.viajeService.findOne(id);
