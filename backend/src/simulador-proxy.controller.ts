@@ -12,8 +12,9 @@ export class SimuladorProxyController {
       const html = await response.text();
       res.setHeader('Content-Type', 'text/html');
       res.send(html);
-    } catch (err) {
-      res.status(500).send(`Error de comunicación con el simulador: ${err.message}`);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      res.status(500).send(`Error de comunicación con el simulador: ${message}`);
     }
   }
 
@@ -52,8 +53,9 @@ export class SimuladorProxyController {
       res.status(response.status);
       res.setHeader('Content-Type', response.headers.get('Content-Type') || 'application/json');
       res.send(data);
-    } catch (err) {
-      res.status(500).send({ message: `Error proxying request to simulator: ${err.message}` });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      res.status(500).send({ message: `Error proxying request to simulator: ${message}` });
     }
   }
 }
