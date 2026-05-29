@@ -14,7 +14,7 @@
  */
 
 import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
-import { ZepClient } from '@getzep/zep-cloud';
+import { Zep, ZepClient } from '@getzep/zep-cloud';
 
 /** Resultado al guardar datos en Zep Graph */
 export interface ZepSaveResult {
@@ -172,11 +172,28 @@ export class ZepMemoryService {
       // 1. Asegurar que el grafo Standalone existe
       await this.ensureGraph(graphId);
 
+      let searchFilters: Zep.SearchFilters | undefined;
+      if (viajeId) {
+        searchFilters = {
+          episodeMetadataFilters: {
+            type: 'and',
+            filters: [
+              {
+                propertyName: 'viajeId',
+                propertyValue: viajeId,
+                comparisonOperator: '=',
+              },
+            ],
+          },
+        };
+      }
+
       // 2. Buscar en el Grafo
       const response = await this.withTimeout(
         this.zepClient.graph.search({
           graphId,
           query,
+          searchFilters,
         }),
       );
 
@@ -187,6 +204,7 @@ export class ZepMemoryService {
       }
 
       // Formatear las relaciones encontradas (ej. Nodo1 -> Relación -> Nodo2)
+      // Como ya filtramos por viajeId a nivel de consulta en Zep, solo conservamos y formateamos
       const formatted = edges
         .map((edge) => {
           return `- [Conocimiento Previo]: ${edge.fact || edge.name || 'Sin detalle'}`;
@@ -230,17 +248,38 @@ export class ZepMemoryService {
   /**
    * Realiza una búsqueda directa en el Grafo de Zep retornando la respuesta en bruto (nodos y aristas).
    */
-  async buscarEnGrafoDirecto(query: string): Promise<ZepGraphSearchResult> {
+  async buscarEnGrafoDirecto(
+    query: string,
+    viajeId?: string,
+  ): Promise<ZepGraphSearchResult> {
     if (!this.zepClient) {
       return { nodes: [], edges: [] };
     }
     const graphId = this.graphId;
     try {
       await this.ensureGraph(graphId);
+
+      let searchFilters: Zep.SearchFilters | undefined;
+      if (viajeId) {
+        searchFilters = {
+          episodeMetadataFilters: {
+            type: 'and',
+            filters: [
+              {
+                propertyName: 'viajeId',
+                propertyValue: viajeId,
+                comparisonOperator: '=',
+              },
+            ],
+          },
+        };
+      }
+
       const response = (await this.withTimeout(
         this.zepClient.graph.search({
           graphId,
           query: query || 'anomalía',
+          searchFilters,
         }),
       )) as unknown as ZepGraphSearchResult;
       return {

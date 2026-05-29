@@ -48,6 +48,9 @@ export default function LoginPage() {
       }
 
       const data = await response.json();
+      if (data.accessToken) {
+        localStorage.setItem("accessToken", data.accessToken);
+      }
       localStorage.setItem("currentUser", JSON.stringify(data.user));
       setStatus({ type: "success", message: "Login correcto. Redirigiendo..." });
       router.push("/dashboard");

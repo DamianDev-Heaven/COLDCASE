@@ -20,6 +20,8 @@ export class AuthGuard implements CanActivate {
 
     if (authHeader?.startsWith('Bearer ')) {
       token = authHeader.slice('Bearer '.length);
+    } else if (request.query && request.query.token) {
+      token = request.query.token as string;
     } else if (request.cookies) {
       const cookies = request.cookies as Record<string, string | undefined>;
       token = cookies.access_token;

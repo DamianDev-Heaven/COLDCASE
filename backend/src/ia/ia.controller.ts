@@ -84,7 +84,10 @@ export class IaController {
    * Realiza una búsqueda directa en el Grafo Global de Zep y retorna nodos y aristas.
    */
   @Get('grafo/buscar')
-  buscarEnGrafo(@Query('query') query: string) {
-    return this.iaService.buscarEnGrafoGlobal(query);
+  buscarEnGrafo(
+    @Query('query') query: string,
+    @Query('viajeId') viajeId?: string,
+  ) {
+    return this.iaService.buscarEnGrafoGlobal(query, viajeId);
   }
 }

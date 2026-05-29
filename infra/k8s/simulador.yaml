@@ -10,6 +10,18 @@ spec:
   selector:
     app: simulador
 ---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: simulador-pvc
+  namespace: coldcase
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -50,4 +62,5 @@ spec:
               mountPath: /usr/src/app/data
       volumes:
         - name: simulador-storage
-          emptyDir: {}
+          persistentVolumeClaim:
+            claimName: simulador-pvc
