@@ -4,6 +4,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuthController } from './auth.controller';
 import { AuthGuard } from './auth.guard';
 import { AuthService } from './auth.service';
+import { RolesGuard } from './roles.guard';
 
 @Module({
   imports: [
@@ -17,7 +18,8 @@ import { AuthService } from './auth.service';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, AuthGuard],
+  providers: [AuthService, AuthGuard, RolesGuard],
+  exports: [AuthService, AuthGuard, RolesGuard],
 })
 export class AuthModule {
   private readonly logger = new Logger(AuthModule.name);
