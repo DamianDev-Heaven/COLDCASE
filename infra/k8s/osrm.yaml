@@ -69,6 +69,21 @@ spec:
             limits:
               cpu: "500m"
               memory: "512Mi"
+          # Probes de Kubernetes para verificar si OSRM está listo para responder consultas geográficas
+          readinessProbe:
+            httpGet:
+              path: /route/v1/driving/-89.2182,13.6929;-89.2045,13.7001?overview=false
+              port: 5000
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+          livenessProbe:
+            httpGet:
+              path: /route/v1/driving/-89.2182,13.6929;-89.2045,13.7001?overview=false
+              port: 5000
+            initialDelaySeconds: 20
+            periodSeconds: 15
+            timeoutSeconds: 5
           volumeMounts:
             - name: osrm-data
               mountPath: /data

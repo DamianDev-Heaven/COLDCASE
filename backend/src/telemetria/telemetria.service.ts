@@ -56,6 +56,8 @@ export class TelemetriaService {
     @InjectQueue('ia-analysis-queue') private readonly iaQueue: Queue,
     @InjectQueue('telemetria-contingency-queue')
     private readonly contingencyQueue: Queue,
+    @InjectQueue('telemetria-ingest-queue')
+    private readonly ingestQueue: Queue,
     private readonly tempDetector: TemperatureAnomalyDetector,
     private readonly batteryDetector: BatteryAnomalyDetector,
     private readonly routeDetector: RouteDeviationDetector,
@@ -74,106 +76,72 @@ export class TelemetriaService {
     compuerta_abierta?: boolean;
     timestamp_sensor: string;
   }) {
+    // Generar ID único por mensaje para garantizar de-duplicación
+    const jobId = `${payload.viaje_id}-${payload.timestamp_sensor}`;
+
     try {
-      const result = await this.createDirect(payload);
-
-      // Encolar análisis de IA si se detectó la resolución de una excursión térmica
-      let ia_diagnosis: string | null = null;
-      if (result.encolarIa && result.incidenteParaIa) {
-        try {
-          const inc = result.incidenteParaIa;
-          const durationMs =
-            new Date(inc.timestamp_fin || '').getTime() -
-            new Date(inc.timestamp_bd || '').getTime();
-          const duracionSegundos = Math.max(0, Math.round(durationMs / 1000));
-
-          await this.iaQueue.add('analyze-incident', {
-            viajeId: payload.viaje_id,
-            incidenteData: {
-              id: result.id,
-              viaje_id: payload.viaje_id,
-              lat: Number(result.lat),
-              lon: Number(result.lon),
-              temp: Number(result.temp),
-              humedad: result.humedad,
-              bateria: result.bateria,
-              timestamp_sensor: result.timestamp_sensor,
-              incidente_id: inc.id,
-              valor_pico: Number(inc.valor_pico ?? inc.valor_detectado),
-              duracion_segundos: duracionSegundos,
-              umbral_permitido: Number(inc.umbral_permitido),
-            },
-          });
-          ia_diagnosis = 'Análisis encolado para procesamiento en lote';
-        } catch (err) {
-          const errorMsg = err instanceof Error ? err.message : String(err);
-          console.warn(
-            `Error al encolar análisis IA en tiempo real: ${errorMsg}`,
-          );
-        }
-      }
+      // Registrar telemetría encolándola en Redis
+      await this.ingestQueue.add('process-ingest', payload, {
+        jobId,
+        attempts: 10,
+        backoff: {
+          type: 'exponential',
+          delay: 5000,
+        },
+        removeOnComplete: true, // Limpiar trabajos completados
+        removeOnFail: false,   // Mantener fallidos para inspección SRE (Dead Letter Queue)
+      });
 
       return {
-        ...result,
-        ia_diagnosis,
+        status: 'accepted',
+        message: 'Telemetría encolada exitosamente para procesamiento asíncrono.',
+        jobId,
+        viaje_id: payload.viaje_id,
+        timestamp_sensor: payload.timestamp_sensor,
       };
     } catch (err) {
-      // Si es un error de validación (4xx), propagarlo normalmente
-      if (err && typeof err === 'object' && 'status' in err) {
-        const status = (err as Record<string, unknown>).status;
-        if (typeof status === 'number' && status < 500) {
-          throw err;
-        }
-      }
-
       const errorMsg = err instanceof Error ? err.message : String(err);
-      console.error(
-        'Fallo de escritura en base de datos. Activando contingencia BullMQ:',
-        errorMsg,
-      );
+      console.error('Error al encolar telemetría en telemetria-ingest-queue:', errorMsg);
+      throw new BadRequestException('Fallo crítico: No se pudo encolar la telemetría en el búfer temporal.');
+    }
+  }
 
-      try {
-        // Encolar telemetría con ID de trabajo único para de-duplicación
-        const jobId = `${payload.viaje_id}-${payload.timestamp_sensor}`;
-        await this.contingencyQueue.add('process-contingency', payload, {
-          jobId,
-          attempts: 20,
-          backoff: {
-            type: 'exponential',
-            delay: 10000,
-          },
-        });
+  async enqueueIaAnalysis(result: any, payload: any) {
+    try {
+      const inc = result.incidenteParaIa;
+      const durationMs =
+        new Date(inc.timestamp_fin || '').getTime() -
+        new Date(inc.timestamp_bd || '').getTime();
+      const duracionSegundos = Math.max(0, Math.round(durationMs / 1000));
 
-        return {
-          contingency: true,
-          message:
-            'Telemetría guardada en cola de contingencia temporal por fallo en base de datos.',
-          id: -1,
+      await this.iaQueue.add('analyze-incident', {
+        viajeId: payload.viaje_id,
+        incidenteData: {
+          id: result.id,
           viaje_id: payload.viaje_id,
-          lat: String(payload.lat),
-          lon: String(payload.lon),
-          temp: String(payload.temp),
-          humedad: payload.humedad ?? null,
-          bateria: payload.bateria == null ? null : Math.trunc(payload.bateria),
-          compuerta_abierta: payload.compuerta_abierta ?? false,
-          timestamp_sensor: payload.timestamp_sensor,
-          received_at: new Date().toISOString(),
-          incidente_id: null,
-          tipo_alerta: null,
-          valor_detectado: null,
-          umbral_permitido: null,
-          timestamp_bd: null,
-          ia_diagnosis: 'En espera de restablecimiento de base de datos',
-        };
-      } catch (redisErr) {
-        const redisMsg =
-          redisErr instanceof Error ? redisErr.message : String(redisErr);
-        console.error(
-          'Error crítico: Redis también falló al guardar en contingencia:',
-          redisMsg,
-        );
-        throw err;
-      }
+          lat: Number(result.lat),
+          lon: Number(result.lon),
+          temp: Number(result.temp),
+          humedad: result.humedad,
+          bateria: result.bateria,
+          timestamp_sensor: result.timestamp_sensor,
+          incidente_id: inc.id,
+          valor_pico: Number(inc.valor_pico ?? inc.valor_detectado),
+          duracion_segundos: duracionSegundos,
+          umbral_permitido: Number(inc.umbral_permitido),
+        },
+      }, {
+        attempts: 5,
+        backoff: {
+          type: 'exponential',
+          delay: 5000,
+        },
+        removeOnComplete: true,
+        removeOnFail: false, // DLQ para inspección manual SRE de fallos de IA
+      });
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      console.warn(`Error al encolar análisis IA en segundo plano: ${errorMsg}`);
     }
   }
 
