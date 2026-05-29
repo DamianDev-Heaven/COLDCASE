@@ -41,11 +41,13 @@ spec:
           image: postgres:15-alpine
           env:
             - name: POSTGRES_USER
-              value: postgres
+              value: admin
             - name: POSTGRES_PASSWORD
-              value: postgres
+              value: adminpassword
             - name: POSTGRES_DB
-              value: postgres
+              value: monitoreo_cadena_frio
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
           ports:
             - containerPort: 5432
           volumeMounts:

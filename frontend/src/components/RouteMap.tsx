@@ -221,11 +221,12 @@ export default function RouteMap({
         const lastTele = telemetryPoints[telemetryPoints.length - 1];
         const tempVal = lastTele.temp;
         
-        let nearestWp = waypoints[0];
+        const referencePoints = (routeToDraw && routeToDraw.length > 0) ? routeToDraw : waypoints;
+        let nearestWp = referencePoints[0];
         let minD = Infinity;
         let isDeviated = false;
-        if (waypoints.length > 0) {
-          for (const wp of waypoints) {
+        if (referencePoints.length > 0) {
+          for (const wp of referencePoints) {
             const d = Math.pow(wp.lat - lastPoint[0], 2) + Math.pow(wp.lon - lastPoint[1], 2);
             if (d < minD) {
               minD = d;

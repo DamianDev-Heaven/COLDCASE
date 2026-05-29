@@ -9,7 +9,7 @@ spec:
       targetPort: 3000
   selector:
     app: frontend
-  type: ClusterIP
+  type: LoadBalancer
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -28,12 +28,12 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: coldcase-frontend:latest
-          imagePullPolicy: IfNotPresent
+          image: devdamian/coldcase-frontend:latest
+          imagePullPolicy: Always
           env:
             - name: NEXT_PUBLIC_API_URL
-              value: "http://backend:3000"
+              value: "http://104.64.127.23:3000"
             - name: NEXT_PUBLIC_SIMULADOR_URL
-              value: "http://simulador:4000"
+              value: "http://104.64.127.23:3000/simulador"
           ports:
             - containerPort: 3000

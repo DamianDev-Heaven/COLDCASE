@@ -39,8 +39,8 @@ spec:
     spec:
       containers:
         - name: simulador
-          image: coldcase-simulador:latest
-          imagePullPolicy: IfNotPresent
+          image: devdamian/coldcase-simulador:latest
+          imagePullPolicy: Always
           env:
             - name: API_URL
               value: "http://backend:3000"

@@ -478,6 +478,22 @@ async function handleApiRequest(req, res, pathname) {
 
 
 
+	if (req.method === 'POST' && pathname === '/api/simulation/open-gate') {
+		const payload = await readBody(req);
+		if (payload.viajeId && simulationMap.has(payload.viajeId)) {
+			const state = simulationMap.get(payload.viajeId);
+			state.gateOpenTicks = 4;
+			logEvent('warn', `Simulador: Apertura MANUAL de compuerta para viaje ${payload.viajeId}. Infiltración térmica externa activa.`, payload.viajeId);
+			saveState();
+			res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+			res.end(JSON.stringify({ viajeId: payload.viajeId, gateOpenTicks: state.gateOpenTicks }));
+		} else {
+			res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+			res.end(JSON.stringify({ error: 'Viaje no encontrado o inactivo.' }));
+		}
+		return true;
+	}
+
 	if (req.method === 'POST' && pathname === '/api/simulation/close-gate') {
 		const payload = await readBody(req);
 		if (payload.viajeId && simulationMap.has(payload.viajeId)) {

@@ -1,32 +1,12 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import RouteMap from "../../components/RouteMap";
-import { ShieldCheck, Cpu, Radio, Activity, ChevronDown } from "lucide-react";
+import { ShieldCheck, Cpu, Radio, ChevronDown, CheckCircle2, ArrowRight } from "lucide-react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-
-type Waypoint = { lat: number; lon: number };
-
-type AnalysisResult = {
-  nivel_riesgo: "CRITICO" | "ALTO" | "MODERADO" | "DESCONOCIDO";
-  diagnostico_tecnico: string;
-  accion_mitigacion: string;
-  fuente: "reglas" | "llm";
-  contexto?: {
-    limite_max_temp: number;
-    temperatura_actual: number;
-    bateria_actual: number;
-    desvio_km?: number | null;
-    distancia_ruta_km?: number | null;
-    osrm_usado: boolean;
-  };
-};
-
-type Status = { type: "success" | "error"; message: string } | null;
 
 interface Viaje {
   id: string;
@@ -63,56 +43,9 @@ type SimState = {
   } | null;
 } | null;
 
-// ─── Constants ────────────────────────────────────────────────────────────────
-
-const demoRoute: Waypoint[] = [
-  { lat: 13.6929, lon: -89.2182 },
-  { lat: 13.7001, lon: -89.2045 },
-  { lat: 13.7085, lon: -89.1882 },
-  { lat: 13.7154, lon: -89.1741 },
-];
-
-const riskClassNames: Record<AnalysisResult["nivel_riesgo"], string> = {
-  CRITICO: "border-rose-400/40 bg-rose-500/10 text-rose-100",
-  ALTO: "border-amber-400/40 bg-amber-500/10 text-amber-100",
-  MODERADO: "border-cyan-400/40 bg-cyan-500/10 text-cyan-100",
-  DESCONOCIDO: "border-slate-400/40 bg-slate-500/10 text-slate-100",
-};
-
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function IaPage() {
-  const [activeTab, setActiveTab] = useState<"playground" | "control">("playground");
-
-  // ── Playground state ──────────────────────────────────────────────────────
-  const [iotId, setIotId] = useState("iot-demo-01");
-  const [viajeId, setViajeId] = useState("");
-  const [temperaturaActual, setTemperaturaActual] = useState("6.4");
-  const [bateriaActual, setBateriaActual] = useState("78");
-  const [limiteMaxTemp, setLimiteMaxTemp] = useState("5");
-  const [margenDesvioKm, setMargenDesvioKm] = useState("8");
-  const [latitudActual, setLatitudActual] = useState("13.7050");
-  const [longitudActual, setLongitudActual] = useState("-89.1962");
-  const [modo, setModo] = useState<"auto" | "deterministic" | "llm">("auto");
-  const [waypoints, setWaypoints] = useState<Waypoint[]>(demoRoute);
-  const [status, setStatus] = useState<Status>(null);
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<AnalysisResult | null>(null);
-
-  const simulatedTelemetry = useMemo(
-    () => [
-      {
-        lat: Number(latitudActual) || 13.6929,
-        lon: Number(longitudActual) || -89.2182,
-        temp: Number(temperaturaActual) || 0,
-        bateria: Number(bateriaActual) || 100,
-      },
-    ],
-    [latitudActual, longitudActual, temperaturaActual, bateriaActual]
-  );
-
-  const routePreview = useMemo(() => JSON.stringify({ waypoints }, null, 2), [waypoints]);
-
   // ── Control state ─────────────────────────────────────────────────────────
   const [viajes, setViajes] = useState<Viaje[]>([]);
   const [viajeSeleccionado, setViajeSeleccionado] = useState<Viaje | null>(null);
@@ -133,9 +66,16 @@ export default function IaPage() {
             (v: Viaje) => v.estado === "pendiente" || v.estado === "en_curso"
           );
           setViajes(activos);
-          if (activos.length > 0 && !viajeSeleccionado) {
-            setViajeSeleccionado(activos[0]);
-          }
+          setViajeSeleccionado((prev) => {
+            if (prev) {
+              const actualizado = data.find((v: Viaje) => v.id === prev.id);
+              if (actualizado && actualizado.estado !== prev.estado) {
+                return actualizado;
+              }
+              return prev;
+            }
+            return activos.length > 0 ? activos[0] : null;
+          });
         }
       } catch (e) {
         console.error("Error cargando viajes:", e);
@@ -237,55 +177,6 @@ export default function IaPage() {
     }
   };
 
-  const loadDemo = (scenario: "normal" | "desvio" | "critico") => {
-    if (scenario === "normal") {
-      setIotId("iot-demo-01"); setViajeId(""); setTemperaturaActual("4.2");
-      setBateriaActual("81"); setLimiteMaxTemp("5"); setMargenDesvioKm("8");
-      setLatitudActual("13.7044"); setLongitudActual("-89.1969"); setModo("deterministic");
-      setWaypoints(demoRoute); return;
-    }
-    if (scenario === "desvio") {
-      setIotId("iot-demo-02"); setViajeId(""); setTemperaturaActual("5.8");
-      setBateriaActual("62"); setLimiteMaxTemp("5"); setMargenDesvioKm("4");
-      setLatitudActual("13.7315"); setLongitudActual("-89.2578"); setModo("auto");
-      setWaypoints([{ lat: 13.6929, lon: -89.2182 }, { lat: 13.7001, lon: -89.2045 }, { lat: 13.7085, lon: -89.1882 }]);
-      return;
-    }
-    setIotId("iot-demo-03"); setViajeId(""); setTemperaturaActual("11.4");
-    setBateriaActual("9"); setLimiteMaxTemp("5"); setMargenDesvioKm("4");
-    setLatitudActual("13.7441"); setLongitudActual("-89.2752"); setModo("auto");
-    setWaypoints(demoRoute);
-  };
-
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setLoading(true); setStatus(null);
-    try {
-      const response = await fetch(`${API_URL}/ia/analizar-viaje`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          iot_id: iotId, viaje_id: viajeId || undefined,
-          temperaturaActual: Number(temperaturaActual), bateriaActual: Number(bateriaActual),
-          limite_max_temp: Number(limiteMaxTemp), margen_desvio_km: Number(margenDesvioKm),
-          latitudActual: Number(latitudActual), longitudActual: Number(longitudActual),
-          ruta_waypoints: { waypoints }, modo,
-        }),
-      });
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(errorText || "No se pudo analizar el escenario.");
-      }
-      const data = (await response.json()) as AnalysisResult;
-      setResult(data);
-      setStatus({ type: "success", message: "Análisis generado correctamente." });
-    } catch (error) {
-      setStatus({ type: "error", message: error instanceof Error ? error.message : "Error inesperado." });
-    } finally {
-      setLoading(false);
-    }
-  };
-
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
@@ -300,7 +191,7 @@ export default function IaPage() {
             </div>
             <div>
               <span className="text-[13px] font-extrabold tracking-widest text-white">COLD<span className="text-cyan-400">CASE</span></span>
-              <p className="text-[9px] text-slate-500 tracking-[0.12em] uppercase mt-0.5">IA · Control · Sandbox</p>
+              <p className="text-[9px] text-slate-500 tracking-[0.12em] uppercase mt-0.5">Control · Sandbox</p>
             </div>
           </div>
           <Link
@@ -311,462 +202,456 @@ export default function IaPage() {
           </Link>
         </header>
 
-        {/* Tab switcher */}
-        <div className="flex gap-1 bg-slate-900/60 border border-white/[0.06] rounded-2xl p-1 w-fit">
-          <button
-            onClick={() => setActiveTab("playground")}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-[11px] font-bold uppercase tracking-widest transition-all cursor-pointer ${
-              activeTab === "playground"
-                ? "bg-cyan-500/15 text-cyan-300 border border-cyan-500/20 shadow-lg shadow-cyan-500/5"
-                : "text-slate-500 hover:text-slate-300"
-            }`}
-          >
-            <Activity className="w-3.5 h-3.5" />
-            Playground IA
-          </button>
-          <button
-            onClick={() => setActiveTab("control")}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-[11px] font-bold uppercase tracking-widest transition-all cursor-pointer ${
-              activeTab === "control"
-                ? "bg-rose-500/10 text-rose-300 border border-rose-500/20 shadow-lg shadow-rose-500/5"
-                : "text-slate-500 hover:text-slate-300"
-            }`}
-          >
-            <Cpu className="w-3.5 h-3.5" />
-            Control de Viaje
-            {incidentes.filter((i) => !i.resuelta).length > 0 && (
-              <span className="bg-rose-500 text-white text-[8px] font-black rounded-full w-4 h-4 flex items-center justify-center">
-                {incidentes.filter((i) => !i.resuelta).length}
-              </span>
-            )}
-          </button>
-        </div>
+        <div className="flex flex-col gap-6">
 
-        {/* ── TAB: PLAYGROUND ────────────────────────────────────────────────── */}
-        {activeTab === "playground" && (
-          <>
-            <header className="grid gap-6 lg:grid-cols-[1.4fr_0.9fr]">
-              <div className="rounded-[2rem] border border-cyan-400/20 bg-[radial-gradient(circle_at_top_left,_rgba(56,189,248,0.18),_transparent_42%),linear-gradient(180deg,rgba(15,23,42,0.92),rgba(15,23,42,0.72))] p-8 shadow-2xl shadow-cyan-950/30">
-                <p className="text-xs font-semibold uppercase tracking-[0.35em] text-cyan-300">Prueba IA</p>
-                <h1 className="mt-4 text-3xl font-semibold leading-tight sm:text-4xl">
-                  Simulador de Reglas y Riesgo Logístico
-                </h1>
-                <p className="mt-4 max-w-3xl text-sm leading-6 text-slate-300">
-                  Simula y evalúa incidentes en tiempo real. Carga escenarios predeterminados para
-                  comprobar cómo el backend diagnostica eventos y recomienda acciones preventivas.
-                </p>
-                <div className="mt-6 flex flex-wrap gap-3">
-                  <button type="button" onClick={() => loadDemo("normal")} className="rounded-full border border-cyan-400/30 bg-cyan-400/10 px-4 py-2 text-sm font-semibold text-cyan-100 transition hover:bg-cyan-400/20 cursor-pointer">
-                    Cargar caso normal
-                  </button>
-                  <button type="button" onClick={() => loadDemo("desvio")} className="rounded-full border border-amber-400/30 bg-amber-400/10 px-4 py-2 text-sm font-semibold text-amber-100 transition hover:bg-amber-400/20 cursor-pointer">
-                    Cargar desvío
-                  </button>
-                  <button type="button" onClick={() => loadDemo("critico")} className="rounded-full border border-rose-400/30 bg-rose-400/10 px-4 py-2 text-sm font-semibold text-rose-100 transition hover:bg-rose-400/20 cursor-pointer">
-                    Cargar crítico
-                  </button>
+          {/* Hero strip */}
+          <div className="rounded-[2rem] border border-rose-400/15 bg-[radial-gradient(circle_at_top_left,_rgba(239,68,68,0.12),_transparent_50%),linear-gradient(180deg,rgba(15,23,42,0.95),rgba(15,23,42,0.80))] p-6 flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.35em] text-rose-300">Sandbox · Control de Viaje</p>
+              <h2 className="mt-2 text-2xl font-semibold">Simulación e Inyección de Fallas</h2>
+              <p className="mt-1.5 text-sm text-slate-400">Selecciona un despacho activo para controlar el simulador, gestionar alertas y enviar comandos Downlink.</p>
+            </div>
+
+            {/* Trip selector */}
+            <div className="relative" ref={dropRef}>
+              <button
+                onClick={() => setDropOpen((o) => !o)}
+                className="flex items-center gap-2 bg-slate-900 border border-white/10 hover:border-cyan-500/30 rounded-xl px-4 py-2.5 text-[11px] font-semibold text-slate-200 transition cursor-pointer min-w-[220px] justify-between"
+              >
+                <span className="truncate">
+                  {viajeSeleccionado
+                    ? `${viajeSeleccionado.transporte_placa} · ${viajeSeleccionado.tipo_producto}`
+                    : "Seleccionar despacho..."}
+                </span>
+                <ChevronDown className={`w-3.5 h-3.5 text-slate-500 shrink-0 transition-transform ${dropOpen ? "rotate-180" : ""}`} />
+              </button>
+              {dropOpen && (
+                <div className="absolute right-0 top-full mt-1 z-50 w-64 bg-slate-900 border border-white/10 rounded-xl shadow-2xl overflow-hidden">
+                  {viajes.length === 0 ? (
+                    <p className="text-center text-slate-600 text-xs py-4 font-mono">Sin despachos activos.</p>
+                  ) : (
+                    viajes.map((v) => (
+                      <button
+                        key={v.id}
+                        onClick={() => { setViajeSeleccionado(v); setDropOpen(false); }}
+                        className={`w-full text-left px-4 py-3 text-[11px] font-medium hover:bg-slate-800 transition cursor-pointer flex flex-col gap-0.5 border-b border-white/[0.04] last:border-0 ${v.id === viajeSeleccionado?.id ? "text-cyan-300" : "text-slate-300"}`}
+                      >
+                        <span className="font-bold font-mono">{v.transporte_placa}</span>
+                        <span className="text-slate-500">{v.tipo_producto} · {v.origen_nombre} → {v.destino_nombre}</span>
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {!viajeSeleccionado ? (
+            <div className="rounded-[2rem] border border-slate-800 bg-slate-900/40 p-16 flex flex-col items-center gap-3 text-center">
+              <Cpu className="w-10 h-10 text-slate-700" />
+              <p className="text-sm text-slate-500 font-mono">Selecciona un despacho activo para comenzar.</p>
+            </div>
+          ) : viajeSeleccionado.estado === "finalizado" ? (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 animate-in fade-in duration-300">
+              {/* Celebration & Details */}
+              <div className="md:col-span-2 bg-slate-900/40 border border-white/[0.06] rounded-[1.5rem] p-8 flex flex-col gap-6 items-center justify-center min-h-[520px] text-center">
+                <div className="w-16 h-16 bg-emerald-500/10 border border-emerald-500/20 rounded-full flex items-center justify-center shadow-lg shadow-emerald-500/5">
+                  <CheckCircle2 className="w-8 h-8 text-emerald-400 animate-bounce" />
+                </div>
+                
+                <div>
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-400">Despacho Completado</span>
+                  <h2 className="mt-2 text-2xl font-bold">¡Destino Alcanzado con Éxito!</h2>
+                  <p className="mt-2 text-sm text-slate-400 max-w-md">
+                    El viaje del vehículo <strong className="text-white font-mono">{viajeSeleccionado.transporte_placa}</strong> ha finalizado. La cadena de frío ha sido completada para este despacho.
+                  </p>
+                </div>
+
+                {/* Details box */}
+                <div className="w-full max-w-md bg-slate-950/40 border border-white/[0.04] rounded-2xl p-5 text-left grid grid-cols-2 gap-4">
+                  <div>
+                    <span className="text-[9px] text-slate-500 uppercase font-bold tracking-wider">Producto</span>
+                    <p className="text-xs font-semibold text-slate-200 mt-0.5">{viajeSeleccionado.tipo_producto}</p>
+                  </div>
+                  <div>
+                    <span className="text-[9px] text-slate-500 uppercase font-bold tracking-wider">Límite de Temp</span>
+                    <p className="text-xs font-semibold text-slate-200 mt-0.5">{viajeSeleccionado.limite_max_temp}°C</p>
+                  </div>
+                  <div className="col-span-2 border-t border-white/[0.03] pt-3">
+                    <span className="text-[9px] text-slate-500 uppercase font-bold tracking-wider">Ruta Realizada</span>
+                    <div className="text-xs font-semibold text-slate-200 mt-1.5 flex items-center gap-1.5 flex-wrap">
+                      <span>{viajeSeleccionado.origen_nombre}</span>
+                      <ArrowRight className="w-3.5 h-3.5 text-slate-500" />
+                      <span>{viajeSeleccionado.destino_nombre}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Next actions */}
+                <div className="w-full max-w-md flex flex-col gap-3">
+                  {viajes.length > 0 ? (
+                    <div className="flex flex-col gap-2">
+                      <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Selecciona otro despacho en curso:</p>
+                      <div className="flex flex-col gap-1.5 max-h-40 overflow-y-auto pr-1">
+                        {viajes.map((v) => (
+                          <button
+                            key={v.id}
+                            onClick={() => setViajeSeleccionado(v)}
+                            className="w-full text-left px-4 py-3 rounded-xl bg-slate-950/30 border border-white/5 hover:border-cyan-500/20 hover:bg-slate-950/60 transition cursor-pointer flex items-center justify-between text-xs"
+                          >
+                            <div className="flex flex-col gap-0.5">
+                              <span className="font-bold font-mono text-slate-200">{v.transporte_placa}</span>
+                              <span className="text-[10px] text-slate-500">{v.tipo_producto}</span>
+                            </div>
+                            <span className="text-[10px] text-cyan-400 font-bold uppercase tracking-wider flex items-center gap-1">
+                              Monitorear <ArrowRight className="w-3 h-3" />
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-2 items-center">
+                      <p className="text-xs text-slate-500 font-mono">No hay otros viajes activos en este momento.</p>
+                      <Link
+                        href="/dashboard"
+                        className="rounded-full bg-slate-900 border border-white/10 hover:border-cyan-500/20 px-5 py-2 text-xs font-semibold text-slate-300 transition"
+                      >
+                        Ir al Dashboard Principal
+                      </Link>
+                    </div>
+                  )}
                 </div>
               </div>
 
-              <div className="rounded-[2rem] border border-slate-800 bg-slate-900/70 p-6">
-                <h2 className="text-lg font-semibold">Cómo funciona</h2>
-                <ul className="mt-4 space-y-3 text-sm text-slate-300">
-                  <li>1. Dibuja o carga una ruta de referencia (click en el mapa).</li>
-                  <li>2. Define la telemetría: temperatura, batería, coordenadas.</li>
-                  <li>3. El backend calcula la desviación OSRM geodésica.</li>
-                  <li>4. La IA determina el nivel de riesgo y genera la respuesta.</li>
-                </ul>
-              </div>
-            </header>
+              {/* Bitácora de incidentes (auditoría de cierre) */}
+              <div className="bg-slate-900/40 border border-white/[0.06] rounded-[1.5rem] p-4 flex flex-col gap-3 min-h-[520px]">
+                <div className="flex items-center justify-between border-b border-white/[0.05] pb-3 shrink-0 gap-2 flex-wrap">
+                  <h3 className="text-[10px] font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
+                    Bitácora de Cierre
+                    <span className="bg-slate-800 text-slate-400 rounded-full px-2 py-0.5 text-[8px] font-mono">
+                      {incidentes.filter((i) => !i.resuelta).length} activas · {incidentes.filter((i) => i.resuelta).length} resueltas
+                    </span>
+                  </h3>
+                </div>
 
-            {status && (
-              <div className={`rounded-2xl border px-4 py-3 text-sm ${status.type === "success" ? "border-emerald-400/30 bg-emerald-500/10 text-emerald-100" : "border-rose-400/30 bg-rose-500/10 text-rose-100"}`}>
-                {status.message}
-              </div>
-            )}
-
-            <section className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
-              <form onSubmit={handleSubmit} className="rounded-[2rem] border border-slate-800 bg-slate-900/70 p-6 shadow-xl shadow-cyan-950/10">
-                <div className="grid gap-4 md:grid-cols-2">
-                  {[
-                    { label: "IoT ID", value: iotId, set: setIotId, type: "text", placeholder: "iot-123", required: true },
-                    { label: "Viaje ID", value: viajeId, set: setViajeId, type: "text", placeholder: "Opcional", required: false },
-                    { label: "Temperatura actual", value: temperaturaActual, set: setTemperaturaActual, type: "number", step: "0.1", required: true },
-                    { label: "Batería actual", value: bateriaActual, set: setBateriaActual, type: "number", min: "0", max: "100", required: true },
-                    { label: "Límite max temp", value: limiteMaxTemp, set: setLimiteMaxTemp, type: "number", step: "0.1", required: true },
-                    { label: "Margen desvío km", value: margenDesvioKm, set: setMargenDesvioKm, type: "number", step: "0.1", required: true },
-                    { label: "Latitud actual", value: latitudActual, set: setLatitudActual, type: "number", step: "0.000001", required: true },
-                    { label: "Longitud actual", value: longitudActual, set: setLongitudActual, type: "number", step: "0.000001", required: true },
-                  ].map(({ label, value, set, ...rest }) => (
-                    <label key={label} className="text-sm font-semibold text-slate-200">
-                      {label}
-                      <input
-                        value={value}
-                        onChange={(e) => set(e.target.value)}
-                        className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none transition focus:border-cyan-300"
-                        {...rest}
-                      />
-                    </label>
+                <div className="flex gap-1 shrink-0">
+                  {(["activas", "resueltas", "todas"] as const).map((f) => (
+                    <button
+                      key={f}
+                      onClick={() => setIncFilter(f)}
+                      className={`px-2.5 py-1 rounded-lg text-[8px] font-bold uppercase tracking-wide transition cursor-pointer ${
+                        incFilter === f
+                          ? f === "activas" ? "bg-rose-500/15 text-rose-300 border border-rose-500/20"
+                            : f === "resueltas" ? "bg-emerald-500/15 text-emerald-300 border border-emerald-500/20"
+                            : "bg-slate-700/50 text-slate-200 border border-slate-600/30"
+                          : "text-slate-600 hover:text-slate-400 border border-transparent"
+                      }`}
+                    >
+                      {f}
+                    </button>
                   ))}
                 </div>
 
-                <label className="mt-4 block text-sm font-semibold text-slate-200">
-                  Modo de análisis
-                  <select value={modo} onChange={(e) => setModo(e.target.value as typeof modo)} className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none transition focus:border-cyan-300">
-                    <option value="auto">Auto</option>
-                    <option value="deterministic">Determinístico</option>
-                    <option value="llm">LLM</option>
-                  </select>
-                </label>
-
-                <div className="mt-5 rounded-3xl border border-slate-800 bg-slate-950/60 p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-[0.25em] text-cyan-300">Ruta base</p>
-                      <h3 className="mt-1 text-lg font-semibold">Mapa editable para probar OSRM</h3>
-                    </div>
-                    <p className="text-xs text-slate-400">Click para agregar puntos.</p>
-                  </div>
-                  <div className="mt-4 h-72 overflow-hidden rounded-2xl border border-slate-800">
-                    <RouteMap
-                      waypoints={waypoints}
-                      telemetryPoints={simulatedTelemetry}
-                      routePreviewApiUrl={API_URL}
-                      onAddWaypoint={(point) => setWaypoints((cur) => [...cur, point])}
-                    />
-                  </div>
-                  <div className="mt-4 flex flex-wrap gap-3">
-                    <button type="button" onClick={() => setWaypoints(demoRoute)} className="rounded-full border border-slate-700 px-4 py-2 text-xs font-semibold text-slate-200 cursor-pointer hover:bg-slate-800 transition">Restaurar ruta demo</button>
-                    <button type="button" onClick={() => setWaypoints([])} className="rounded-full border border-slate-700 px-4 py-2 text-xs font-semibold text-slate-200 cursor-pointer hover:bg-slate-800 transition">Limpiar ruta</button>
-                  </div>
-                  <textarea value={routePreview} readOnly className="mt-4 h-40 w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 font-mono text-xs text-slate-200 outline-none" />
-                </div>
-
-                <div className="mt-5">
-                  <button type="submit" disabled={loading} className="inline-flex items-center justify-center rounded-full bg-cyan-400 px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-70">
-                    {loading ? "Analizando..." : "Analizar evento"}
-                  </button>
-                </div>
-              </form>
-
-              <aside className="space-y-6">
-                <div className="rounded-[2rem] border border-slate-800 bg-slate-900/70 p-6">
-                  <h2 className="text-lg font-semibold">Resultado</h2>
-                  {result ? (
-                    <div className={`mt-4 rounded-3xl border p-4 ${riskClassNames[result.nivel_riesgo]}`}>
-                      <div className="flex flex-wrap items-center justify-between gap-3">
-                        <span className="text-xs font-semibold uppercase tracking-[0.3em]">{result.nivel_riesgo}</span>
-                        <span className="rounded-full border border-white/10 px-3 py-1 text-xs">{result.fuente}</span>
-                      </div>
-                      <p className="mt-4 text-sm leading-6">{result.diagnostico_tecnico}</p>
-                      <p className="mt-4 text-sm leading-6 text-white/90">{result.accion_mitigacion}</p>
-                      {result.contexto && (
-                        <dl className="mt-5 grid gap-3 text-xs text-white/80 sm:grid-cols-2">
-                          {[
-                            { dt: "Temperatura", dd: `${result.contexto.temperatura_actual}°C` },
-                            { dt: "Batería", dd: `${result.contexto.bateria_actual}%` },
-                            { dt: "Desvío", dd: result.contexto.desvio_km != null ? `${result.contexto.desvio_km.toFixed(2)} km` : "N/A" },
-                            { dt: "OSRM", dd: result.contexto.osrm_usado ? "Sí" : "No" },
-                          ].map(({ dt, dd }) => (
-                            <div key={dt} className="rounded-2xl border border-white/10 bg-black/10 p-3">
-                              <dt className="text-white/50">{dt}</dt>
-                              <dd className="mt-1 text-sm font-semibold">{dd}</dd>
+                <div className="flex-1 overflow-y-auto space-y-2 no-scrollbar">
+                  {(() => {
+                    const filtered = incidentes.filter((i) =>
+                      incFilter === "activas" ? !i.resuelta :
+                      incFilter === "resueltas" ? i.resuelta : true
+                    );
+                    return (
+                      <>
+                        {filtered.map((inc) => (
+                          <div
+                            key={inc.id}
+                            className={`p-3 rounded-xl border text-xs flex flex-col gap-2 transition-all ${inc.resuelta ? "bg-emerald-950/5 border-emerald-500/10 text-slate-500" : "bg-rose-950/10 border-rose-500/20 text-slate-200"}`}
+                          >
+                            <div className="flex justify-between items-center">
+                              <span className={`font-mono text-[8px] font-bold px-1.5 py-0.5 rounded border uppercase tracking-wider ${inc.resuelta ? "bg-emerald-950/50 text-emerald-400 border-emerald-800/20" : "bg-rose-950/50 text-rose-400 border-rose-800/20"}`}>
+                                {inc.tipo_alerta}
+                              </span>
+                              <span className="text-[8px] font-mono text-slate-500">
+                                {new Date(inc.timestamp_bd).toLocaleTimeString()}
+                              </span>
                             </div>
-                          ))}
-                        </dl>
-                      )}
-                    </div>
-                  ) : (
-                    <p className="mt-4 text-sm text-slate-400">Todavía no ejecutaste ningún análisis. Carga un escenario demo o completa el formulario.</p>
+                            <div className="text-[10px] text-slate-400">
+                              Límite: <strong className="font-mono">{inc.umbral_permitido}°C</strong> | Leído:{" "}
+                              <strong className={`font-mono ${inc.resuelta ? "text-slate-400" : "text-rose-400"}`}>{inc.valor_detectado}°C</strong>
+                            </div>
+                            {inc.resuelta ? (
+                              <div className="bg-slate-950/40 border border-white/5 rounded-lg p-2 text-[9px] italic text-slate-400">
+                                <span className="font-semibold text-emerald-400 not-italic block mb-0.5">✔ Resuelto:</span>
+                                &ldquo;{inc.comentario_resolucion}&rdquo;
+                              </div>
+                            ) : (
+                              <div className="flex flex-col gap-1.5 pt-1.5 border-t border-white/5">
+                                <span className="text-[8px] font-semibold text-slate-500">Bitácora de cierre:</span>
+                                <div className="flex gap-1.5">
+                                  <input
+                                    type="text"
+                                    id={`res-note-${inc.id}`}
+                                    placeholder="Ej. Chofer reporta cierre de compuerta."
+                                    className="flex-1 bg-slate-950/60 border border-white/10 rounded-lg px-2 py-1 text-[9px] text-white outline-none focus:border-cyan-500/40"
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter") {
+                                        handleResolveIncident(inc.id, e.currentTarget.value);
+                                        e.currentTarget.value = "";
+                                      }
+                                    }}
+                                  />
+                                  <button
+                                    onClick={() => {
+                                      const el = document.getElementById(`res-note-${inc.id}`) as HTMLInputElement;
+                                      if (el) { handleResolveIncident(inc.id, el.value); el.value = ""; }
+                                    }}
+                                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg px-2.5 py-1 text-[8px] uppercase tracking-wide cursor-pointer transition-all"
+                                  >
+                                    Ok
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                        {filtered.length === 0 && (
+                          <div className="h-full flex items-center justify-center text-center text-slate-600 text-[10px] font-mono py-12">
+                            {incFilter === "activas" ? "Sin alertas activas 🎉" : incFilter === "resueltas" ? "Sin alertas cerradas." : "Sin incidentes."}
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+              {/* COL 1: ALERTS LOG */}
+              <div className="bg-slate-900/40 border border-white/[0.06] rounded-[1.5rem] p-4 flex flex-col gap-3 min-h-[520px]">
+                <div className="flex items-center justify-between border-b border-white/[0.05] pb-3 shrink-0 gap-2 flex-wrap">
+                  <h3 className="text-[10px] font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
+                    <span className="relative flex h-1.5 w-1.5">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75" />
+                      <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-rose-500" />
+                    </span>
+                    Bitácora
+                    <span className="bg-slate-800 text-slate-400 rounded-full px-2 py-0.5 text-[8px] font-mono">
+                      {incidentes.filter((i) => !i.resuelta).length} activas · {incidentes.filter((i) => i.resuelta).length} cerradas
+                    </span>
+                  </h3>
+                  {incidentes.filter((i) => !i.resuelta).length > 0 && (
+                    <button
+                      onClick={async () => {
+                        if (!confirm(`¿Cerrar las ${incidentes.filter((i) => !i.resuelta).length} alertas activas de este despacho?`)) return;
+                        try {
+                          await fetch(`${API_URL}/incidente/viaje/${viajeSeleccionado!.id}/resolver-todas`, {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ comentario: "Cierre masivo por el operador" }),
+                          });
+                          const res = await fetch(`${API_URL}/incidente/viaje/${viajeSeleccionado!.id}`);
+                          if (res.ok) setIncidentes(await res.json());
+                        } catch (e) { console.error(e); }
+                      }}
+                      className="text-[8px] font-bold uppercase tracking-wide px-2.5 py-1 rounded-lg bg-rose-950/40 border border-rose-500/20 text-rose-400 hover:bg-rose-500/20 transition cursor-pointer"
+                    >
+                      Cerrar todas
+                    </button>
                   )}
                 </div>
 
-                <div className="rounded-[2rem] border border-slate-800 bg-slate-900/70 p-6">
-                  <h2 className="text-lg font-semibold">Datos útiles</h2>
-                  <div className="mt-4 space-y-3 text-sm text-slate-300">
-                    <p className="font-mono text-xs text-slate-400">API: {API_URL}</p>
-                    <p>Si no hay modelo configurado, la respuesta sigue siendo estable para pruebas y demo (modo determinístico).</p>
-                  </div>
+                {/* Filter tabs */}
+                <div className="flex gap-1 shrink-0">
+                  {(["activas", "resueltas", "todas"] as const).map((f) => (
+                    <button
+                      key={f}
+                      onClick={() => setIncFilter(f)}
+                      className={`px-2.5 py-1 rounded-lg text-[8px] font-bold uppercase tracking-wide transition cursor-pointer ${
+                        incFilter === f
+                          ? f === "activas" ? "bg-rose-500/15 text-rose-300 border border-rose-500/20"
+                            : f === "resueltas" ? "bg-emerald-500/15 text-emerald-300 border border-emerald-500/20"
+                            : "bg-slate-700/50 text-slate-200 border border-slate-600/30"
+                          : "text-slate-600 hover:text-slate-400 border border-transparent"
+                      }`}
+                    >
+                      {f}
+                    </button>
+                  ))}
                 </div>
-              </aside>
-            </section>
-          </>
-        )}
 
-        {/* ── TAB: CONTROL DE VIAJE ───────────────────────────────────────────── */}
-        {activeTab === "control" && (
-          <div className="flex flex-col gap-6">
-
-            {/* Hero strip */}
-            <div className="rounded-[2rem] border border-rose-400/15 bg-[radial-gradient(circle_at_top_left,_rgba(239,68,68,0.12),_transparent_50%),linear-gradient(180deg,rgba(15,23,42,0.95),rgba(15,23,42,0.80))] p-6 flex flex-wrap items-center justify-between gap-4">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.35em] text-rose-300">Sandbox · Control de Viaje</p>
-                <h2 className="mt-2 text-2xl font-semibold">Simulación e Inyección de Fallas</h2>
-                <p className="mt-1.5 text-sm text-slate-400">Selecciona un despacho activo para controlar el simulador, gestionar alertas y enviar comandos Downlink.</p>
+                <div className="flex-1 overflow-y-auto space-y-2 no-scrollbar">
+                  {(() => {
+                    const filtered = incidentes.filter((i) =>
+                      incFilter === "activas" ? !i.resuelta :
+                      incFilter === "resueltas" ? i.resuelta : true
+                    );
+                    const visible = filtered.slice(0, 20);
+                    return (
+                      <>
+                        {visible.map((inc) => (
+                          <div
+                            key={inc.id}
+                            className={`p-3 rounded-xl border text-xs flex flex-col gap-2 transition-all ${inc.resuelta ? "bg-emerald-950/5 border-emerald-500/10 text-slate-500" : "bg-rose-950/10 border-rose-500/20 text-slate-200"}`}
+                          >
+                            <div className="flex justify-between items-center">
+                              <span className={`font-mono text-[8px] font-bold px-1.5 py-0.5 rounded border uppercase tracking-wider ${inc.resuelta ? "bg-emerald-950/50 text-emerald-400 border-emerald-800/20" : "bg-rose-950/50 text-rose-400 border-rose-800/20"}`}>
+                                {inc.tipo_alerta}
+                              </span>
+                              <span className="text-[8px] font-mono text-slate-500">
+                                {new Date(inc.timestamp_bd).toLocaleTimeString()}
+                              </span>
+                            </div>
+                            <div className="text-[10px] text-slate-400">
+                              Límite: <strong className="font-mono">{inc.umbral_permitido}°C</strong> | Leído:{" "}
+                              <strong className={`font-mono ${inc.resuelta ? "text-slate-400" : "text-rose-400"}`}>{inc.valor_detectado}°C</strong>
+                            </div>
+                            {inc.resuelta ? (
+                              <div className="bg-slate-950/40 border border-white/5 rounded-lg p-2 text-[9px] italic text-slate-400">
+                                <span className="font-semibold text-emerald-400 not-italic block mb-0.5">✔ Resuelto:</span>
+                                &ldquo;{inc.comentario_resolucion}&rdquo;
+                              </div>
+                            ) : (
+                              <div className="flex flex-col gap-1.5 pt-1.5 border-t border-white/5">
+                                <span className="text-[8px] font-semibold text-slate-500">Bitácora de cierre:</span>
+                                <div className="flex gap-1.5">
+                                  <input
+                                    type="text"
+                                    id={`res-note-${inc.id}`}
+                                    placeholder="Ej. Chofer reporta cierre de compuerta."
+                                    className="flex-1 bg-slate-950/60 border border-white/10 rounded-lg px-2 py-1 text-[9px] text-white outline-none focus:border-cyan-500/40"
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter") {
+                                        handleResolveIncident(inc.id, e.currentTarget.value);
+                                        e.currentTarget.value = "";
+                                      }
+                                    }}
+                                  />
+                                  <button
+                                    onClick={() => {
+                                      const el = document.getElementById(`res-note-${inc.id}`) as HTMLInputElement;
+                                      if (el) { handleResolveIncident(inc.id, el.value); el.value = ""; }
+                                    }}
+                                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg px-2.5 py-1 text-[8px] uppercase tracking-wide cursor-pointer transition-all"
+                                  >
+                                    Ok
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                        {filtered.length > 20 && (
+                          <div className="text-center text-[9px] font-mono text-slate-500 py-2 border border-dashed border-slate-700 rounded-xl">
+                            +{filtered.length - 20} más · usa &quot;Cerrar todas&quot; para limpiar masivamente
+                          </div>
+                        )}
+                        {filtered.length === 0 && (
+                          <div className="h-full flex items-center justify-center text-center text-slate-600 text-[10px] font-mono py-12">
+                            {incFilter === "activas" ? "Sin alertas activas 🎉" : incFilter === "resueltas" ? "Sin alertas cerradas." : "Sin incidentes."}
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
+                </div>
               </div>
 
-              {/* Trip selector */}
-              <div className="relative" ref={dropRef}>
-                <button
-                  onClick={() => setDropOpen((o) => !o)}
-                  className="flex items-center gap-2 bg-slate-900 border border-white/10 hover:border-cyan-500/30 rounded-xl px-4 py-2.5 text-[11px] font-semibold text-slate-200 transition cursor-pointer min-w-[220px] justify-between"
-                >
-                  <span className="truncate">
-                    {viajeSeleccionado
-                      ? `${viajeSeleccionado.transporte_placa} · ${viajeSeleccionado.tipo_producto}`
-                      : "Seleccionar despacho..."}
-                  </span>
-                  <ChevronDown className={`w-3.5 h-3.5 text-slate-500 shrink-0 transition-transform ${dropOpen ? "rotate-180" : ""}`} />
-                </button>
-                {dropOpen && (
-                  <div className="absolute right-0 top-full mt-1 z-50 w-64 bg-slate-900 border border-white/10 rounded-xl shadow-2xl overflow-hidden">
-                    {viajes.length === 0 ? (
-                      <p className="text-center text-slate-600 text-xs py-4 font-mono">Sin despachos activos.</p>
-                    ) : (
-                      viajes.map((v) => (
-                        <button
-                          key={v.id}
-                          onClick={() => { setViajeSeleccionado(v); setDropOpen(false); }}
-                          className={`w-full text-left px-4 py-3 text-[11px] font-medium hover:bg-slate-800 transition cursor-pointer flex flex-col gap-0.5 border-b border-white/[0.04] last:border-0 ${v.id === viajeSeleccionado?.id ? "text-cyan-300" : "text-slate-300"}`}
-                        >
-                          <span className="font-bold font-mono">{v.transporte_placa}</span>
-                          <span className="text-slate-500">{v.tipo_producto} · {v.origen_nombre} → {v.destino_nombre}</span>
-                        </button>
-                      ))
-                    )}
+              {/* COL 2: DOWNLINK MITIGATION */}
+              <div className="bg-slate-900/40 border border-white/[0.06] rounded-[1.5rem] p-4 flex flex-col gap-3 min-h-[520px]">
+                <h3 className="text-[10px] font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2 border-b border-white/[0.05] pb-3 shrink-0">
+                  <Radio className="w-3.5 h-3.5 text-cyan-400" />
+                  Comandos Downlink IoT
+                </h3>
+
+                <div className="flex-1 flex flex-col gap-3 justify-center">
+                  {/* Compressor */}
+                  <DownlinkCard
+                    label="Compresor Principal"
+                    statusActive={!!simState?.trip?.compressorFailed}
+                    statusLabel={simState?.trip?.compressorFailed ? "FALLA" : "NORMAL"}
+                    buttonLabel="Encender Compresor"
+                    disabled={!simState?.trip?.compressorFailed}
+                    onClick={() => handleSimCommand("encender-compresor")}
+                  />
+                  {/* Route */}
+                  <DownlinkCard
+                    label="Trayecto OSRM"
+                    statusActive={!!simState?.trip?.routeDeviated}
+                    statusLabel={simState?.trip?.routeDeviated ? "DESVIADO" : "EN RUTA"}
+                    buttonLabel="Reincorporar a Ruta"
+                    disabled={!simState?.trip?.routeDeviated}
+                    onClick={() => handleSimCommand("corregir-desvio")}
+                  />
+                  {/* Gate */}
+                  <DownlinkCard
+                    label="Cierre Compuerta"
+                    statusActive={!!(simState?.trip?.gateOpenTicks && simState.trip.gateOpenTicks > 0)}
+                    statusLabel={(simState?.trip?.gateOpenTicks && simState.trip.gateOpenTicks > 0) ? "ABIERTA" : "CERRADA"}
+                    buttonLabel="Cerrar Compuerta"
+                    disabled={!(simState?.trip?.gateOpenTicks && simState.trip.gateOpenTicks > 0)}
+                    onClick={() => handleSimCommand("cerrar-compuerta")}
+                  />
+                </div>
+
+                {/* Sim status strip */}
+                {simState && (
+                  <div className="mt-auto pt-3 border-t border-white/[0.05] grid grid-cols-2 gap-2">
+                    {[
+                      { label: "Estado", value: simState.trip?.status || "—" },
+                      { label: "Buffer offline", value: String(simState.trip?.offlineBufferLength || 0) },
+                      { label: "Pausado", value: simState.paused ? "Sí" : "No" },
+                      { label: "Turbo", value: simState.turboMode ? "Sí" : "No" },
+                    ].map(({ label, value }) => (
+                      <div key={label} className="bg-slate-950/40 border border-white/[0.04] rounded-xl p-2">
+                        <p className="text-[8px] text-slate-500 uppercase font-bold tracking-wider">{label}</p>
+                        <p className="text-[10px] font-mono text-slate-300 mt-0.5">{value}</p>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
+
+              {/* COL 3: FAULT INJECTION */}
+              <div className="bg-slate-900/40 border border-white/[0.06] rounded-[1.5rem] p-4 flex flex-col gap-3 min-h-[520px]">
+                <h3 className="text-[10px] font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2 border-b border-white/[0.05] pb-3 shrink-0">
+                  <Cpu className="w-3.5 h-3.5 text-rose-400" />
+                  Inyección de Fallas
+                  <span className="ml-auto text-[8px] text-rose-400/60 font-mono">SANDBOX ONLY</span>
+                </h3>
+
+                <div className="flex-1 flex flex-col gap-3 justify-center">
+                  <FaultToggle
+                    label="Falla Compresor"
+                    description="Apaga el motor térmico"
+                    active={!!simState?.trip?.compressorFailed}
+                    onToggle={() => handleSimCommand(simState?.trip?.compressorFailed ? "encender-compresor" : "apagar-compresor")}
+                  />
+                  <FaultToggle
+                    label="Desviar Vehículo"
+                    description="Saca al camión de ruta OSRM"
+                    active={!!simState?.trip?.routeDeviated}
+                    onToggle={() => handleSimCommand(simState?.trip?.routeDeviated ? "corregir-desvio" : "provocar-desvio")}
+                  />
+                  <FaultToggle
+                    label="Pérdida de Señal"
+                    description={`Store & Forward${(simState?.trip?.offlineBufferLength || 0) > 0 ? ` (${simState?.trip?.offlineBufferLength} en búfer)` : ""}`}
+                    active={!!simState?.iotFailure}
+                    onToggle={() => handleSimCommand("toggle-signal-loss", !simState?.iotFailure)}
+                    color="amber"
+                  />
+                  <FaultToggle
+                    label="Abrir Compuerta"
+                    description="Apertura no autorizada en tránsito"
+                    active={!!(simState?.trip?.gateOpenTicks && simState.trip.gateOpenTicks > 0)}
+                    onToggle={() => handleSimCommand(simState?.trip?.gateOpenTicks && simState.trip.gateOpenTicks > 0 ? "cerrar-compuerta" : "abrir-compuerta")}
+                  />
+                </div>
+              </div>
+
             </div>
-
-            {!viajeSeleccionado ? (
-              <div className="rounded-[2rem] border border-slate-800 bg-slate-900/40 p-16 flex flex-col items-center gap-3 text-center">
-                <Cpu className="w-10 h-10 text-slate-700" />
-                <p className="text-sm text-slate-500 font-mono">Selecciona un despacho activo para comenzar.</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-
-                {/* COL 1: ALERTS LOG */}
-                <div className="bg-slate-900/40 border border-white/[0.06] rounded-[1.5rem] p-4 flex flex-col gap-3 min-h-[520px]">
-                  <div className="flex items-center justify-between border-b border-white/[0.05] pb-3 shrink-0 gap-2 flex-wrap">
-                    <h3 className="text-[10px] font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
-                      <span className="relative flex h-1.5 w-1.5">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75" />
-                        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-rose-500" />
-                      </span>
-                      Bitácora
-                      <span className="bg-slate-800 text-slate-400 rounded-full px-2 py-0.5 text-[8px] font-mono">
-                        {incidentes.filter((i) => !i.resuelta).length} activas · {incidentes.filter((i) => i.resuelta).length} cerradas
-                      </span>
-                    </h3>
-                    {incidentes.filter((i) => !i.resuelta).length > 0 && (
-                      <button
-                        onClick={async () => {
-                          if (!confirm(`¿Cerrar las ${incidentes.filter((i) => !i.resuelta).length} alertas activas de este despacho?`)) return;
-                          try {
-                            await fetch(`${API_URL}/incidente/viaje/${viajeSeleccionado!.id}/resolver-todas`, {
-                              method: "POST",
-                              headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify({ comentario: "Cierre masivo por el operador" }),
-                            });
-                            const res = await fetch(`${API_URL}/incidente/viaje/${viajeSeleccionado!.id}`);
-                            if (res.ok) setIncidentes(await res.json());
-                          } catch (e) { console.error(e); }
-                        }}
-                        className="text-[8px] font-bold uppercase tracking-wide px-2.5 py-1 rounded-lg bg-rose-950/40 border border-rose-500/20 text-rose-400 hover:bg-rose-500/20 transition cursor-pointer"
-                      >
-                        Cerrar todas
-                      </button>
-                    )}
-                  </div>
-
-                  {/* Filter tabs */}
-                  <div className="flex gap-1 shrink-0">
-                    {(["activas", "resueltas", "todas"] as const).map((f) => (
-                      <button
-                        key={f}
-                        onClick={() => setIncFilter(f)}
-                        className={`px-2.5 py-1 rounded-lg text-[8px] font-bold uppercase tracking-wide transition cursor-pointer ${
-                          incFilter === f
-                            ? f === "activas" ? "bg-rose-500/15 text-rose-300 border border-rose-500/20"
-                              : f === "resueltas" ? "bg-emerald-500/15 text-emerald-300 border border-emerald-500/20"
-                              : "bg-slate-700/50 text-slate-200 border border-slate-600/30"
-                            : "text-slate-600 hover:text-slate-400 border border-transparent"
-                        }`}
-                      >
-                        {f}
-                      </button>
-                    ))}
-                  </div>
-
-                  <div className="flex-1 overflow-y-auto space-y-2 no-scrollbar">
-                    {(() => {
-                      const filtered = incidentes.filter((i) =>
-                        incFilter === "activas" ? !i.resuelta :
-                        incFilter === "resueltas" ? i.resuelta : true
-                      );
-                      const visible = filtered.slice(0, 20);
-                      return (
-                        <>
-                          {visible.map((inc) => (
-                            <div
-                              key={inc.id}
-                              className={`p-3 rounded-xl border text-xs flex flex-col gap-2 transition-all ${inc.resuelta ? "bg-emerald-950/5 border-emerald-500/10 text-slate-500" : "bg-rose-950/10 border-rose-500/20 text-slate-200"}`}
-                            >
-                              <div className="flex justify-between items-center">
-                                <span className={`font-mono text-[8px] font-bold px-1.5 py-0.5 rounded border uppercase tracking-wider ${inc.resuelta ? "bg-emerald-950/50 text-emerald-400 border-emerald-800/20" : "bg-rose-950/50 text-rose-400 border-rose-800/20"}`}>
-                                  {inc.tipo_alerta}
-                                </span>
-                                <span className="text-[8px] font-mono text-slate-500">
-                                  {new Date(inc.timestamp_bd).toLocaleTimeString()}
-                                </span>
-                              </div>
-                              <div className="text-[10px] text-slate-400">
-                                Límite: <strong className="font-mono">{inc.umbral_permitido}°C</strong> | Leído:{" "}
-                                <strong className={`font-mono ${inc.resuelta ? "text-slate-400" : "text-rose-400"}`}>{inc.valor_detectado}°C</strong>
-                              </div>
-                              {inc.resuelta ? (
-                                <div className="bg-slate-950/40 border border-white/5 rounded-lg p-2 text-[9px] italic text-slate-400">
-                                  <span className="font-semibold text-emerald-400 not-italic block mb-0.5">✔ Resuelto:</span>
-                                  &ldquo;{inc.comentario_resolucion}&rdquo;
-                                </div>
-                              ) : (
-                                <div className="flex flex-col gap-1.5 pt-1.5 border-t border-white/5">
-                                  <span className="text-[8px] font-semibold text-slate-500">Bitácora de cierre:</span>
-                                  <div className="flex gap-1.5">
-                                    <input
-                                      type="text"
-                                      id={`res-note-${inc.id}`}
-                                      placeholder="Ej. Chofer reporta cierre de compuerta."
-                                      className="flex-1 bg-slate-950/60 border border-white/10 rounded-lg px-2 py-1 text-[9px] text-white outline-none focus:border-cyan-500/40"
-                                      onKeyDown={(e) => {
-                                        if (e.key === "Enter") {
-                                          handleResolveIncident(inc.id, e.currentTarget.value);
-                                          e.currentTarget.value = "";
-                                        }
-                                      }}
-                                    />
-                                    <button
-                                      onClick={() => {
-                                        const el = document.getElementById(`res-note-${inc.id}`) as HTMLInputElement;
-                                        if (el) { handleResolveIncident(inc.id, el.value); el.value = ""; }
-                                      }}
-                                      className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg px-2.5 py-1 text-[8px] uppercase tracking-wide cursor-pointer transition-all"
-                                    >
-                                      Ok
-                                    </button>
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          ))}
-                          {filtered.length > 20 && (
-                            <div className="text-center text-[9px] font-mono text-slate-500 py-2 border border-dashed border-slate-700 rounded-xl">
-                              +{filtered.length - 20} más · usa &quot;Cerrar todas&quot; para limpiar masivamente
-                            </div>
-                          )}
-                          {filtered.length === 0 && (
-                            <div className="h-full flex items-center justify-center text-center text-slate-600 text-[10px] font-mono py-12">
-                              {incFilter === "activas" ? "Sin alertas activas 🎉" : incFilter === "resueltas" ? "Sin alertas cerradas." : "Sin incidentes."}
-                            </div>
-                          )}
-                        </>
-                      );
-                    })()}
-                  </div>
-                </div>
-
-                {/* COL 2: DOWNLINK MITIGATION */}
-                <div className="bg-slate-900/40 border border-white/[0.06] rounded-[1.5rem] p-4 flex flex-col gap-3 min-h-[520px]">
-                  <h3 className="text-[10px] font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2 border-b border-white/[0.05] pb-3 shrink-0">
-                    <Radio className="w-3.5 h-3.5 text-cyan-400" />
-                    Comandos Downlink IoT
-                  </h3>
-
-                  <div className="flex-1 flex flex-col gap-3 justify-center">
-                    {/* Compressor */}
-                    <DownlinkCard
-                      label="Compresor Principal"
-                      statusActive={!!simState?.trip?.compressorFailed}
-                      statusLabel={simState?.trip?.compressorFailed ? "FALLA" : "NORMAL"}
-                      buttonLabel="Encender Compresor"
-                      disabled={!simState?.trip?.compressorFailed}
-                      onClick={() => handleSimCommand("encender-compresor")}
-                    />
-                    {/* Route */}
-                    <DownlinkCard
-                      label="Trayecto OSRM"
-                      statusActive={!!simState?.trip?.routeDeviated}
-                      statusLabel={simState?.trip?.routeDeviated ? "DESVIADO" : "EN RUTA"}
-                      buttonLabel="Reincorporar a Ruta"
-                      disabled={!simState?.trip?.routeDeviated}
-                      onClick={() => handleSimCommand("corregir-desvio")}
-                    />
-                    {/* Gate */}
-                    <DownlinkCard
-                      label="Cierre Compuerta"
-                      statusActive={!!(simState?.trip?.gateOpenTicks && simState.trip.gateOpenTicks > 0)}
-                      statusLabel={(simState?.trip?.gateOpenTicks && simState.trip.gateOpenTicks > 0) ? "ABIERTA" : "CERRADA"}
-                      buttonLabel="Cerrar Compuerta"
-                      disabled={!(simState?.trip?.gateOpenTicks && simState.trip.gateOpenTicks > 0)}
-                      onClick={() => handleSimCommand("cerrar-compuerta")}
-                    />
-                  </div>
-
-                  {/* Sim status strip */}
-                  {simState && (
-                    <div className="mt-auto pt-3 border-t border-white/[0.05] grid grid-cols-2 gap-2">
-                      {[
-                        { label: "Estado", value: simState.trip?.status || "—" },
-                        { label: "Buffer offline", value: String(simState.trip?.offlineBufferLength || 0) },
-                        { label: "Pausado", value: simState.paused ? "Sí" : "No" },
-                        { label: "Turbo", value: simState.turboMode ? "Sí" : "No" },
-                      ].map(({ label, value }) => (
-                        <div key={label} className="bg-slate-950/40 border border-white/[0.04] rounded-xl p-2">
-                          <p className="text-[8px] text-slate-500 uppercase font-bold tracking-wider">{label}</p>
-                          <p className="text-[10px] font-mono text-slate-300 mt-0.5">{value}</p>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* COL 3: FAULT INJECTION */}
-                <div className="bg-slate-900/40 border border-white/[0.06] rounded-[1.5rem] p-4 flex flex-col gap-3 min-h-[520px]">
-                  <h3 className="text-[10px] font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2 border-b border-white/[0.05] pb-3 shrink-0">
-                    <Cpu className="w-3.5 h-3.5 text-rose-400" />
-                    Inyección de Fallas
-                    <span className="ml-auto text-[8px] text-rose-400/60 font-mono">SANDBOX ONLY</span>
-                  </h3>
-
-                  <div className="flex-1 flex flex-col gap-3 justify-center">
-                    <FaultToggle
-                      label="Falla Compresor"
-                      description="Apaga el motor térmico"
-                      active={!!simState?.trip?.compressorFailed}
-                      onToggle={() => handleSimCommand(simState?.trip?.compressorFailed ? "encender-compresor" : "apagar-compresor")}
-                    />
-                    <FaultToggle
-                      label="Desviar Vehículo"
-                      description="Saca al camión de ruta OSRM"
-                      active={!!simState?.trip?.routeDeviated}
-                      onToggle={() => handleSimCommand(simState?.trip?.routeDeviated ? "corregir-desvio" : "provocar-desvio")}
-                    />
-                    <FaultToggle
-                      label="Pérdida de Señal"
-                      description={`Store & Forward${(simState?.trip?.offlineBufferLength || 0) > 0 ? ` (${simState?.trip?.offlineBufferLength} en búfer)` : ""}`}
-                      active={!!simState?.iotFailure}
-                      onToggle={() => handleSimCommand("toggle-signal-loss", !simState?.iotFailure)}
-                      color="amber"
-                    />
-                  </div>
-                </div>
-
-              </div>
-            )}
-          </div>
-        )}
+          )}
+        </div>
 
       </div>
     </div>

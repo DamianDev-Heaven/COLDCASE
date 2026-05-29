@@ -5,6 +5,7 @@ import {
   IsNumber,
   IsObject,
   IsOptional,
+  IsString,
   IsUUID,
   Max,
   Min,
@@ -50,7 +51,7 @@ export class CreateViajeDto {
   limite_max_humedad?: number;
 
   @IsOptional()
-  @IsUUID()
+  @IsString()
   perfil_producto_id?: string;
 
   @IsOptional()

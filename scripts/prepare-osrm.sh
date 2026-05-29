@@ -94,15 +94,51 @@ if has_valid_osrm_data; then
   echo "OSRM data ya existe y parece completo."
 else
   release_url="$(release_zip_url 2>/dev/null || true)"
-  if [[ -n "$release_url" ]]; then
-    release_zip_path="$ROOT_DIR/.tmp-osrm-data.zip"
-    echo "Intentando descargar OSRM publicado..."
-    if curl -fsSL -o "$release_zip_path" "$release_url" && extract_release_zip "$release_zip_path" && has_valid_osrm_data; then
+  release_zip_path="$ROOT_DIR/.tmp-osrm-data.zip"
+  downloaded=false
+
+  # 1. Try with gh CLI if authenticated/installed
+  if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
+    echo "Intentando descargar OSRM publicado usando GitHub CLI..."
+    if gh release download "$OSRM_RELEASE_TAG" --repo "$(repo_slug_from_remote)" --pattern "$OSRM_RELEASE_ZIP" --dir "$ROOT_DIR" --clobber 2>/dev/null; then
+      if [[ -f "$ROOT_DIR/$OSRM_RELEASE_ZIP" ]]; then
+        mv "$ROOT_DIR/$OSRM_RELEASE_ZIP" "$release_zip_path"
+        downloaded=true
+      fi
+    fi
+  fi
+
+  # 2. Try with curl using GITHUB_TOKEN if provided (safe redirect handling)
+  if [ "$downloaded" = false ] && [[ -n "${GITHUB_TOKEN:-}" ]]; then
+    echo "Intentando descargar OSRM publicado usando GITHUB_TOKEN..."
+    if repo_slug="$(repo_slug_from_remote)"; then
+      asset_url=$(curl -fsS -H "Authorization: token $GITHUB_TOKEN" "https://api.github.com/repos/$repo_slug/releases/tags/$OSRM_RELEASE_TAG" 2>/dev/null | grep -oP '"url":\s*"\K[^"]+assets/\d+' | head -n 1 || true)
+      if [[ -n "$asset_url" ]]; then
+        redirect_url=$(curl -I -fsS -H "Authorization: token $GITHUB_TOKEN" -H "Accept: application/octet-stream" "$asset_url" 2>/dev/null | grep -Fi 'location:' | cut -d' ' -f2 | tr -d '\r\n' || true)
+        if [[ -n "$redirect_url" ]]; then
+          if curl -fsSL -o "$release_zip_path" "$redirect_url"; then
+            downloaded=true
+          fi
+        fi
+      fi
+    fi
+  fi
+
+  # 3. Try public curl (default)
+  if [ "$downloaded" = false ] && [[ -n "$release_url" ]]; then
+    echo "Intentando descargar OSRM publicado de forma pública..."
+    if curl -fsSL -o "$release_zip_path" "$release_url"; then
+      downloaded=true
+    fi
+  fi
+
+  if [ "$downloaded" = true ]; then
+    if extract_release_zip "$release_zip_path" && has_valid_osrm_data; then
       rm -f "$release_zip_path"
-      echo "OSRM descargado desde release."
+      echo "OSRM descargado y extraído desde release."
     else
       rm -f "$release_zip_path"
-      echo "No se pudo usar el release; se construira localmente."
+      echo "Fallo al descomprimir o datos inválidos en el release descargado."
     fi
   fi
 

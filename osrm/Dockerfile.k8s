@@ -1,0 +1,2 @@
+FROM osrm/osrm-backend:latest
+COPY ./osrm-data /data
