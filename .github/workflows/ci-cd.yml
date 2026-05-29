@@ -110,6 +110,9 @@ jobs:
             ${{ secrets.DOCKER_USERNAME || 'devdamian' }}/coldcase-frontend:latest
             ${{ secrets.DOCKER_USERNAME || 'devdamian' }}/coldcase-frontend:${{ github.sha }}
           push: ${{ github.ref == 'refs/heads/master' && github.event_name == 'push' }}
+          build-args: |
+            NEXT_PUBLIC_API_URL=http://api.ccase.tech:3000
+            NEXT_PUBLIC_SIMULADOR_URL=http://api.ccase.tech:3000/simulador
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
