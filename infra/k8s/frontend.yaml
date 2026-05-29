@@ -9,7 +9,7 @@ spec:
       targetPort: 3000
   selector:
     app: frontend
-  type: LoadBalancer
+  type: ClusterIP
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -32,9 +32,9 @@ spec:
           imagePullPolicy: Always
           env:
             - name: NEXT_PUBLIC_API_URL
-              value: "http://104.64.127.23:3000"
+              value: "https://api.ccase.tech"
             - name: NEXT_PUBLIC_SIMULADOR_URL
-              value: "http://104.64.127.23:3000/simulador"
+              value: "https://api.ccase.tech/simulador"
           ports:
             - containerPort: 3000
           resources:
