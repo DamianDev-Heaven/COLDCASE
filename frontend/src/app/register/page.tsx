@@ -283,7 +283,7 @@ export default function RegisterPage() {
       if (editUser?.id === userId) {
         setEditUser(null);
       }
-      await loadUsers(token);
+      await loadUsers();
     } catch (error) {
       const message = error instanceof Error ? error.message : "Error inesperado.";
       setStatus({ type: "error", message });

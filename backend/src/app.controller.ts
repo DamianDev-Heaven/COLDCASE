@@ -1,4 +1,9 @@
-import { Controller, Get, Logger, ServiceUnavailableException } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Logger,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { AppService } from './app.service';
 import { DbService } from './db/db.service';
 

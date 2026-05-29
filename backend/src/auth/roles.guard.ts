@@ -6,6 +6,14 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 
+interface UserPayload {
+  rol?: string;
+}
+
+interface RequestWithUser {
+  user?: UserPayload;
+}
+
 @Injectable()
 export class RolesGuard implements CanActivate {
   constructor(private readonly reflector: Reflector) {}
@@ -20,11 +28,13 @@ export class RolesGuard implements CanActivate {
       return true;
     }
 
-    const request = context.switchToHttp().getRequest();
+    const request = context.switchToHttp().getRequest<RequestWithUser>();
     const user = request.user;
 
     if (!user || !user.rol) {
-      throw new ForbiddenException('Acceso denegado: usuario no identificado o sin rol.');
+      throw new ForbiddenException(
+        'Acceso denegado: usuario no identificado o sin rol.',
+      );
     }
 
     if (!requiredRoles.includes(user.rol)) {
