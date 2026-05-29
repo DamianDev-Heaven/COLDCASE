@@ -110,8 +110,9 @@ export default function Dashboard() {
   const [sucursales, setSucursales] = useState<Sucursal[]>([]);
   const [transportes, setTransportes] = useState<Transporte[]>([]);
   const [perfiles, setPerfiles] = useState<PerfilProducto[]>([]);
+  const isFirstLoad = useRef(true);
   const [viajeSeleccionado, setViajeSeleccionado] = useState<Viaje | null>(null);
-  const [viajeFinalizadoDismissed, setViajeFinalizadoDismissed] = useState<string | null>(null);
+  const [viajeFinalizadoDismissed, setViajeFinalizadoDismissed] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -547,6 +548,11 @@ export default function Dashboard() {
         const sucursalesData = await sucursalesRes.json();
         const perfilesData = await perfilesRes.json();
         setViajes(data);
+        if (isFirstLoad.current && Array.isArray(data)) {
+          const alreadyFinished = data.filter((v: Viaje) => v.estado === "finalizado").map((v: Viaje) => v.id);
+          setViajeFinalizadoDismissed(alreadyFinished);
+          isFirstLoad.current = false;
+        }
         setTransportes(transportesData);
         setSucursales(Array.isArray(sucursalesData) ? sucursalesData : []);
         setPerfiles(Array.isArray(perfilesData) ? perfilesData : []);
@@ -837,7 +843,7 @@ export default function Dashboard() {
                       </div>
                     )}
                     
-                     {viajeSeleccionado.estado === "finalizado" && viajeFinalizadoDismissed !== viajeSeleccionado.id && (
+                     {viajeSeleccionado.estado === "finalizado" && !viajeFinalizadoDismissed.includes(viajeSeleccionado.id) && (
                        <div className="absolute inset-0 z-[1001] flex flex-col items-center justify-center p-6 bg-[#020408]/75 backdrop-blur-md text-center">
                          <div className="max-w-md w-full bg-slate-900/95 border border-white/10 p-8 rounded-3xl shadow-2xl flex flex-col items-center gap-5 relative overflow-hidden">
                            {/* Decorative gradient overlay */}
@@ -846,7 +852,7 @@ export default function Dashboard() {
                            
                            {/* Close Button */}
                            <button
-                             onClick={() => setViajeFinalizadoDismissed(viajeSeleccionado.id)}
+                             onClick={() => setViajeFinalizadoDismissed((prev) => prev.includes(viajeSeleccionado.id) ? prev : [...prev, viajeSeleccionado.id])}
                              className="absolute top-4 right-4 text-slate-400 hover:text-white transition-colors cursor-pointer z-10"
                            >
                              <X className="w-5 h-5" />
@@ -929,7 +935,7 @@ export default function Dashboard() {
                            </div>
 
                            <button
-                             onClick={() => setViajeFinalizadoDismissed(viajeSeleccionado.id)}
+                             onClick={() => setViajeFinalizadoDismissed((prev) => prev.includes(viajeSeleccionado.id) ? prev : [...prev, viajeSeleccionado.id])}
                              className="w-full py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-white/5 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer flex items-center justify-center gap-2"
                            >
                              Cerrar Ventana
@@ -1181,7 +1187,7 @@ export default function Dashboard() {
             apiUrl={API_URL}
           />
 
-           {viajeSeleccionado.estado === "finalizado" && currentView === "overview" && viajeFinalizadoDismissed !== viajeSeleccionado.id && (
+           {viajeSeleccionado.estado === "finalizado" && currentView === "overview" && !viajeFinalizadoDismissed.includes(viajeSeleccionado.id) && (
              <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-[#020408]/85 backdrop-blur-md p-4 animate-in fade-in duration-300">
                <div className="max-w-md w-full bg-slate-900/95 border border-white/10 p-8 rounded-3xl shadow-2xl flex flex-col items-center gap-5 relative overflow-hidden">
                  {/* Decorative gradient overlay */}
@@ -1190,7 +1196,7 @@ export default function Dashboard() {
                  
                  {/* Close Button */}
                  <button
-                   onClick={() => setViajeFinalizadoDismissed(viajeSeleccionado.id)}
+                   onClick={() => setViajeFinalizadoDismissed((prev) => prev.includes(viajeSeleccionado.id) ? prev : [...prev, viajeSeleccionado.id])}
                    className="absolute top-4 right-4 text-slate-400 hover:text-white transition-colors cursor-pointer z-10"
                  >
                    <X className="w-5 h-5" />
@@ -1273,7 +1279,7 @@ export default function Dashboard() {
                  </div>
 
                  <button
-                   onClick={() => setViajeFinalizadoDismissed(viajeSeleccionado.id)}
+                   onClick={() => setViajeFinalizadoDismissed((prev) => prev.includes(viajeSeleccionado.id) ? prev : [...prev, viajeSeleccionado.id])}
                    className="w-full py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-white/5 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer flex items-center justify-center gap-2"
                  >
                    Cerrar Ventana

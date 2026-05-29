@@ -1,14 +1,14 @@
 -- ============================================
--- SEEDER COMPLETO DE DATOS COLDCASE (UUID COMPATIBLE)
+-- SEEDER COMPLETO DE DATOS COLDCASE (EMPRESAS REALES DE EL SALVADOR)
 -- ============================================
 
--- 1. Insertar Empresas Termosensibles y Logísticas Reales
+-- 1. Insertar Empresas Termosensibles y Logísticas Reales de El Salvador
 INSERT INTO empresa (id, nombre, lat, lon) VALUES
-    ('e1000000-1111-4111-8111-111111111111', 'FarmaCold El Salvador', 13.692900, -89.218200),
-    ('e2000000-2222-4222-8222-222222222222', 'Lácteos del Volcán Santa Ana', 13.980000, -89.559700),
-    ('e3000000-3333-4333-8333-333333333333', 'Distribuidora BioLogics Cuscatlán', 13.709500, -89.229900),
-    ('e4000000-4444-4444-8444-444444444444', 'Carnes Selectas de Oriente', 13.483900, -88.177300),
-    ('e5000000-5555-5555-8555-555555555555', 'Congelados del Pacífico S.A. de C.V.', 13.592500, -89.840000)
+    ('e1000000-1111-4111-8111-111111111111', 'Laboratorios Vijosa S.A. de C.V.', 13.673800, -89.251400),
+    ('e2000000-2222-4222-8222-222222222222', 'Lácteos Yes / LACTOSA', 13.955000, -89.600000),
+    ('e3000000-3333-4333-8333-333333333333', 'Super Selectos El Salvador', 13.709500, -89.229900),
+    ('e4000000-4444-4444-8444-444444444444', 'Avícola Sello de Oro', 13.492000, -88.160000),
+    ('e5000000-5555-5555-8555-555555555555', 'Walmart El Salvador S.A. de C.V.', 13.682000, -89.186000)
 ON CONFLICT (id) DO UPDATE SET
     nombre = EXCLUDED.nombre,
     lat = EXCLUDED.lat,
@@ -53,22 +53,22 @@ ON CONFLICT (id) DO UPDATE SET
 
 -- 4. Insertar Sucursales/Nodos Logísticos Distribuidos por El Salvador
 INSERT INTO sucursal (id, empresa_id, nombre, direccion, lat, lon) VALUES
-    -- Sucursales de FarmaCold
-    ('c1000000-1111-4111-8111-111111111111', 'e1000000-1111-4111-8111-111111111111', 'FarmaCold SS - Hub Central', 'Bulevar Los Próceres, San Salvador', 13.684100, -89.236000),
-    ('c1100000-1111-4111-8111-111111111111', 'e1000000-1111-4111-8111-111111111111', 'FarmaCold Santa Ana - Distribuidora', 'Avenida Independencia, Santa Ana', 13.978900, -89.554000),
-    ('c1200000-1111-4111-8111-111111111111', 'e1000000-1111-4111-8111-111111111111', 'FarmaCold San Miguel - Farmacia Hospital', 'Ruta Militar, San Miguel', 13.488000, -88.173000),
-    -- Sucursales de Lácteos del Volcán
-    ('c2000000-2222-4222-8222-222222222222', 'e2000000-2222-4222-8222-222222222222', 'Lácteos del Volcán - Planta Procesadora', 'Carretera al Volcán, Santa Ana', 13.955000, -89.600000),
-    ('c2100000-2222-4222-8222-222222222222', 'e2000000-2222-4222-8222-222222222222', 'Lácteos del Volcán - CD San Salvador', 'Zona Industrial Soyapango, San Salvador', 13.702000, -89.155000),
-    -- Sucursales de BioLogics Cuscatlán
-    ('c3000000-3333-4333-8333-333333333333', 'e3000000-3333-4333-8333-333333333333', 'BioLogics - Laboratorio y Despacho', 'Antiguo Cuscatlán, La Libertad', 13.673800, -89.251400),
-    ('c3100000-3333-4333-8333-333333333333', 'e3000000-3333-4333-8333-333333333333', 'BioLogics Sonsonate - Depósito Regional', 'Avenida Otoniel Alabi, Sonsonate', 13.718000, -89.724000),
-    -- Sucursales de Carnes Selectas
-    ('c4000000-4444-4444-8444-444444444444', 'e4000000-4444-4444-8444-444444444444', 'Carnes Selectas SM - Frigorífico Principal', 'Desvío a La Unión, San Miguel', 13.492000, -88.160000),
-    ('c4100000-4444-4444-8444-444444444444', 'e4000000-4444-4444-8444-444444444444', 'Carnes Selectas Usulután - Sucursal', 'Centro de Usulután', 13.344000, -88.441000),
-    -- Sucursales de Congelados del Pacífico
-    ('c5000000-5555-5555-8555-555555555555', 'e5000000-5555-5555-8555-555555555555', 'Congelados del Pacífico - Terminal Marítima', 'Puerto de Acajutla, Sonsonate', 13.574400, -89.824000),
-    ('c5100000-5555-5555-8555-555555555555', 'e5000000-5555-5555-8555-555555555555', 'Congelados del Pacífico - CD San Salvador', 'San Jacinto, San Salvador', 13.682000, -89.186000)
+    -- Sucursales de Vijosa (Fármacos)
+    ('c1000000-1111-4111-8111-111111111111', 'e1000000-1111-4111-8111-111111111111', 'Vijosa Megaplanta - Hub Central', 'Bulevar Monseñor Romero, Antiguo Cuscatlán', 13.673800, -89.251400),
+    ('c1100000-1111-4111-8111-111111111111', 'e1000000-1111-4111-8111-111111111111', 'Vijosa Santa Ana - Distribuidora Norte', 'Avenida Independencia, Santa Ana', 13.978900, -89.554000),
+    ('c1200000-1111-4111-8111-111111111111', 'e1000000-1111-4111-8111-111111111111', 'Vijosa San Miguel - Centro Regional', 'Ruta Militar, San Miguel', 13.488000, -88.173000),
+    -- Sucursales de Lácteos Yes / LACTOSA
+    ('c2000000-2222-4222-8222-222222222222', 'e2000000-2222-4222-8222-222222222222', 'Lácteos Yes - Planta Procesadora', 'Carretera al Volcán, Santa Ana', 13.955000, -89.600000),
+    ('c2100000-2222-4222-8222-222222222222', 'e2000000-2222-4222-8222-222222222222', 'Lácteos Yes - CD Soyapango', 'Zona Industrial Soyapango, San Salvador', 13.702000, -89.155000),
+    -- Sucursales de Super Selectos (Supermercados)
+    ('c3000000-3333-4333-8333-333333333333', 'e3000000-3333-4333-8333-333333333333', 'Super Selectos - CD Masferrer', 'Avenida Masferrer Norte, San Salvador', 13.709500, -89.229900),
+    ('c3100000-3333-4333-8333-333333333333', 'e3000000-3333-4333-8333-333333333333', 'Super Selectos Sonsonate - Tienda', 'Bulevar las Palmeras, Sonsonate', 13.718000, -89.724000),
+    -- Sucursales de Avícola Sello de Oro (Pollos y Carnes)
+    ('c4000000-4444-4444-8444-444444444444', 'e4000000-4444-4444-8444-444444444444', 'Sello de Oro SM - Frigorífico Principal', 'Desvío a La Unión, San Miguel', 13.492000, -88.160000),
+    ('c4100000-4444-4444-8444-444444444444', 'e4000000-4444-4444-8444-444444444444', 'Sello de Oro Usulután - Distribuidora', 'Carretera Litoral, Usulután', 13.344000, -88.441000),
+    -- Sucursales de Walmart El Salvador
+    ('c5000000-5555-5555-8555-555555555555', 'e5000000-5555-5555-8555-555555555555', 'Walmart Acajutla - Terminal Marítima', 'Puerto de Acajutla, Sonsonate', 13.574400, -89.824000),
+    ('c5100000-5555-5555-8555-555555555555', 'e5000000-5555-5555-8555-555555555555', 'Walmart Constitución - CD Mayorista', 'Bulevar Constitución, San Salvador', 13.731000, -89.201000)
 ON CONFLICT (id) DO UPDATE SET
     empresa_id = EXCLUDED.empresa_id,
     nombre = EXCLUDED.nombre,
@@ -83,20 +83,20 @@ INSERT INTO viaje (
     tipo_producto, valor_comercial, peso_kg, volumen_m3, perfil_producto_id,
     limite_min_humedad, limite_max_humedad
 ) VALUES
-    -- Viaje 1: Finalizado - Transporte de Vacunas (Medicamentos)
+    -- Viaje 1: Finalizado - Transporte de Vacunas (Vijosa)
     ('d1000000-1111-4111-8111-111111111111', 
      'b1000000-1111-4111-8111-111111111111', 
      25.00, 15.00, 
-     '[{"lat":13.6841,"lon":-89.2360},{"lat":13.7500,"lon":-89.4000},{"lat":13.9789,"lon":-89.5540}]'::json, 
+     '[{"lat":13.6738,"lon":-89.2514},{"lat":13.7500,"lon":-89.4000},{"lat":13.9789,"lon":-89.5540}]'::json, 
      0.15, 
      CURRENT_TIMESTAMP - INTERVAL '3 days', 
      CURRENT_TIMESTAMP - INTERVAL '2 days 20 hours', 
      'finalizado', 
      'c1000000-1111-4111-8111-111111111111', 
      'c1100000-1111-4111-8111-111111111111',
-     'Vacunas Pediátricas e Insulina', 48500.00, 320.00, 1.80, 'medicamentos', 35.0, 65.0),
+     'Lote de Vacunas e Insulinas Vijosa', 85000.00, 420.00, 2.10, 'medicamentos', 35.0, 65.0),
 
-    -- Viaje 2: Finalizado - Transporte de Quesos (Lácteos)
+    -- Viaje 2: Finalizado - Transporte de Quesos (Lácteos Yes)
     ('d2000000-2222-4222-8222-222222222222', 
      'b2000000-2222-4222-8222-222222222222', 
      4.00, 0.00, 
@@ -107,21 +107,21 @@ INSERT INTO viaje (
      'finalizado', 
      'c2000000-2222-4222-8222-222222222222', 
      'c2100000-2222-4222-8222-222222222222',
-     'Queso Cheddar y Crema Premium', 12400.00, 1500.00, 4.50, 'lacteos', 60.0, 80.0),
+     'Yogurt y Crema Yes para Distribución', 18900.00, 2500.00, 6.20, 'lacteos', 60.0, 80.0),
 
-    -- Viaje 3: Pendiente - Distribución Sonsonate (Biológicos)
+    -- Viaje 3: Pendiente - Distribución Sonsonate (Super Selectos)
     ('d3000000-3333-4333-8333-333333333333', 
      'b3000000-3333-4333-8333-333333333333', 
      25.00, 15.00, 
-     '[{"lat":13.6738,"lon":-89.2514},{"lat":13.6900,"lon":-89.4500},{"lat":13.7180,"lon":-89.7240}]'::json, 
+     '[{"lat":13.7095,"lon":-89.2299},{"lat":13.6900,"lon":-89.4500},{"lat":13.7180,"lon":-89.7240}]'::json, 
      0.15, 
      NULL, NULL, 
      'pendiente', 
      'c3000000-3333-4333-8333-333333333333', 
      'c3100000-3333-4333-8333-333333333333',
-     'Insulina y Reactivos de Laboratorio', 35000.00, 180.00, 0.90, 'medicamentos', 35.0, 65.0),
+     'Abarrotes y Alimentos Secos Selectos', 15000.00, 4800.00, 11.20, 'medicamentos', 35.0, 65.0),
 
-    -- Viaje 4: Finalizado con Alertas - Carnes Frescas (Carnes)
+    -- Viaje 4: Finalizado con Alertas - Carnes Frescas (Sello de Oro)
     ('d4000000-4444-4444-8444-444444444444', 
      'b4000000-4444-4444-8444-444444444444', 
      2.00, -2.00, 
@@ -132,19 +132,19 @@ INSERT INTO viaje (
      'finalizado', 
      'c4000000-4444-4444-8444-444444444444', 
      'c4100000-4444-4444-8444-444444444444',
-     'Lomito de Res y Cortes Premium', 28900.00, 4500.00, 12.00, 'carnes', 70.0, 85.0),
+     'Pollo Fresco y Cortes Sello de Oro', 34500.00, 6200.00, 16.00, 'carnes', 70.0, 85.0),
 
-    -- Viaje 5: Pendiente - Congelados de Exportación (Congelados)
+    -- Viaje 5: Pendiente - Mariscos Importados (Walmart)
     ('d5000000-5555-5555-8555-555555555555', 
      'ba000000-aaaa-aaaa-baaa-aaaaaaaaaaaa', 
      -18.00, -25.00, 
-     '[{"lat":13.5744,"lon":-89.8240},{"lat":13.6200,"lon":-89.5000},{"lat":13.6820,"lon":-89.1860}]'::json, 
+     '[{"lat":13.5744,"lon":-89.8240},{"lat":13.6800,"lon":-89.4000},{"lat":13.7310,"lon":-89.2010}]'::json, 
      0.10, 
      NULL, NULL, 
      'pendiente', 
      'c5000000-5555-5555-8555-555555555555', 
      'c5100000-5555-5555-8555-555555555555',
-     'Mariscos Congelados para Exportación', 67000.00, 8500.00, 18.50, 'congelados', 0.0, 100.0)
+     'Mariscos Congelados de Importación', 92000.00, 11500.00, 26.50, 'congelados', 0.0, 100.0)
 ON CONFLICT (id) DO UPDATE SET
     transporte_id = EXCLUDED.transporte_id,
     limite_max_temp = EXCLUDED.limite_max_temp,
@@ -164,7 +164,7 @@ ON CONFLICT (id) DO UPDATE SET
 
 -- 6. Insertar Telemetría Histórica Falsa para Simular Recorrido del Viaje 1
 INSERT INTO telemetria (viaje_id, lat, lon, temp, humedad, bateria, compuerta_abierta, timestamp_sensor) VALUES
-    ('d1000000-1111-4111-8111-111111111111', 13.684100, -89.236000, 18.2, 45.5, 98, false, CURRENT_TIMESTAMP - INTERVAL '2 days 23 hours 50 min'),
+    ('d1000000-1111-4111-8111-111111111111', 13.673800, -89.251400, 18.2, 45.5, 98, false, CURRENT_TIMESTAMP - INTERVAL '2 days 23 hours 50 min'),
     ('d1000000-1111-4111-8111-111111111111', 13.702000, -89.290000, 18.5, 46.1, 97, false, CURRENT_TIMESTAMP - INTERVAL '2 days 23 hours 40 min'),
     ('d1000000-1111-4111-8111-111111111111', 13.725000, -89.340000, 19.1, 46.8, 96, false, CURRENT_TIMESTAMP - INTERVAL '2 days 23 hours 30 min'),
     ('d1000000-1111-4111-8111-111111111111', 13.750000, -89.400000, 20.4, 47.2, 95, false, CURRENT_TIMESTAMP - INTERVAL '2 days 23 hours 20 min'),
