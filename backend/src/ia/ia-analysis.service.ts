@@ -1049,7 +1049,11 @@ export class IaAnalysisService {
     const diagnoses = incidentRows.rows.map((row) => {
       let nivel_riesgo = row.nivel_riesgo;
       if (!nivel_riesgo) {
-        if (row.tipo_alerta === 'TEMP_ALTA' || row.tipo_alerta === 'TEMP_BAJA' || row.tipo_alerta === 'APERTURA_NO_AUTORIZADA') {
+        if (
+          row.tipo_alerta === 'TEMP_ALTA' ||
+          row.tipo_alerta === 'TEMP_BAJA' ||
+          row.tipo_alerta === 'APERTURA_NO_AUTORIZADA'
+        ) {
           nivel_riesgo = 'critico';
         } else {
           nivel_riesgo = 'moderado';
