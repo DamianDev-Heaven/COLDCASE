@@ -9,10 +9,21 @@ export class SimuladorProxyController {
     process.env.SIMULADOR_URL || 'http://simulador:4000';
 
   @Get('simulador')
-  async getConsole(@Res() res: express.Response) {
+  async getConsole(@Req() req: express.Request, @Res() res: express.Response) {
     try {
+      let token = req.query.token as string;
+      if (!token && req.headers.authorization?.startsWith('Bearer ')) {
+        token = req.headers.authorization.slice('Bearer '.length);
+      }
+
       const response = await fetch(`${this.simuladorUrl}/`);
-      const html = await response.text();
+      let html = await response.text();
+
+      if (token) {
+        const injectScript = `<script>window.__TOKEN__ = "${token}";</script>`;
+        html = html.replace('<head>', `<head>${injectScript}`);
+      }
+
       res.setHeader('Content-Type', 'text/html');
       res.send(html);
     } catch (err: unknown) {

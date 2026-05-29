@@ -907,6 +907,20 @@ function renderDashboardPage() {
 			}
 		}
 
+		// Token extraction and storage persistence
+		const urlParams = new URLSearchParams(window.location.search);
+		const queryToken = urlParams.get('token');
+		if (queryToken) {
+			sessionStorage.setItem('sim_token', queryToken);
+			const cleanUrl = window.location.pathname + window.location.hash;
+			window.history.replaceState({}, document.title, cleanUrl);
+		}
+		
+		const storedToken = sessionStorage.getItem('sim_token');
+		if (storedToken) {
+			window.__TOKEN__ = storedToken;
+		}
+
 		const apiStateUrl = '/api/state';
 		const toggleBtn = document.getElementById('toggleBtn');
 		const turboToggle = document.getElementById('turboToggle');
@@ -1360,9 +1374,16 @@ function renderDashboardPage() {
 		}
 
 		async function postJson(path, body) {
+			const headers = {};
+			if (body) {
+				headers['Content-Type'] = 'application/json';
+			}
+			if (window.__TOKEN__) {
+				headers['Authorization'] = 'Bearer ' + window.__TOKEN__;
+			}
 			const response = await fetch(path, {
 				method: 'POST',
-				headers: body ? { 'Content-Type': 'application/json' } : undefined,
+				headers: Object.keys(headers).length > 0 ? headers : undefined,
 				body: body ? JSON.stringify(body) : undefined,
 			});
 			const data = await response.json().catch(() => ({}));
@@ -1522,7 +1543,14 @@ function renderDashboardPage() {
 
 		async function refreshState() {
 			try {
-				const response = await fetch(apiStateUrl, { cache: 'no-store' });
+				const headers = {};
+				if (window.__TOKEN__) {
+					headers['Authorization'] = 'Bearer ' + window.__TOKEN__;
+				}
+				const response = await fetch(apiStateUrl, {
+					cache: 'no-store',
+					headers: Object.keys(headers).length > 0 ? headers : undefined,
+				});
 				if (!response.ok) {
 					throw new Error('No se pudo leer el estado del simulador.');
 				}

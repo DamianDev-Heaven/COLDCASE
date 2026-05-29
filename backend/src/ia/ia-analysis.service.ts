@@ -1082,9 +1082,9 @@ export class IaAnalysisService {
 
     let zepContext = '';
     try {
-      const zepResult = await this.zepMemory.recuperarContextoGlobal(
+      const zepResult = await this.obtenerContextoGrafo(
         viajeId,
-        'Anomalías y alertas térmicas en este viaje',
+        'Anomalías y alertas térmicas',
       );
       zepContext = zepResult.messages || '';
     } catch (zepErr: unknown) {
@@ -1222,9 +1222,12 @@ Por favor, genera la auditoría del viaje en el JSON.`;
   /**
    * Realiza una búsqueda directa en el Grafo Global de Zep y retorna nodos y aristas.
    */
-  async buscarEnGrafoGlobal(query: string): Promise<ZepGraphSearchResult> {
+  async buscarEnGrafoGlobal(
+    query: string,
+    viajeId?: string,
+  ): Promise<ZepGraphSearchResult> {
     try {
-      return await this.zepMemory.buscarEnGrafoDirecto(query);
+      return await this.zepMemory.buscarEnGrafoDirecto(query, viajeId);
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);
       this.logger.error(`Error en búsqueda de grafo global: ${message}`);

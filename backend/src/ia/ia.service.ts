@@ -99,7 +99,10 @@ export class IaService {
   /**
    * Realiza una búsqueda directa en el Grafo Global de Zep y retorna nodos y aristas.
    */
-  buscarEnGrafoGlobal(query: string): Promise<ZepGraphSearchResult> {
-    return this.iaAnalysisService.buscarEnGrafoGlobal(query);
+  buscarEnGrafoGlobal(
+    query: string,
+    viajeId?: string,
+  ): Promise<ZepGraphSearchResult> {
+    return this.iaAnalysisService.buscarEnGrafoGlobal(query, viajeId);
   }
 }

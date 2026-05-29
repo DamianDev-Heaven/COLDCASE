@@ -165,6 +165,7 @@ export default function Dashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isTelemetryLoading, setIsTelemetryLoading] = useState(false);
   const [currentUser, setCurrentUser] = useState<UserSession | null>(null);
+  const [accessToken, setAccessToken] = useState<string | null>(null);
 
   useEffect(() => {
     const timers = [
@@ -218,6 +219,10 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (typeof window !== "undefined") {
+      const token = localStorage.getItem("accessToken");
+      if (token) {
+        setAccessToken(token);
+      }
       const stored = localStorage.getItem("currentUser");
       if (stored) {
         try {
@@ -690,7 +695,7 @@ export default function Dashboard() {
             Nuevo Envío
           </button>
           <a
-            href={SIMULATOR_URL}
+            href={accessToken ? `${SIMULATOR_URL}?token=${accessToken}` : SIMULATOR_URL}
             target="_blank"
             rel="noreferrer"
             className="bg-slate-900/80 hover:bg-slate-900 border border-white/[0.08] hover:border-white/20 px-4 py-2 rounded-xl text-[11px] font-bold flex items-center gap-2 transition-all duration-300"
@@ -759,7 +764,7 @@ export default function Dashboard() {
             {sidebarExpanded && (
               <p className="text-[8px] font-bold text-slate-600 uppercase tracking-[0.15em] px-1 mt-4 mb-1">Herramientas</p>
             )}
-            <NavItem icon={Truck} label="Consola del Simulador" href={SIMULATOR_URL} sidebarExpanded={sidebarExpanded} />
+            <NavItem icon={Truck} label="Consola del Simulador" href={accessToken ? `${SIMULATOR_URL}?token=${accessToken}` : SIMULATOR_URL} sidebarExpanded={sidebarExpanded} />
             <NavItem icon={Cpu} label="Control y Sandbox (IA)" href="/ia" sidebarExpanded={sidebarExpanded} />
 
             {isAdmin && (
@@ -1171,7 +1176,15 @@ export default function Dashboard() {
           </main>
         ) : (
           <main className={`flex-1 flex p-3 gap-3 overflow-hidden h-full transition-[margin-left] duration-300 ease-in-out ${sidebarExpanded ? "ml-[240px]" : "ml-[64px]"}`}>
-            <GraphExplorer apiUrl={API_URL} />
+            <GraphExplorer
+              apiUrl={API_URL}
+              viajes={viajes}
+              selectedTripId={viajeSeleccionado?.id}
+              onSelectTrip={(tripId) => {
+                const found = viajes.find((v) => v.id === tripId);
+                setViajeSeleccionado(found || null);
+              }}
+            />
           </main>
         )}
       </div>
@@ -1853,18 +1866,41 @@ interface ZepEdge {
   type: string;
 }
 
-function GraphExplorer({ apiUrl }: { apiUrl: string }) {
+function GraphExplorer({
+  apiUrl,
+  viajes,
+  selectedTripId,
+  onSelectTrip,
+}: {
+  apiUrl: string;
+  viajes: Viaje[];
+  selectedTripId?: string;
+  onSelectTrip: (tripId: string) => void;
+}) {
   const [query, setQuery] = useState("");
   const [nodes, setNodes] = useState<ZepNode[]>([]);
   const [edges, setEdges] = useState<ZepEdge[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
+  const [filterByTrip, setFilterByTrip] = useState(!!selectedTripId);
+
+  useEffect(() => {
+    if (selectedTripId) {
+      setFilterByTrip(true);
+    } else {
+      setFilterByTrip(false);
+    }
+  }, [selectedTripId]);
 
   const handleSearch = async (searchTerm: string) => {
     setIsLoading(true);
     setHasSearched(true);
     try {
-      const res = await apiFetch(`${apiUrl}/ia/grafo/buscar?query=${encodeURIComponent(searchTerm)}`);
+      let url = `${apiUrl}/ia/grafo/buscar?query=${encodeURIComponent(searchTerm)}`;
+      if (filterByTrip && selectedTripId) {
+        url += `&viajeId=${encodeURIComponent(selectedTripId)}`;
+      }
+      const res = await apiFetch(url);
       if (res.ok) {
         const data = await res.json();
         setNodes(data.nodes || []);
@@ -1897,6 +1933,46 @@ function GraphExplorer({ apiUrl }: { apiUrl: string }) {
 
       {/* SEARCH BAR & CHIPS */}
       <div className="flex flex-col gap-3 bg-slate-900/30 border border-white/[0.05] p-4 rounded-2xl shrink-0 shadow-xl">
+        <div className="flex items-center gap-4 flex-wrap pb-2 border-b border-white/[0.03]">
+          {/* Select Trip Dropdown */}
+          <div className="flex items-center gap-2 select-none">
+            <span className="text-[10px] text-slate-500 font-mono uppercase tracking-wider">Ver Viaje:</span>
+            <select
+              value={selectedTripId || "global"}
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val === "global") {
+                  onSelectTrip("");
+                } else {
+                  onSelectTrip(val);
+                }
+              }}
+              className="bg-slate-950/70 border border-white/10 hover:border-white/20 rounded-xl px-3 py-1.5 text-[11px] text-slate-200 font-mono outline-none focus:border-cyan-500/30 cursor-pointer max-w-[280px] transition-colors"
+            >
+              <option value="global">🌍 Grafo Global (Todos los viajes)</option>
+              {viajes.map((v) => (
+                <option key={v.id} value={v.id}>
+                  📦 {v.tipo_producto || "Perecedero"} ({v.id.slice(0, 8)}...) - {v.estado}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {selectedTripId && (
+            <div className="flex items-center gap-2 select-none">
+              <input
+                type="checkbox"
+                id="filterByTripCheckbox"
+                checked={filterByTrip}
+                onChange={(e) => setFilterByTrip(e.target.checked)}
+                className="accent-cyan-500 rounded border-white/10 bg-slate-950/50 cursor-pointer w-3.5 h-3.5"
+              />
+              <label htmlFor="filterByTripCheckbox" className="text-[10px] text-slate-400 font-mono cursor-pointer hover:text-white transition-colors">
+                Limitar búsqueda estrictamente a este viaje seleccionado
+              </label>
+            </div>
+          )}
+        </div>
         <form
           onSubmit={(e) => {
             e.preventDefault();
