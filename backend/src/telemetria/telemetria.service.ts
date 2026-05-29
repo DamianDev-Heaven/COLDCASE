@@ -89,59 +89,76 @@ export class TelemetriaService {
           delay: 5000,
         },
         removeOnComplete: true, // Limpiar trabajos completados
-        removeOnFail: false,   // Mantener fallidos para inspección SRE (Dead Letter Queue)
+        removeOnFail: false, // Mantener fallidos para inspección SRE (Dead Letter Queue)
       });
 
       return {
         status: 'accepted',
-        message: 'Telemetría encolada exitosamente para procesamiento asíncrono.',
+        message:
+          'Telemetría encolada exitosamente para procesamiento asíncrono.',
         jobId,
         viaje_id: payload.viaje_id,
         timestamp_sensor: payload.timestamp_sensor,
       };
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : String(err);
-      console.error('Error al encolar telemetría en telemetria-ingest-queue:', errorMsg);
-      throw new BadRequestException('Fallo crítico: No se pudo encolar la telemetría en el búfer temporal.');
+      console.error(
+        'Error al encolar telemetría en telemetria-ingest-queue:',
+        errorMsg,
+      );
+      throw new BadRequestException(
+        'Fallo crítico: No se pudo encolar la telemetría en el búfer temporal.',
+      );
     }
   }
 
-  async enqueueIaAnalysis(result: any, payload: any) {
+  async enqueueIaAnalysis(
+    result: TelemetriaRow & { incidenteParaIa?: IncidenteRow | null },
+    payload: { viaje_id: string },
+  ) {
     try {
       const inc = result.incidenteParaIa;
+      if (!inc) return;
+
       const durationMs =
         new Date(inc.timestamp_fin || '').getTime() -
         new Date(inc.timestamp_bd || '').getTime();
       const duracionSegundos = Math.max(0, Math.round(durationMs / 1000));
 
-      await this.iaQueue.add('analyze-incident', {
-        viajeId: payload.viaje_id,
-        incidenteData: {
-          id: result.id,
-          viaje_id: payload.viaje_id,
-          lat: Number(result.lat),
-          lon: Number(result.lon),
-          temp: Number(result.temp),
-          humedad: result.humedad,
-          bateria: result.bateria,
-          timestamp_sensor: result.timestamp_sensor,
-          incidente_id: inc.id,
-          valor_pico: Number(inc.valor_pico ?? inc.valor_detectado),
-          duracion_segundos: duracionSegundos,
-          umbral_permitido: Number(inc.umbral_permitido),
+      await this.iaQueue.add(
+        'analyze-incident',
+        {
+          viajeId: payload.viaje_id,
+          incidenteData: {
+            id: result.id,
+            viaje_id: payload.viaje_id,
+            lat: Number(result.lat),
+            lon: Number(result.lon),
+            temp: Number(result.temp),
+            humedad: result.humedad,
+            bateria: result.bateria,
+            timestamp_sensor: result.timestamp_sensor,
+            incidente_id: inc.id,
+            valor_pico: Number(inc.valor_pico ?? inc.valor_detectado),
+            duracion_segundos: duracionSegundos,
+            umbral_permitido: Number(inc.umbral_permitido),
+          },
         },
-      }, {
-        attempts: 5,
-        backoff: {
-          type: 'exponential',
-          delay: 5000,
+        {
+          attempts: 5,
+          backoff: {
+            type: 'exponential',
+            delay: 5000,
+          },
+          removeOnComplete: true,
+          removeOnFail: false, // DLQ para inspección manual SRE de fallos de IA
         },
-        removeOnComplete: true,
-        removeOnFail: false, // DLQ para inspección manual SRE de fallos de IA
-      });
+      );
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : String(err);
-      console.warn(`Error al encolar análisis IA en segundo plano: ${errorMsg}`);
+      console.warn(
+        `Error al encolar análisis IA en segundo plano: ${errorMsg}`,
+      );
     }
   }
 

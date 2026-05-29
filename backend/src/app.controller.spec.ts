@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { DbService } from './db/db.service';
+import { getQueueToken } from '@nestjs/bullmq';
 
 describe('AppController', () => {
   let appController: AppController;
@@ -15,6 +16,12 @@ describe('AppController', () => {
           provide: DbService,
           useValue: {
             query: jest.fn().mockResolvedValue({ rows: [] }),
+          },
+        },
+        {
+          provide: getQueueToken('ia-analysis-queue'),
+          useValue: {
+            isPaused: jest.fn().mockResolvedValue(false),
           },
         },
       ],

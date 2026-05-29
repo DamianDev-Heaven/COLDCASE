@@ -112,7 +112,10 @@ export class RouteDeviationDetector implements AnomalyDetector {
         // Vehículo está en ruta
         if (activeIncident) {
           // Consultar los últimos 3 pings registrados
-          const lastPingsResult = await client.query<{ lat: string; lon: string }>(
+          const lastPingsResult = await client.query<{
+            lat: string;
+            lon: string;
+          }>(
             'SELECT lat, lon FROM telemetria WHERE viaje_id = $1 ORDER BY timestamp_sensor DESC, id DESC LIMIT 3',
             [viaje.id],
           );

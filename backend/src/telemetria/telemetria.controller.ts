@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Param, Post, HttpCode, HttpStatus } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  HttpCode,
+  HttpStatus,
+} from '@nestjs/common';
 import { CreateTelemetriaDto } from './dto/create-telemetria.dto';
 import { TelemetriaService } from './telemetria.service';
 
