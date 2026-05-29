@@ -18,11 +18,14 @@ async function bootstrap() {
         'https://api.ccase.tech',
         'http://localhost:3001',
         'http://localhost:3000',
+        'http://104.64.127.24',
+        'http://104.64.127.23',
+        'http://104.64.127.23:3000',
       ];
       if (!origin || allowedOrigins.indexOf(origin) !== -1) {
         callback(null, true);
       } else {
-        callback(new Error('Blocked by CORS'), false);
+        callback(new Error(`Blocked by CORS: ${origin}`), false);
       }
     },
     credentials: true,
