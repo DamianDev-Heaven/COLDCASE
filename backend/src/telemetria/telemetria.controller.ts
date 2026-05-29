@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  HttpCode,
+  HttpStatus,
+} from '@nestjs/common';
 import { CreateTelemetriaDto } from './dto/create-telemetria.dto';
 import { TelemetriaService } from './telemetria.service';
 
@@ -7,6 +15,7 @@ export class TelemetriaController {
   constructor(private readonly telemetriaService: TelemetriaService) {}
 
   @Post()
+  @HttpCode(HttpStatus.ACCEPTED)
   create(@Body() body: CreateTelemetriaDto) {
     return this.telemetriaService.create(body);
   }

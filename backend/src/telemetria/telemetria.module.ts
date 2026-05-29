@@ -5,6 +5,7 @@ import { IaModule } from '../ia/ia.module';
 import { TelemetriaController } from './telemetria.controller';
 import { TelemetriaService } from './telemetria.service';
 import { TelemetriaContingencyProcessor } from './telemetria.processor';
+import { TelemetriaIngestProcessor } from './telemetria-ingest.processor';
 import { TemperatureAnomalyDetector } from './detectors/temperature-anomaly.detector';
 import { BatteryAnomalyDetector } from './detectors/battery-anomaly.detector';
 import { RouteDeviationDetector } from './detectors/route-deviation.detector';
@@ -16,14 +17,16 @@ import { GateSecurityDetector } from './detectors/gate-security.detector';
   imports: [
     IncidenteModule,
     IaModule,
-    BullModule.registerQueue({
-      name: 'telemetria-contingency-queue',
-    }),
+    BullModule.registerQueue(
+      { name: 'telemetria-contingency-queue' },
+      { name: 'telemetria-ingest-queue' },
+    ),
   ],
   controllers: [TelemetriaController],
   providers: [
     TelemetriaService,
     TelemetriaContingencyProcessor,
+    TelemetriaIngestProcessor,
     TemperatureAnomalyDetector,
     BatteryAnomalyDetector,
     RouteDeviationDetector,
