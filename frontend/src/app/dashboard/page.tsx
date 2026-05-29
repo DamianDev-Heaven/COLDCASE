@@ -111,6 +111,7 @@ export default function Dashboard() {
   const [transportes, setTransportes] = useState<Transporte[]>([]);
   const [perfiles, setPerfiles] = useState<PerfilProducto[]>([]);
   const [viajeSeleccionado, setViajeSeleccionado] = useState<Viaje | null>(null);
+  const [viajeFinalizadoDismissed, setViajeFinalizadoDismissed] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -507,7 +508,11 @@ export default function Dashboard() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      if (!response.ok) throw new Error("Error en la respuesta del servidor NestJS");
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        const errMsg = errData.message || "Error en la respuesta del servidor NestJS";
+        throw new Error(Array.isArray(errMsg) ? errMsg.join(", ") : String(errMsg));
+      }
       const nuevoViaje = await response.json();
       setViajes((current) => [nuevoViaje, ...current]);
       hasSelectedManually.current = true;
@@ -755,7 +760,7 @@ export default function Dashboard() {
               <p className="text-[8px] font-bold text-slate-600 uppercase tracking-[0.15em] px-1 mt-4 mb-1">Herramientas</p>
             )}
             <NavItem icon={Truck} label="Consola del Simulador" href={SIMULATOR_URL} sidebarExpanded={sidebarExpanded} />
-            <NavItem icon={Cpu} label="Playground de Riesgos (IA)" href="/ia" sidebarExpanded={sidebarExpanded} />
+            <NavItem icon={Cpu} label="Control y Sandbox (IA)" href="/ia" sidebarExpanded={sidebarExpanded} />
 
             {isAdmin && (
               <>
@@ -834,82 +839,211 @@ export default function Dashboard() {
             {/* Centro: mapa + tabs */}
             <div className="flex-1 flex flex-col gap-3 h-full min-w-0">
               <div className="flex-1 bg-slate-900/30 backdrop-blur-xl border border-white/[0.05] hover:border-cyan-500/10 rounded-2xl relative overflow-hidden shadow-2xl z-10 transition-colors duration-500">
-                {viajeSeleccionado && waypointsViajeActivo.length === 2 ? (
-                  <RouteMap viajeId={viajeSeleccionado.id} waypoints={waypointsViajeActivo} telemetryPoints={telemetryList} routePreviewApiUrl={API_URL} />
+                {viajeSeleccionado ? (
+                  <>
+                    {waypointsViajeActivo.length === 2 ? (
+                      <RouteMap viajeId={viajeSeleccionado.id} waypoints={waypointsViajeActivo} telemetryPoints={telemetryList} routePreviewApiUrl={API_URL} />
+                    ) : (
+                      <div className="w-full h-full flex flex-col items-center justify-center text-slate-650 gap-3">
+                        <div className="w-10 h-10 border-2 border-slate-700 border-t-cyan-500 rounded-full animate-spin" />
+                        <p className="text-xs font-mono">Geolocalizando trayecto OSRM...</p>
+                      </div>
+                    )}
+                    
+                     {viajeSeleccionado.estado === "finalizado" && viajeFinalizadoDismissed !== viajeSeleccionado.id && (
+                       <div className="absolute inset-0 z-[1001] flex flex-col items-center justify-center p-6 bg-[#020408]/75 backdrop-blur-md text-center">
+                         <div className="max-w-md w-full bg-slate-900/95 border border-white/10 p-8 rounded-3xl shadow-2xl flex flex-col items-center gap-5 relative overflow-hidden">
+                           {/* Decorative gradient overlay */}
+                           <div className="absolute -top-12 -right-12 w-32 h-32 bg-cyan-500/10 rounded-full blur-2xl" />
+                           <div className="absolute -bottom-12 -left-12 w-32 h-32 bg-purple-500/10 rounded-full blur-2xl" />
+                           
+                           {/* Close Button */}
+                           <button
+                             onClick={() => setViajeFinalizadoDismissed(viajeSeleccionado.id)}
+                             className="absolute top-4 right-4 text-slate-400 hover:text-white transition-colors cursor-pointer z-10"
+                           >
+                             <X className="w-5 h-5" />
+                           </button>
+
+                           <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center shadow-lg shadow-emerald-500/20 animate-bounce">
+                             <ShieldCheck className="w-9 h-9 text-white" />
+                           </div>
+                           
+                           <div>
+                             <h3 className="text-lg font-bold text-white uppercase tracking-wider">¡Destino Alcanzado!</h3>
+                             <p className="text-xs text-slate-400 mt-1">
+                               El viaje de {viajeSeleccionado.tipo_producto || "Carga Sensible"} ha concluido exitosamente.
+                             </p>
+                           </div>
+
+                           <div className="w-full bg-slate-950/50 rounded-2xl p-4 border border-white/5 space-y-3">
+                             <div className="flex justify-between items-center text-xs font-mono">
+                               <span className="text-slate-500">Cadena de Frío:</span>
+                               {telemetryList.some((p) => p.temp > (viajeSeleccionado.limite_max_temp || 5) || p.temp < (viajeSeleccionado.limite_min_temp || 1)) ? (
+                                 <span className="px-2 py-0.5 rounded bg-rose-500/15 border border-rose-500/20 text-rose-400 font-bold text-[10px]">
+                                   DESVIADA
+                                 </span>
+                               ) : (
+                                 <span className="px-2 py-0.5 rounded bg-emerald-500/15 border border-emerald-500/20 text-emerald-400 font-bold text-[10px]">
+                                   CERTIFICADA
+                                 </span>
+                               )}
+                             </div>
+
+                             <div className="h-px bg-white/5" />
+
+                             <div className="text-left">
+                               <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5 mb-1.5">
+                                 <Cpu className="w-3.5 h-3.5 text-purple-400" />
+                                 Auditoría de Calidad IA
+                               </div>
+                               {viajeSeleccionado.auditoria_ia ? (
+                                 <p className="text-[11px] text-slate-300 leading-relaxed font-sans line-clamp-4">
+                                   {viajeSeleccionado.auditoria_ia}
+                                 </p>
+                               ) : (
+                                 <div className="flex items-center gap-2 py-1 text-slate-500 text-[11px]">
+                                   <div className="w-3.5 h-3.5 border-2 border-slate-700 border-t-purple-400 rounded-full animate-spin" />
+                                   <span>Compilando veredicto y cargando certificado...</span>
+                                 </div>
+                               )}
+                             </div>
+                           </div>
+
+                           <div className="grid grid-cols-2 gap-2.5 w-full">
+                             <button
+                               onClick={() => handleExportPDF(viajeSeleccionado)}
+                               className="flex items-center justify-center gap-2 py-2 px-3 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white rounded-xl text-xs font-bold transition-all duration-300 shadow-lg shadow-cyan-600/15 cursor-pointer"
+                             >
+                               <FileText className="w-4 h-4" />
+                               Certificado PDF
+                             </button>
+                             <button
+                               onClick={() => handleExportCSV(viajeSeleccionado)}
+                               className="flex items-center justify-center gap-2 py-2 px-3 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-white/5 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer"
+                             >
+                               <FileSpreadsheet className="w-4 h-4" />
+                               Datos CSV
+                             </button>
+                             <button
+                               onClick={() => setCurrentView("compliance")}
+                               className="flex items-center justify-center gap-2 py-2 px-3 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-white/5 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer"
+                             >
+                               <History className="w-4 h-4" />
+                               Ver Historial
+                             </button>
+                             <button
+                               onClick={() => { resetModalForm(); setIsModalOpen(true); }}
+                               className="flex items-center justify-center gap-2 py-2 px-3 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-white/5 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer"
+                             >
+                               <Plus className="w-4 h-4" />
+                               Nuevo Envío
+                             </button>
+                           </div>
+
+                           <button
+                             onClick={() => setViajeFinalizadoDismissed(viajeSeleccionado.id)}
+                             className="w-full py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-white/5 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer flex items-center justify-center gap-2"
+                           >
+                             Cerrar Ventana
+                           </button>
+                         </div>
+                       </div>
+                     )}
+                  </>
                 ) : (
-                  <div className="w-full h-full flex flex-col items-center justify-center text-slate-600 gap-3">
-                    <div className="w-10 h-10 border-2 border-slate-700 border-t-cyan-500 rounded-full animate-spin" />
-                    <p className="text-xs font-mono">Geolocalizando trayecto OSRM...</p>
+                  <div className="w-full h-full flex flex-col items-center justify-center text-slate-400 gap-4 p-8 bg-[#0d111a]/30">
+                    <Truck className="w-12 h-12 text-slate-605 animate-pulse" />
+                    <div className="text-center">
+                      <h3 className="text-sm font-bold text-white uppercase tracking-wider">Monitoreo de Envíos</h3>
+                      <p className="text-xs text-slate-500 mt-1 max-w-xs">
+                        No hay ningún viaje activo o seleccionado. Registra un despacho para iniciar el monitoreo térmico en tiempo real.
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => { resetModalForm(); setIsModalOpen(true); }}
+                      className="flex items-center gap-2 py-2 px-4 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white rounded-xl text-xs font-bold transition-all duration-300 shadow-lg shadow-cyan-600/15 cursor-pointer"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Iniciar Nuevo Envío
+                    </button>
                   </div>
                 )}
               </div>
 
               <div className="h-[280px] shrink-0 bg-slate-900/30 backdrop-blur-xl border border-white/[0.05] hover:border-cyan-500/10 rounded-2xl flex flex-col overflow-hidden shadow-2xl transition-colors duration-500">
-                <div className="flex border-b border-white/[0.05] px-4 bg-transparent shrink-0">
-                  <button
-                    onClick={() => setActiveTab("overview")}
-                    className={`px-4 py-3 text-[10px] font-bold uppercase tracking-widest border-b-2 transition-all duration-300 cursor-pointer ${activeTab === "overview" ? "border-cyan-500 text-white" : "border-transparent text-slate-500 hover:text-slate-300"}`}
-                  >
-                    Historial Térmico
-                  </button>
-                  <button
-                    onClick={() => setActiveTab("timeline")}
-                    className={`px-4 py-3 text-[10px] font-bold uppercase tracking-widest border-b-2 transition-all duration-300 cursor-pointer ${activeTab === "timeline" ? "border-cyan-500 text-white" : "border-transparent text-slate-500 hover:text-slate-300"}`}
-                  >
-                    Ficha de Despacho
-                  </button>
-                </div>
-
-                <div className="flex-1 p-4 overflow-y-auto no-scrollbar">
-                  {activeTab === "overview" && viajeSeleccionado && (
-                    <div className="flex gap-4 h-full items-stretch">
-                      <div className="w-[120px] shrink-0 bg-slate-950/40 border border-white/[0.05] p-3 rounded-xl flex flex-col justify-center gap-2">
-                        <span className="text-[8px] font-mono text-slate-500 uppercase tracking-widest">Rango °C</span>
-                        <div className="text-[11px] font-mono text-rose-400 font-bold">↑ {viajeSeleccionado.limite_max_temp || 5}°C</div>
-                        <div className="text-[11px] font-mono text-sky-400 font-bold">↓ {viajeSeleccionado.limite_min_temp || 1}°C</div>
-                        <div className="h-px bg-white/5 my-1" />
-                        <span className="text-[8px] font-mono text-slate-650">{viajeSeleccionado.peso_kg || 0} Kg</span>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <TelemetryChart
-                          telemetryData={telemetryList.length > 0 ? telemetryList : telemetryDataQuery}
-                          limiteMin={Number(viajeSeleccionado.limite_min_temp || 1)}
-                          limiteMax={Number(viajeSeleccionado.limite_max_temp || 5)}
-                          isLoading={isTelemetryLoading}
-                        />
-                      </div>
+                {viajeSeleccionado ? (
+                  <>
+                    <div className="flex border-b border-white/[0.05] px-4 bg-transparent shrink-0">
+                      <button
+                        onClick={() => setActiveTab("overview")}
+                        className={`px-4 py-3 text-[10px] font-bold uppercase tracking-widest border-b-2 transition-all duration-300 cursor-pointer ${activeTab === "overview" ? "border-cyan-500 text-white" : "border-transparent text-slate-500 hover:text-slate-300"}`}
+                      >
+                        Historial Térmico
+                      </button>
+                      <button
+                        onClick={() => setActiveTab("timeline")}
+                        className={`px-4 py-3 text-[10px] font-bold uppercase tracking-widest border-b-2 transition-all duration-300 cursor-pointer ${activeTab === "timeline" ? "border-cyan-500 text-white" : "border-transparent text-slate-500 hover:text-slate-300"}`}
+                      >
+                        Ficha de Despacho
+                      </button>
                     </div>
-                  )}
-                  {activeTab === "timeline" && viajeSeleccionado && (
-                    <div className="flex flex-col gap-3 h-full justify-center">
-                      <div className="grid grid-cols-3 gap-3">
-                        <StatCard label="Valor Asegurado" value={`$${Number(viajeSeleccionado.valor_comercial || 0).toLocaleString("en-US", { minimumFractionDigits: 2 })}`} />
-                        <StatCard
-                          label="Estado de Riesgo"
-                          value={
-                            viajeSeleccionado.id === "77777777-7777-4777-8777-777777777777" ||
-                            telemetryList.some((p) => p.temp > (viajeSeleccionado.limite_max_temp || 5) || p.temp < (viajeSeleccionado.limite_min_temp || 1))
-                              ? "CRÍTICO"
-                              : "ESTABLE"
-                          }
-                          valueClass={
-                            telemetryList.some((p) => p.temp > (viajeSeleccionado.limite_max_temp || 5) || p.temp < (viajeSeleccionado.limite_min_temp || 1))
-                              ? "text-rose-400"
-                              : "text-emerald-400"
-                          }
-                        />
-                        <StatCard label="Ocupación" value={`${((Number(viajeSeleccionado.peso_kg || 0) / 15000) * 100).toFixed(1)}%`} valueClass="text-cyan-400" />
-                      </div>
-                      <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-[10px] font-mono border-t border-white/[0.05] pt-3">
-                        <KV label="Categoría" value={viajeSeleccionado.tipo_producto || "N/A"} />
-                        <KV label="Volumen" value={`${viajeSeleccionado.volumen_m3 || 0} m³`} />
-                        <KV label="Desvío Máx" value={`${viajeSeleccionado.margen_desvio_km || "N/A"} Km`} />
-                        <KV label="Destino ID" value={viajeSeleccionado.sucursal_destino_id?.substring(0, 12) + "..." || "N/A"} />
-                      </div>
-                    </div>
-                  )}
 
-                </div>
+                    <div className="flex-1 p-4 overflow-y-auto no-scrollbar">
+                      {activeTab === "overview" && (
+                        <div className="flex gap-4 h-full items-stretch">
+                          <div className="w-[120px] shrink-0 bg-slate-950/40 border border-white/[0.05] p-3 rounded-xl flex flex-col justify-center gap-2">
+                            <span className="text-[8px] font-mono text-slate-500 uppercase tracking-widest">Rango °C</span>
+                            <div className="text-[11px] font-mono text-rose-400 font-bold">↑ {viajeSeleccionado.limite_max_temp || 5}°C</div>
+                            <div className="text-[11px] font-mono text-sky-400 font-bold">↓ {viajeSeleccionado.limite_min_temp || 1}°C</div>
+                            <div className="h-px bg-white/5 my-1" />
+                            <span className="text-[8px] font-mono text-slate-650">{viajeSeleccionado.peso_kg || 0} Kg</span>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <TelemetryChart
+                              telemetryData={telemetryList}
+                              limiteMin={Number(viajeSeleccionado.limite_min_temp || 1)}
+                              limiteMax={Number(viajeSeleccionado.limite_max_temp || 5)}
+                              isLoading={isTelemetryLoading}
+                            />
+                          </div>
+                        </div>
+                      )}
+                      {activeTab === "timeline" && (
+                        <div className="flex flex-col gap-3 h-full justify-center">
+                          <div className="grid grid-cols-3 gap-3">
+                            <StatCard label="Valor Asegurado" value={`$${Number(viajeSeleccionado.valor_comercial || 0).toLocaleString("en-US", { minimumFractionDigits: 2 })}`} />
+                            <StatCard
+                              label="Estado de Riesgo"
+                              value={
+                                viajeSeleccionado.id === "77777777-7777-4777-8777-777777777777" ||
+                                telemetryList.some((p) => p.temp > (viajeSeleccionado.limite_max_temp || 5) || p.temp < (viajeSeleccionado.limite_min_temp || 1))
+                                  ? "CRÍTICO"
+                                  : "ESTABLE"
+                              }
+                              valueClass={
+                                telemetryList.some((p) => p.temp > (viajeSeleccionado.limite_max_temp || 5) || p.temp < (viajeSeleccionado.limite_min_temp || 1))
+                                  ? "text-rose-400"
+                                  : "text-emerald-400"
+                              }
+                            />
+                            <StatCard label="Ocupación" value={`${((Number(viajeSeleccionado.peso_kg || 0) / 15000) * 100).toFixed(1)}%`} valueClass="text-cyan-400" />
+                          </div>
+                          <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-[10px] font-mono border-t border-white/[0.05] pt-3">
+                            <KV label="Categoría" value={viajeSeleccionado.tipo_producto || "N/A"} />
+                            <KV label="Volumen" value={`${viajeSeleccionado.volumen_m3 || 0} m³`} />
+                            <KV label="Desvío Máx" value={`${viajeSeleccionado.margen_desvio_km || "N/A"} Km`} />
+                            <KV label="Destino ID" value={viajeSeleccionado.sucursal_destino_id?.substring(0, 12) + "..." || "N/A"} />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <div className="w-full h-full flex flex-col items-center justify-center text-slate-500/80 text-xs font-mono">
+                    Selecciona o inicia un viaje para ver métricas.
+                  </div>
+                )}
               </div>
             </div>
 
@@ -1043,13 +1177,116 @@ export default function Dashboard() {
       </div>
 
       {viajeSeleccionado && (
-        <ZepAuditModal
-          isOpen={isZepModalOpen}
-          onClose={() => setIsZepModalOpen(false)}
-          viaje={viajeSeleccionado}
-          telemetryList={telemetryList}
-          apiUrl={API_URL}
-        />
+        <>
+          <ZepAuditModal
+            isOpen={isZepModalOpen}
+            onClose={() => setIsZepModalOpen(false)}
+            viaje={viajeSeleccionado}
+            telemetryList={telemetryList}
+            apiUrl={API_URL}
+          />
+
+           {viajeSeleccionado.estado === "finalizado" && currentView === "overview" && viajeFinalizadoDismissed !== viajeSeleccionado.id && (
+             <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-[#020408]/85 backdrop-blur-md p-4 animate-in fade-in duration-300">
+               <div className="max-w-md w-full bg-slate-900/95 border border-white/10 p-8 rounded-3xl shadow-2xl flex flex-col items-center gap-5 relative overflow-hidden">
+                 {/* Decorative gradient overlay */}
+                 <div className="absolute -top-12 -right-12 w-32 h-32 bg-cyan-500/10 rounded-full blur-2xl" />
+                 <div className="absolute -bottom-12 -left-12 w-32 h-32 bg-purple-500/10 rounded-full blur-2xl" />
+                 
+                 {/* Close Button */}
+                 <button
+                   onClick={() => setViajeFinalizadoDismissed(viajeSeleccionado.id)}
+                   className="absolute top-4 right-4 text-slate-400 hover:text-white transition-colors cursor-pointer z-10"
+                 >
+                   <X className="w-5 h-5" />
+                 </button>
+
+                 <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center shadow-lg shadow-emerald-500/20 animate-bounce">
+                   <ShieldCheck className="w-9 h-9 text-white" />
+                 </div>
+                 
+                 <div>
+                   <h3 className="text-lg font-bold text-white uppercase tracking-wider text-center">¡Destino Alcanzado!</h3>
+                   <p className="text-xs text-slate-400 mt-1 text-center">
+                     El viaje de {viajeSeleccionado.tipo_producto || "Carga Sensible"} ha concluido exitosamente.
+                   </p>
+                 </div>
+ 
+                 <div className="w-full bg-slate-950/50 rounded-2xl p-4 border border-white/5 space-y-3">
+                   <div className="flex justify-between items-center text-xs font-mono">
+                     <span className="text-slate-500">Cadena de Frío:</span>
+                     {telemetryList.some((p) => p.temp > (viajeSeleccionado.limite_max_temp || 5) || p.temp < (viajeSeleccionado.limite_min_temp || 1)) ? (
+                       <span className="px-2 py-0.5 rounded bg-rose-500/15 border border-rose-500/20 text-rose-400 font-bold text-[10px]">
+                         DESVIADA
+                       </span>
+                     ) : (
+                       <span className="px-2 py-0.5 rounded bg-emerald-500/15 border border-emerald-500/20 text-emerald-400 font-bold text-[10px]">
+                         CERTIFICADA
+                       </span>
+                     )}
+                   </div>
+ 
+                   <div className="h-px bg-white/5" />
+ 
+                   <div className="text-left">
+                     <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5 mb-1.5">
+                       <Cpu className="w-3.5 h-3.5 text-purple-400" />
+                       Auditoría de Calidad IA
+                     </div>
+                     {viajeSeleccionado.auditoria_ia ? (
+                       <p className="text-[11px] text-slate-300 leading-relaxed font-sans line-clamp-4">
+                         {viajeSeleccionado.auditoria_ia}
+                       </p>
+                     ) : (
+                       <div className="flex items-center gap-2 py-1 text-slate-500 text-[11px]">
+                         <div className="w-3.5 h-3.5 border-2 border-slate-700 border-t-purple-400 rounded-full animate-spin" />
+                         <span>Compilando veredicto y cargando certificado...</span>
+                       </div>
+                     )}
+                   </div>
+                 </div>
+ 
+                 <div className="grid grid-cols-2 gap-2.5 w-full">
+                   <button
+                     onClick={() => handleExportPDF(viajeSeleccionado)}
+                     className="flex items-center justify-center gap-2 py-2 px-3 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white rounded-xl text-xs font-bold transition-all duration-300 shadow-lg shadow-cyan-600/15 cursor-pointer"
+                   >
+                     <FileText className="w-4 h-4" />
+                     Certificado PDF
+                   </button>
+                   <button
+                     onClick={() => handleExportCSV(viajeSeleccionado)}
+                     className="flex items-center justify-center gap-2 py-2 px-3 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-white/5 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer"
+                   >
+                     <FileSpreadsheet className="w-4 h-4" />
+                     Datos CSV
+                   </button>
+                   <button
+                     onClick={() => setCurrentView("compliance")}
+                     className="flex items-center justify-center gap-2 py-2 px-3 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-white/5 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer"
+                   >
+                     <History className="w-4 h-4" />
+                     Ver Historial
+                   </button>
+                   <button
+                     onClick={() => { resetModalForm(); setIsModalOpen(true); }}
+                     className="flex items-center justify-center gap-2 py-2 px-3 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-white/5 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer"
+                   >
+                     <Plus className="w-4 h-4" />
+                     Nuevo Envío
+                   </button>
+                 </div>
+
+                 <button
+                   onClick={() => setViajeFinalizadoDismissed(viajeSeleccionado.id)}
+                   className="w-full py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-white/5 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer flex items-center justify-center gap-2"
+                 >
+                   Cerrar Ventana
+                 </button>
+               </div>
+             </div>
+           )}
+        </>
       )}
 
       {/* ── MODAL DE REGISTRO ── */}

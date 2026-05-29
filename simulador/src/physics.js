@@ -154,8 +154,8 @@ function buildSample(viaje, state, runtimeState, logEvent) {
 		}
 	}
 
-	let heatTransferCoef = 0.02;
-	let coolingPower = 0.18;
+	let heatTransferCoef = 0.01;
+	let coolingPower = 0.35;
 
 	if (state.compressorFailed) {
 		coolingPower = 0.0;
@@ -182,11 +182,31 @@ function buildSample(viaje, state, runtimeState, logEvent) {
 	const batteryDrain = state.routeSeed % 3 === 0 ? 1.8 : 0.9;
 	const battery = Math.max(0, Math.min(100, Math.round(state.battery - batteryDrain)));
 
-	let finalLat = routePosition.lat;
-	let finalLon = routePosition.lon;
+	// 1. Calculate trip-based smooth drift (different lane, driving patterns, etc.)
+	// We use state.routeSeed and state.progressIndex to calculate a deterministic but unique smooth offset.
+	// 1 meter ≈ 0.000009 degrees. Let's make the max wave amplitude about 8-15 meters (~0.00008 - 0.00014 degrees).
+	const waveFreq = 0.05 + ((state.routeSeed % 13) * 0.03);
+	const waveAmpLat = 0.00006 + ((state.routeSeed % 7) * 0.00002);
+	const waveAmpLon = 0.00006 + ((state.routeSeed % 11) * 0.00002);
+
+	const driftLat = Math.sin(state.progressIndex * waveFreq) * waveAmpLat;
+	const driftLon = Math.cos(state.progressIndex * waveFreq) * waveAmpLon;
+
+	// 2. High-frequency GPS jitter (simulating sensor inaccuracy of 5-15 meters)
+	// We use Math.random() so it's always dynamic and looks different on every simulation tick/run
+	const jitterLat = (Math.random() - 0.5) * 0.00010;
+	const jitterLon = (Math.random() - 0.5) * 0.00010;
+
+	let finalLat = routePosition.lat + driftLat + jitterLat;
+	let finalLon = routePosition.lon + driftLon + jitterLon;
+
+	// 3. Deviation handling
 	if (state.routeDeviated) {
-		finalLat += 0.07;
-		finalLon -= 0.05;
+		// If deviated, add a significant off-route offset (e.g. ~1.5 km) that moves dynamically
+		const devOffsetLat = 0.015 + Math.sin(state.telemetryCount * 0.1) * 0.002;
+		const devOffsetLon = -0.015 + Math.cos(state.telemetryCount * 0.1) * 0.002;
+		finalLat += devOffsetLat;
+		finalLon += devOffsetLon;
 	}
 
 	state.battery = battery;

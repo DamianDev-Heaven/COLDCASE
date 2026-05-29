@@ -1025,7 +1025,56 @@ export class IaAnalysisService {
       throw new Error(`Viaje ${viajeId} no encontrado para auditoría de IA.`);
     }
 
-    const diagnoses = await this.obtenerHistorialAnalisis(viajeId);
+    const incidentRows = await this.db.query<{
+      id: string;
+      tipo_alerta: string;
+      valor_detectado: number;
+      umbral_permitido: number;
+      valor_pico: number | null;
+      timestamp_bd: Date;
+      timestamp_fin: Date | null;
+      nivel_riesgo: string | null;
+      diagnostico_tecnico: string | null;
+      accion_mitigacion: string | null;
+    }>(
+      `SELECT i.id, i.tipo_alerta, i.valor_detectado, i.umbral_permitido, i.valor_pico, i.timestamp_bd, i.timestamp_fin,
+              a.nivel_riesgo, a.diagnostico_tecnico, a.accion_mitigacion
+       FROM incidente i
+       LEFT JOIN analisis_ia a ON a.incidente_id = i.id
+       WHERE i.viaje_id = $1
+       ORDER BY i.timestamp_bd ASC`,
+      [viajeId],
+    );
+
+    const diagnoses = incidentRows.rows.map((row) => {
+      let nivel_riesgo = row.nivel_riesgo;
+      if (!nivel_riesgo) {
+        if (row.tipo_alerta === 'TEMP_ALTA' || row.tipo_alerta === 'TEMP_BAJA' || row.tipo_alerta === 'APERTURA_NO_AUTORIZADA') {
+          nivel_riesgo = 'critico';
+        } else {
+          nivel_riesgo = 'moderado';
+        }
+      }
+
+      let diagnostico_tecnico = row.diagnostico_tecnico;
+      if (!diagnostico_tecnico) {
+        if (row.tipo_alerta === 'TEMP_ALTA') {
+          diagnostico_tecnico = `Excursión térmica de alta temperatura detectada: ${row.valor_detectado}°C superó el umbral de ${row.umbral_permitido}°C (Pico: ${row.valor_pico ?? row.valor_detectado}°C).`;
+        } else if (row.tipo_alerta === 'TEMP_BAJA') {
+          diagnostico_tecnico = `Excursión térmica de baja temperatura detectada: ${row.valor_detectado}°C descendió del umbral de ${row.umbral_permitido}°C (Pico: ${row.valor_pico ?? row.valor_detectado}°C).`;
+        } else if (row.tipo_alerta === 'APERTURA_NO_AUTORIZADA') {
+          diagnostico_tecnico = `Apertura de compuerta no autorizada en tránsito. Compromiso de seguridad térmica de la cabina.`;
+        } else {
+          diagnostico_tecnico = `Alerta de ${row.tipo_alerta} detectada con valor de ${row.valor_detectado} (Umbral: ${row.umbral_permitido}).`;
+        }
+      }
+
+      return {
+        nivel_riesgo,
+        diagnostico_tecnico,
+        created_at: row.timestamp_bd,
+      };
+    });
 
     let zepContext = '';
     try {
