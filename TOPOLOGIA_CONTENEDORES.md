@@ -225,3 +225,35 @@ Para el despliegue en producción (`infra/k8s/`), la topología de Docker Compos
 | **`simulador`** | `simulador.yaml` | `Deployment` | Corre de forma continua como un servicio background dentro del clúster. |
 | **`frontend_net` / `backend_net`** | `network-policy.yaml` | `NetworkPolicy` | Reglas estrictas a nivel de CNI (Calico/Flannel) que impiden a los pods de la interfaz web acceder a los pods de la base de datos. |
 | **Puertos Host Mapeados** | `ingress.yaml` | `Ingress` + `Cert-Manager` (SSL) | Nginx Ingress Controller que expone externamente la app en el subdominio configurado mediante HTTPS automático. |
+
+---
+
+## 6. Endpoints y Topología de Red en Producción
+
+Cuando el clúster se encuentra completamente desplegado en producción (Linode Kubernetes Engine), las IP públicas externas se gestionan mediante el controlador **NGINX Ingress** integrado con **Cert-Manager** para proveer certificados Let's Encrypt automáticos.
+
+La topología de DNS y rutas de acceso público se define de la siguiente manera:
+
+| Dominio Público | Ruta Ingress | Servicio K8s Destino | Propósito / Función |
+| :--- | :--- | :--- | :--- |
+| **`https://ccase.tech`** | `/` | `frontend-service` (Puerto 3000) | Portal del cliente. Provee el Dashboard interactivo, mapas Leaflet e informes de viaje. |
+| **`https://api.ccase.tech`** | `/` | `backend-service` (Puerto 3000) | API Gateway. Autenticación, registro de viajes, consulta de telemetrías y alertas. |
+| **`https://api.ccase.tech`** | `/health` | `backend-service` (Puerto 3000) | Endpoint de salud multivariable (Postgres + Redis). Usado por **Pingdom** o sondas SRE externas. |
+| **`https://api.ccase.tech`** | `/munin/metrics` | `backend-service` (Puerto 3000) | Endpoint de extracción de métricas de proceso (Heap, RSS, Uptime) en formato de texto plano para Munin. |
+
+### Enrutamiento Interno Ingress (Producción)
+
+```
+                       [ Tráfico de Internet (HTTPS / Puerto 443) ]
+                                            │
+                                            ▼
+                        [ NGINX Ingress Controller (LoadBalancer) ]
+                                            │
+                     ┌──────────────────────┴──────────────────────┐
+                     ▼ (Host: ccase.tech)                          ▼ (Host: api.ccase.tech)
+          [ Service: frontend (3000) ]                 [ Service: backend (3000) ]
+                     │                                             │
+                     ▼                                             ▼
+          [ Pods: frontend (Next.js) ]                 [ Pods: backend (NestJS) ]
+```
+

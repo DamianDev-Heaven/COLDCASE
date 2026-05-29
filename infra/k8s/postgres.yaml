@@ -57,6 +57,8 @@ spec:
               value: /var/lib/postgresql/data/pgdata
           ports:
             - containerPort: 5432
+          command: ["postgres"]
+          args: ["-c", "log_min_duration_statement=100"]
           resources:
             requests:
               cpu: "100m"
