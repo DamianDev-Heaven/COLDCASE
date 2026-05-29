@@ -4,6 +4,7 @@ metadata:
   name: backend
   namespace: coldcase
 spec:
+  type: LoadBalancer
   ports:
     - port: 3000
       targetPort: 3000
@@ -27,11 +28,14 @@ spec:
     spec:
       containers:
         - name: backend
-          image: coldcase-backend:latest
-          imagePullPolicy: IfNotPresent
+          image: devdamian/coldcase-backend:latest
+          imagePullPolicy: Always
           env:
             - name: DATABASE_URL
-              value: "postgresql://postgres:postgres@db:5432/postgres?schema=public"
+              valueFrom:
+                secretKeyRef:
+                  name: coldcase-secrets
+                  key: DATABASE_URL
             - name: REDIS_HOST
               value: "redis"
             - name: REDIS_PORT
@@ -40,18 +44,48 @@ spec:
               value: "http://osrm:5000"
             - name: PORT
               value: "3000"
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: coldcase-secrets
+                  key: JWT_SECRET
+            - name: LLM_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: coldcase-secrets
+                  key: LLM_API_KEY
+            - name: LLM_BASE_URL
+              value: "https://api.groq.com/openai/v1"
+            - name: LLM_MODEL_NAME
+              value: "llama-3.3-70b-versatile"
+            - name: LLM_BOOST_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: coldcase-secrets
+                  key: LLM_BOOST_API_KEY
+            - name: LLM_BOOST_BASE_URL
+              value: "https://api.groq.com/openai/v1"
+            - name: LLM_BOOST_MODEL_NAME
+              value: "llama-3.3-70b-versatile"
+            - name: ZEP_API_URL
+              value: "https://api.getzep.com"
+            - name: ZEP_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: coldcase-secrets
+                  key: ZEP_API_KEY
           ports:
             - containerPort: 3000
           # Define standard readiness and liveness probes to showcase self-healing
           readinessProbe:
             httpGet:
-              path: /munin/health # We have a MuninController or health endpoint
+              path: /health # We have a MuninController or health endpoint
               port: 3000
             initialDelaySeconds: 15
             periodSeconds: 10
           livenessProbe:
             httpGet:
-              path: /munin/health
+              path: /health
               port: 3000
             initialDelaySeconds: 20
             periodSeconds: 20

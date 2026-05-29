@@ -26,7 +26,9 @@ spec:
     spec:
       containers:
         - name: osrm
-          image: coldcase-osrm:latest
+          image: devdamian/coldcase-osrm:latest
+          imagePullPolicy: Always
+          args: ["osrm-routed", "--algorithm", "mld", "/data/el-salvador-latest.osrm"]
           ports:
             - containerPort: 5000
           # We can load the OSRM data using a hostPath or PVC if needed,

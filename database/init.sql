@@ -63,7 +63,7 @@ CREATE TABLE IF NOT EXISTS transporte (
     iot_id UUID NOT NULL,
     empresa_id UUID NOT NULL,
     estado estado_transporte_enum NOT NULL,
-    capacidad DECIMAL(9,6),
+    capacidad DECIMAL(12,2),
 
     CONSTRAINT fk_transporte_iot
         FOREIGN KEY (iot_id) REFERENCES iot(id)
