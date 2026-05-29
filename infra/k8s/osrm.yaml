@@ -24,6 +24,30 @@ spec:
       labels:
         app: osrm
     spec:
+      initContainers:
+        - name: osrm-prepare
+          image: devdamian/coldcase-osrm:latest
+          imagePullPolicy: Always
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -e
+              if [ ! -f /data/el-salvador-latest.osrm ]; then
+                echo "Downloading El Salvador OSM data..."
+                curl -L --fail -o /data/el-salvador-latest.osm.pbf https://download.geofabrik.de/central-america/el-salvador-latest.osm.pbf
+                echo "Extracting OSRM data..."
+                osrm-extract -p /opt/car.lua /data/el-salvador-latest.osm.pbf
+                echo "Partitioning OSRM data..."
+                osrm-partition /data/el-salvador-latest.osrm
+                echo "Customizing OSRM data..."
+                osrm-customize /data/el-salvador-latest.osrm
+                echo "OSRM data preparation complete!"
+              else
+                echo "OSRM data already exists, skipping preparation."
+              fi
+          volumeMounts:
+            - name: osrm-data
+              mountPath: /data
       containers:
         - name: osrm
           image: devdamian/coldcase-osrm:latest
@@ -31,5 +55,9 @@ spec:
           args: ["osrm-routed", "--algorithm", "mld", "/data/el-salvador-latest.osrm"]
           ports:
             - containerPort: 5000
-          # We can load the OSRM data using a hostPath or PVC if needed,
-          # but here we assume the image is pre-packaged with the Salvador OSM data.
+          volumeMounts:
+            - name: osrm-data
+              mountPath: /data
+      volumes:
+        - name: osrm-data
+          emptyDir: {}
