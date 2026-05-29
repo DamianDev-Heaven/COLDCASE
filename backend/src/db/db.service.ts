@@ -1,4 +1,9 @@
-import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnModuleDestroy,
+  OnModuleInit,
+} from '@nestjs/common';
 import { Pool, PoolClient, QueryResultRow } from 'pg';
 
 const DEFAULT_DB_HOST = 'localhost';
@@ -7,6 +12,7 @@ const DEFAULT_DB_PORT = 5432;
 @Injectable()
 export class DbService implements OnModuleDestroy, OnModuleInit {
   private readonly pool: Pool;
+  private readonly logger = new Logger(DbService.name);
 
   constructor() {
     this.pool = new Pool({
@@ -26,8 +32,8 @@ export class DbService implements OnModuleDestroy, OnModuleInit {
         break;
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : String(err);
-        console.warn(
-          `[DbService] Error de conexión a la base de datos (Intento ${attempt}/${maxRetries}): ${errorMsg}`,
+        this.logger.warn(
+          `Error de conexión a la base de datos (Intento ${attempt}/${maxRetries}): ${errorMsg}`,
         );
         if (attempt < maxRetries) {
           await new Promise((resolve) => setTimeout(resolve, delayMs));
@@ -36,29 +42,13 @@ export class DbService implements OnModuleDestroy, OnModuleInit {
     }
 
     if (!connected) {
-      console.error(
-        '[DbService] No se pudo establecer conexión con la base de datos tras reintentos.',
+      this.logger.error(
+        'No se pudo establecer conexión con la base de datos tras reintentos.',
       );
       throw new Error('Database connection failed.');
     }
 
-    // Inicializar tabla incidente_evento para event sourcing
-    await this.query(`
-      CREATE TABLE IF NOT EXISTS incidente_evento (
-        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        incidente_id UUID NOT NULL REFERENCES incidente(id) ON DELETE CASCADE,
-        tipo_evento VARCHAR(50) NOT NULL,
-        valor_registrado FLOAT,
-        timestamp_evento TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        comentario TEXT
-      );
-    `);
-    await this.query(`
-      ALTER TABLE incidente_evento ADD COLUMN IF NOT EXISTS comentario TEXT;
-    `);
-    console.log(
-      '[DbService] Inicialización de esquema de incidente_evento completada.',
-    );
+    this.logger.log('Conexión con la base de datos establecida correctamente.');
   }
 
   async onModuleDestroy() {

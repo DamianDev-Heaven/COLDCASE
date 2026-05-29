@@ -78,6 +78,13 @@ spec:
                   key: ZEP_API_KEY
           ports:
             - containerPort: 3000
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
           # Define standard readiness and liveness probes to showcase self-healing
           readinessProbe:
             httpGet:

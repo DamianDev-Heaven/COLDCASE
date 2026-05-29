@@ -1,7 +1,9 @@
-import { Controller, Get, All, Req, Res } from '@nestjs/common';
+import { Controller, Get, All, Req, Res, UseGuards } from '@nestjs/common';
 import * as express from 'express';
+import { AuthGuard } from './auth/auth.guard';
 
 @Controller()
+@UseGuards(AuthGuard)
 export class SimuladorProxyController {
   private readonly simuladorUrl =
     process.env.SIMULADOR_URL || 'http://simulador:4000';

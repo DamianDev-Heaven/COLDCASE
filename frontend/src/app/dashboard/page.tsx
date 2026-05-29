@@ -27,8 +27,8 @@ import {
   MapPin,
 } from "lucide-react";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
-const SIMULATOR_URL = process.env.NEXT_PUBLIC_SIMULADOR_URL || "http://localhost:3000/simulador";
+import { API_URL, SIMULATOR_URL } from "@/lib/config";
+import { apiFetch } from "@/lib/api";
 
 type Sucursal = {
   id: string;
@@ -136,7 +136,7 @@ export default function Dashboard() {
   useEffect(() => {
     async function checkHealth() {
       try {
-        const res = await fetch(`${API_URL}/telemetria/contingency/stats`);
+        const res = await apiFetch(`${API_URL}/telemetria/contingency/stats`);
         if (res.ok) {
           const data = await res.json();
           setContingencyStats({
@@ -503,7 +503,7 @@ export default function Dashboard() {
     };
     setIsSubmitting(true);
     try {
-      const response = await fetch(`${API_URL}/viaje`, {
+      const response = await apiFetch(`${API_URL}/viaje`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -529,7 +529,7 @@ export default function Dashboard() {
   async function handleIniciarViaje(viajeId: string) {
     setIsSubmitting(true);
     try {
-      const res = await fetch(`${API_URL}/viaje/${viajeId}/iniciar`, { method: "PATCH" });
+      const res = await apiFetch(`${API_URL}/viaje/${viajeId}/iniciar`, { method: "PATCH" });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error((err as { message?: string })?.message || `Error ${res.status}`);
@@ -550,10 +550,10 @@ export default function Dashboard() {
     async function cargarViajes() {
       try {
         const [viajesRes, transportesRes, sucursalesRes, perfilesRes] = await Promise.all([
-          fetch(`${API_URL}/viaje`),
-          fetch(`${API_URL}/transporte`),
-          fetch(`${API_URL}/sucursal`),
-          fetch(`${API_URL}/viaje/recetas/perfiles`),
+          apiFetch(`${API_URL}/viaje`),
+          apiFetch(`${API_URL}/transporte`),
+          apiFetch(`${API_URL}/sucursal`),
+          apiFetch(`${API_URL}/viaje/recetas/perfiles`),
         ]);
         const data = await viajesRes.json();
         const transportesData = await transportesRes.json();
@@ -592,7 +592,7 @@ export default function Dashboard() {
     const viajeId = viajeSeleccionado.id;
     async function cargarTelemetria() {
       try {
-        const res = await fetch(`${API_URL}/telemetria/viaje/${viajeId}`);
+        const res = await apiFetch(`${API_URL}/telemetria/viaje/${viajeId}`);
         if (res.ok) {
           const data = await res.json();
           const sorted = Array.isArray(data)
@@ -658,8 +658,8 @@ export default function Dashboard() {
                     onClick={async (e) => {
                       e.stopPropagation();
                       try {
-                        await fetch(`${API_URL}/telemetria/contingency/retry`, { method: "POST" });
-                        const res = await fetch(`${API_URL}/telemetria/contingency/stats`);
+                        await apiFetch(`${API_URL}/telemetria/contingency/retry`, { method: "POST" });
+                        const res = await apiFetch(`${API_URL}/telemetria/contingency/stats`);
                         if (res.ok) {
                           const data = await res.json();
                           setContingencyStats({
@@ -1864,7 +1864,7 @@ function GraphExplorer({ apiUrl }: { apiUrl: string }) {
     setIsLoading(true);
     setHasSearched(true);
     try {
-      const res = await fetch(`${apiUrl}/ia/grafo/buscar?query=${encodeURIComponent(searchTerm)}`);
+      const res = await apiFetch(`${apiUrl}/ia/grafo/buscar?query=${encodeURIComponent(searchTerm)}`);
       if (res.ok) {
         const data = await res.json();
         setNodes(data.nodes || []);
@@ -2338,9 +2338,9 @@ function AdminPanel({ apiUrl }: { apiUrl: string }) {
     setIsLoading(true);
     try {
       const [resEmp, resSuc, resTrans] = await Promise.all([
-        fetch(`${apiUrl}/empresa`),
-        fetch(`${apiUrl}/sucursal`),
-        fetch(`${apiUrl}/transporte`),
+        apiFetch(`${apiUrl}/empresa`),
+        apiFetch(`${apiUrl}/sucursal`),
+        apiFetch(`${apiUrl}/transporte`),
       ]);
 
       if (resEmp.ok) {
@@ -2368,9 +2368,9 @@ function AdminPanel({ apiUrl }: { apiUrl: string }) {
       setIsLoading(true);
       try {
         const [resEmp, resSuc, resTrans] = await Promise.all([
-          fetch(`${apiUrl}/empresa`),
-          fetch(`${apiUrl}/sucursal`),
-          fetch(`${apiUrl}/transporte`),
+          apiFetch(`${apiUrl}/empresa`),
+          apiFetch(`${apiUrl}/sucursal`),
+          apiFetch(`${apiUrl}/transporte`),
         ]);
         if (resEmp.ok) {
           const empData = await resEmp.json();
@@ -2401,7 +2401,7 @@ function AdminPanel({ apiUrl }: { apiUrl: string }) {
     setIsLoading(true);
     setFeedback(null);
     try {
-      const res = await fetch(`${apiUrl}/empresa`, {
+      const res = await apiFetch(`${apiUrl}/empresa`, {
         method: "POST",
         headers: getHeaders(),
         body: JSON.stringify({ nombre: empresaNombre.trim() }),
@@ -2432,7 +2432,7 @@ function AdminPanel({ apiUrl }: { apiUrl: string }) {
     setIsLoading(true);
     setFeedback(null);
     try {
-      const res = await fetch(`${apiUrl}/sucursal`, {
+      const res = await apiFetch(`${apiUrl}/sucursal`, {
         method: "POST",
         headers: getHeaders(),
         body: JSON.stringify({
@@ -2473,7 +2473,7 @@ function AdminPanel({ apiUrl }: { apiUrl: string }) {
     setFeedback(null);
     try {
       // 1. Register virtual IoT device first
-      const iotRes = await fetch(`${apiUrl}/iot`, {
+      const iotRes = await apiFetch(`${apiUrl}/iot`, {
         method: "POST",
         headers: getHeaders(),
         body: JSON.stringify({
@@ -2492,7 +2492,7 @@ function AdminPanel({ apiUrl }: { apiUrl: string }) {
       const generatedIotId = iotData.id;
 
       // 2. Register the vehicle (transporte)
-      const transRes = await fetch(`${apiUrl}/transporte`, {
+      const transRes = await apiFetch(`${apiUrl}/transporte`, {
         method: "POST",
         headers: getHeaders(),
         body: JSON.stringify({

@@ -2,8 +2,8 @@
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+import { API_URL } from "@/lib/config";
+import { apiFetch } from "@/lib/api";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -20,7 +20,7 @@ export default function LoginPage() {
     setStatus(null);
 
     try {
-      const response = await fetch(`${API_URL}/auth/login`, {
+      const response = await apiFetch(`${API_URL}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
@@ -48,7 +48,6 @@ export default function LoginPage() {
       }
 
       const data = await response.json();
-      localStorage.setItem("accessToken", data.accessToken);
       localStorage.setItem("currentUser", JSON.stringify(data.user));
       setStatus({ type: "success", message: "Login correcto. Redirigiendo..." });
       router.push("/dashboard");

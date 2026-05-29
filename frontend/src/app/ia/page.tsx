@@ -3,8 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ShieldCheck, Cpu, Radio, ChevronDown, CheckCircle2, ArrowRight } from "lucide-react";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+import { API_URL } from "@/lib/config";
+import { apiFetch } from "@/lib/api";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -59,7 +59,7 @@ export default function IaPage() {
   useEffect(() => {
     async function cargarViajes() {
       try {
-        const res = await fetch(`${API_URL}/viaje`);
+        const res = await apiFetch(`${API_URL}/viaje`);
         if (res.ok) {
           const data = await res.json();
           const activos = data.filter(
@@ -97,7 +97,7 @@ export default function IaPage() {
     const id = viajeSeleccionado.id;
     async function cargarSim() {
       try {
-        const res = await fetch(`${API_URL}/viaje/${id}/simulador-estado`);
+        const res = await apiFetch(`${API_URL}/viaje/${id}/simulador-estado`);
         if (res.ok) setSimState(await res.json());
       } catch {}
     }
@@ -116,7 +116,7 @@ export default function IaPage() {
     const id = viajeSeleccionado.id;
     async function cargarInc() {
       try {
-        const res = await fetch(`${API_URL}/incidente/viaje/${id}`);
+        const res = await apiFetch(`${API_URL}/incidente/viaje/${id}`);
         if (res.ok) {
           const data = await res.json();
           setIncidentes(Array.isArray(data) ? data : []);
@@ -144,13 +144,13 @@ export default function IaPage() {
   const handleSimCommand = async (comando: string, enabled?: boolean) => {
     if (!viajeSeleccionado?.id) return;
     try {
-      const res = await fetch(`${API_URL}/viaje/${viajeSeleccionado.id}/comando-simulador`, {
+      const res = await apiFetch(`${API_URL}/viaje/${viajeSeleccionado.id}/comando-simulador`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ comando, enabled }),
       });
       if (res.ok) {
-        const resSim = await fetch(`${API_URL}/viaje/${viajeSeleccionado.id}/simulador-estado`);
+        const resSim = await apiFetch(`${API_URL}/viaje/${viajeSeleccionado.id}/simulador-estado`);
         if (resSim.ok) setSimState(await resSim.json());
       }
     } catch (e) {
@@ -160,13 +160,13 @@ export default function IaPage() {
 
   const handleResolveIncident = async (id: string, comentario: string) => {
     try {
-      const res = await fetch(`${API_URL}/incidente/${id}/resolver`, {
+      const res = await apiFetch(`${API_URL}/incidente/${id}/resolver`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ comentario }),
       });
       if (res.ok && viajeSeleccionado?.id) {
-        const resInc = await fetch(`${API_URL}/incidente/viaje/${viajeSeleccionado.id}`);
+        const resInc = await apiFetch(`${API_URL}/incidente/viaje/${viajeSeleccionado.id}`);
         if (resInc.ok) {
           const d = await resInc.json();
           setIncidentes(Array.isArray(d) ? d : []);
@@ -445,12 +445,12 @@ export default function IaPage() {
                       onClick={async () => {
                         if (!confirm(`¿Cerrar las ${incidentes.filter((i) => !i.resuelta).length} alertas activas de este despacho?`)) return;
                         try {
-                          await fetch(`${API_URL}/incidente/viaje/${viajeSeleccionado!.id}/resolver-todas`, {
+                          await apiFetch(`${API_URL}/incidente/viaje/${viajeSeleccionado!.id}/resolver-todas`, {
                             method: "POST",
                             headers: { "Content-Type": "application/json" },
                             body: JSON.stringify({ comentario: "Cierre masivo por el operador" }),
                           });
-                          const res = await fetch(`${API_URL}/incidente/viaje/${viajeSeleccionado!.id}`);
+                          const res = await apiFetch(`${API_URL}/incidente/viaje/${viajeSeleccionado!.id}`);
                           if (res.ok) setIncidentes(await res.json());
                         } catch (e) { console.error(e); }
                       }}
