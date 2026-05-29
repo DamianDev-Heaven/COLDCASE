@@ -84,7 +84,6 @@ export default function IaPage() {
     cargarViajes();
     const iv = setInterval(cargarViajes, 8000);
     return () => clearInterval(iv);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Poll simulator state

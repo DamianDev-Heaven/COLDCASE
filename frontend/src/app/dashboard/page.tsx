@@ -220,21 +220,20 @@ export default function Dashboard() {
   useEffect(() => {
     if (typeof window !== "undefined") {
       const token = localStorage.getItem("accessToken");
-      if (token) {
-        setAccessToken(token);
-      }
       const stored = localStorage.getItem("currentUser");
-      if (stored) {
-        try {
-          const parsed = JSON.parse(stored);
-          const timer = setTimeout(() => {
-            setCurrentUser(parsed);
-          }, 0);
-          return () => clearTimeout(timer);
-        } catch (e) {
-          console.error("Error cargando sesión:", e);
+      const timer = setTimeout(() => {
+        if (token) {
+          setAccessToken(token);
         }
-      }
+        if (stored) {
+          try {
+            setCurrentUser(JSON.parse(stored));
+          } catch (e) {
+            console.error("Error cargando sesión:", e);
+          }
+        }
+      }, 0);
+      return () => clearTimeout(timer);
     }
   }, []);
 
@@ -315,23 +314,6 @@ export default function Dashboard() {
     return viajes.filter((v) => v.estado === "pendiente" || v.estado === "en_curso");
   }, [viajes]);
 
-  const telemetryDataQuery = useMemo(() => {
-    if (!viajeSeleccionado) return [];
-    if (viajeSeleccionado.id === "77777777-7777-4777-8777-777777777777") {
-      return [
-        { timestamp_sensor: "2026-05-23T16:00:00Z", temp: 3.8 },
-        { timestamp_sensor: "2026-05-23T16:10:00Z", temp: 4.2 },
-        { timestamp_sensor: "2026-05-23T16:20:00Z", temp: 6.2 },
-        { timestamp_sensor: "2026-05-23T16:30:00Z", temp: 3.5 },
-        { timestamp_sensor: "2026-05-23T16:40:00Z", temp: 1.1 },
-      ];
-    }
-    return [
-      { timestamp_sensor: "2026-05-23T16:00:00Z", temp: 2.5 },
-      { timestamp_sensor: "2026-05-23T16:20:00Z", temp: 3.0 },
-      { timestamp_sensor: "2026-05-23T16:40:00Z", temp: 2.8 },
-    ];
-  }, [viajeSeleccionado]);
 
   const handleExportCSV = (viaje: Viaje) => {
     if (!telemetryList || telemetryList.length === 0) {
@@ -1885,11 +1867,10 @@ function GraphExplorer({
   const [filterByTrip, setFilterByTrip] = useState(!!selectedTripId);
 
   useEffect(() => {
-    if (selectedTripId) {
-      setFilterByTrip(true);
-    } else {
-      setFilterByTrip(false);
-    }
+    const timer = setTimeout(() => {
+      setFilterByTrip(!!selectedTripId);
+    }, 0);
+    return () => clearTimeout(timer);
   }, [selectedTripId]);
 
   const handleSearch = async (searchTerm: string) => {
