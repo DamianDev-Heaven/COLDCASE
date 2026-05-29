@@ -22,11 +22,12 @@ spec:
     app: db
 ---
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: db
   namespace: coldcase
 spec:
+  serviceName: db
   replicas: 1
   selector:
     matchLabels:
@@ -38,18 +39,31 @@ spec:
     spec:
       containers:
         - name: postgres
-          image: postgres:15-alpine
+          image: postgres:15.7-alpine
           env:
             - name: POSTGRES_USER
-              value: admin
+              valueFrom:
+                secretKeyRef:
+                  name: coldcase-secrets
+                  key: DB_USER
             - name: POSTGRES_PASSWORD
-              value: adminpassword
+              valueFrom:
+                secretKeyRef:
+                  name: coldcase-secrets
+                  key: DB_PASSWORD
             - name: POSTGRES_DB
               value: monitoreo_cadena_frio
             - name: PGDATA
               value: /var/lib/postgresql/data/pgdata
           ports:
             - containerPort: 5432
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
           volumeMounts:
             - name: postgres-storage
               mountPath: /var/lib/postgresql/data

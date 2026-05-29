@@ -5,6 +5,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
 import bcrypt from 'bcrypt';
 import { DbService } from '../db/db.service';
 
@@ -30,6 +31,7 @@ export class AuthService {
   constructor(
     private readonly jwtService: JwtService,
     private readonly db: DbService,
+    private readonly config: ConfigService,
   ) {}
 
   async register(email: string, password: string, rol: Role) {
@@ -175,11 +177,9 @@ export class AuthService {
   }
 
   async verifyToken(token: string): Promise<JwtPayload> {
-    if (!process.env.JWT_SECRET) {
-      throw new Error('JWT_SECRET no configurada.');
-    }
+    const secret = this.config.get<string>('JWT_SECRET') ?? 'change-me';
     return this.jwtService.verifyAsync<JwtPayload>(token, {
-      secret: process.env.JWT_SECRET,
+      secret,
     });
   }
 }

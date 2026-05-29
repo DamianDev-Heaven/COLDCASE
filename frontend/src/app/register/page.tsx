@@ -2,8 +2,9 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { API_URL } from "@/lib/config";
+import { apiFetch } from "@/lib/api";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
 const roles = ["Admin", "Operador"] as const;
 
 type UserPayload = {
@@ -40,16 +41,12 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [authorizing, setAuthorizing] = useState(true);
 
-  const getAccessToken = () => localStorage.getItem("accessToken");
-
-  const loadUsers = async (token: string) => {
+  const loadUsers = async () => {
     setUsersLoading(true);
     setUsersError("");
 
     try {
-      const response = await fetch(`${API_URL}/auth/users`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const response = await apiFetch(`${API_URL}/auth/users`);
 
       if (!response.ok) {
         throw new Error("No pudimos cargar la lista de usuarios.");
@@ -67,16 +64,14 @@ export default function RegisterPage() {
 
   useEffect(() => {
     const validateAdmin = async () => {
-      const token = localStorage.getItem("accessToken");
-      if (!token) {
+      const stored = localStorage.getItem("currentUser");
+      if (!stored) {
         router.replace("/login");
         return;
       }
 
       try {
-        const response = await fetch(`${API_URL}/auth/me`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const response = await apiFetch(`${API_URL}/auth/me`);
 
         if (!response.ok) {
           throw new Error("No autorizado");
@@ -89,7 +84,7 @@ export default function RegisterPage() {
         }
 
         setAuthorizing(false);
-        await loadUsers(token);
+        await loadUsers();
       } catch {
         localStorage.removeItem("accessToken");
         localStorage.removeItem("currentUser");
@@ -105,8 +100,8 @@ export default function RegisterPage() {
     setLoading(true);
     setStatus(null);
 
-    const token = getAccessToken();
-    if (!token) {
+    const storedUser = localStorage.getItem("currentUser");
+    if (!storedUser) {
       setStatus({ type: "error", message: "Tu sesion expiro. Inicia sesion otra vez." });
       router.replace("/login");
       setLoading(false);
@@ -114,11 +109,10 @@ export default function RegisterPage() {
     }
 
     try {
-      const response = await fetch(`${API_URL}/auth/register`, {
+      const response = await apiFetch(`${API_URL}/auth/register`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ email, password, rol }),
       });
@@ -150,9 +144,7 @@ export default function RegisterPage() {
       setRol("Admin");
       setStatus({ type: "success", message: `Usuario ${data.user?.email ?? email} creado correctamente.` });
 
-      if (token) {
-        await loadUsers(token);
-      }
+      await loadUsers();
     } catch (error) {
       const message = error instanceof Error ? error.message : "Error inesperado.";
       setStatus({ type: "error", message });
@@ -182,8 +174,8 @@ export default function RegisterPage() {
       return;
     }
 
-    const token = getAccessToken();
-    if (!token) {
+    const storedUser = localStorage.getItem("currentUser");
+    if (!storedUser) {
       setStatus({ type: "error", message: "Tu sesion expiro. Inicia sesion otra vez." });
       router.replace("/login");
       return;
@@ -206,11 +198,10 @@ export default function RegisterPage() {
     setStatus(null);
 
     try {
-      const response = await fetch(`${API_URL}/auth/users/${editUser.id}`, {
+      const response = await apiFetch(`${API_URL}/auth/users/${editUser.id}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           email: normalizedEmail,
@@ -242,7 +233,7 @@ export default function RegisterPage() {
 
       setStatus({ type: "success", message: "Usuario actualizado correctamente." });
       setEditUser(null);
-      await loadUsers(token);
+      await loadUsers();
     } catch (error) {
       const message = error instanceof Error ? error.message : "Error inesperado.";
       setStatus({ type: "error", message });
@@ -252,8 +243,8 @@ export default function RegisterPage() {
   };
 
   const handleDeleteUser = async (userId: string) => {
-    const token = getAccessToken();
-    if (!token) {
+    const storedUser = localStorage.getItem("currentUser");
+    if (!storedUser) {
       setStatus({ type: "error", message: "Tu sesion expiro. Inicia sesion otra vez." });
       router.replace("/login");
       return;
@@ -267,9 +258,8 @@ export default function RegisterPage() {
     setStatus(null);
 
     try {
-      const response = await fetch(`${API_URL}/auth/users/${userId}`, {
+      const response = await apiFetch(`${API_URL}/auth/users/${userId}`, {
         method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
       });
 
       if (!response.ok) {

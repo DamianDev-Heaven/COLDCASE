@@ -312,7 +312,8 @@ CREATE TABLE IF NOT EXISTS incidente_evento (
     incidente_id UUID NOT NULL REFERENCES incidente(id) ON DELETE CASCADE,
     tipo_evento VARCHAR(50) NOT NULL, -- 'PICO_ACTUALIZADO', 'RESUELTO'
     valor_registrado FLOAT,
-    timestamp_evento TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    timestamp_evento TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    comentario TEXT
 );
 
 -- ============================================

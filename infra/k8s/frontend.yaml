@@ -37,3 +37,10 @@ spec:
               value: "http://104.64.127.23:3000/simulador"
           ports:
             - containerPort: 3000
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"

@@ -12,14 +12,19 @@ export class AuthGuard implements CanActivate {
   constructor(private readonly authService: AuthService) {}
 
   async canActivate(context: ExecutionContext) {
-    const request = context.switchToHttp().getRequest<Request>();
+    const request = context.switchToHttp().getRequest<Request & { cookies?: Record<string, string> }>();
     const authHeader = request.headers.authorization;
+    let token: string | undefined;
 
-    if (!authHeader?.startsWith('Bearer ')) {
-      throw new UnauthorizedException('Token requerido.');
+    if (authHeader?.startsWith('Bearer ')) {
+      token = authHeader.slice('Bearer '.length);
+    } else if (request.cookies?.access_token) {
+      token = request.cookies.access_token;
     }
 
-    const token = authHeader.slice('Bearer '.length);
+    if (!token) {
+      throw new UnauthorizedException('Token requerido.');
+    }
 
     try {
       const payload = await this.authService.verifyToken(token);
