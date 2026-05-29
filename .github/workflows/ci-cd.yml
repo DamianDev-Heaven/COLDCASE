@@ -172,5 +172,28 @@ jobs:
       - name: Forzar Re-despliegue (Rolling Restart)
         run: |
           kubectl rollout restart deployment/backend deployment/frontend deployment/simulador deployment/osrm -n coldcase
-          kubectl rollout status deployment/backend -n coldcase
-          kubectl rollout status deployment/frontend -n coldcase
+          
+          # Esperar con un timeout de 90 segundos para el backend
+          if ! kubectl rollout status deployment/backend -n coldcase --timeout=90s; then
+            echo "=== DIAGNÓSTICOS DEL CLÚSTER (BACKEND FALLIDO) ==="
+            echo "--- PODS ---"
+            kubectl get pods -n coldcase
+            echo "--- DESCRIPCIÓN DE PODS DE BACKEND ---"
+            kubectl describe pods -l app=backend -n coldcase
+            echo "--- LOGS DE BACKEND ---"
+            kubectl logs -l app=backend -n coldcase --tail=100 || true
+            echo "--- DESCRIPCIÓN DE PODS DE BASE DE DATOS ---"
+            kubectl describe pods -l app=db -n coldcase
+            echo "--- LOGS DE BASE DE DATOS ---"
+            kubectl logs -l app=db -n coldcase --tail=100 || true
+            exit 1
+          fi
+          
+          # Esperar con un timeout de 90 segundos para el frontend
+          if ! kubectl rollout status deployment/frontend -n coldcase --timeout=90s; then
+            echo "=== DIAGNÓSTICOS DEL CLÚSTER (FRONTEND FALLIDO) ==="
+            kubectl get pods -n coldcase
+            kubectl describe pods -l app=frontend -n coldcase
+            kubectl logs -l app=frontend -n coldcase --tail=100 || true
+            exit 1
+          fi
