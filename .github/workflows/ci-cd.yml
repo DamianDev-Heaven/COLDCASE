@@ -159,11 +159,12 @@ jobs:
 
       - name: Aplicar Manifiestos de Kubernetes
         run: |
-          # Parchear el secreto coldcase-secrets con las credenciales de BD si no están presentes
-          kubectl patch secret coldcase-secrets -n coldcase --type='json' -p='[{"op":"add","path":"/data/DB_USER","value":"YWRtaW4="},{"op":"add","path":"/data/DB_PASSWORD","value":"YWRtaW5wYXNzd29yZA=="}]' || true
+          # Parchear el secreto usando un Strategic Merge Patch (más robusto que JSON patch)
+          kubectl patch secret coldcase-secrets -n coldcase -p '{"data":{"DB_USER":"YWRtaW4=","DB_PASSWORD":"YWRtaW5wYXNzd29yZA=="}}' || true
           
-          # Eliminar el antiguo Deployment db para liberar el PVC postgres-pvc
+          # Eliminar el antiguo Deployment db y forzar la eliminación de cualquier pod persistente para liberar el PVC
           kubectl delete deployment db -n coldcase --ignore-not-found=true
+          kubectl delete pod -l app=db -n coldcase --force --grace-period=0 || true
           
           # Aplicar manifiestos (incluyendo el nuevo StatefulSet db)
           kubectl apply -f infra/k8s/
