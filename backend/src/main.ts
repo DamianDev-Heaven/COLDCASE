@@ -5,7 +5,10 @@ import { AppModule } from './app.module';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.enableCors({
-    origin: (origin, callback) => {
+    origin: (
+      origin: string | undefined,
+      callback: (err: Error | null, allow?: boolean) => void,
+    ) => {
       const allowedOrigins = [
         'http://ccase.tech',
         'https://ccase.tech',
@@ -19,7 +22,7 @@ async function bootstrap() {
       if (!origin || allowedOrigins.indexOf(origin) !== -1) {
         callback(null, true);
       } else {
-        callback(new Error('Blocked by CORS'));
+        callback(new Error('Blocked by CORS'), false);
       }
     },
     credentials: true,
