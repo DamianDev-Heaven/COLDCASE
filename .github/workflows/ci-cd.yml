@@ -111,8 +111,8 @@ jobs:
             ${{ secrets.DOCKER_USERNAME || 'devdamian' }}/coldcase-frontend:${{ github.sha }}
           push: ${{ (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/SIM') && github.event_name == 'push' }}
           build-args: |
-            NEXT_PUBLIC_API_URL=http://api.ccase.tech:3000
-            NEXT_PUBLIC_SIMULADOR_URL=http://api.ccase.tech:3000/simulador
+            NEXT_PUBLIC_API_URL=https://api.ccase.tech
+            NEXT_PUBLIC_SIMULADOR_URL=https://api.ccase.tech/simulador
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
