@@ -36,6 +36,8 @@ spec:
                 secretKeyRef:
                   name: coldcase-secrets
                   key: DATABASE_URL
+            - name: ALLOWED_ORIGINS
+              value: "http://ccase.tech,https://ccase.tech,http://api.ccase.tech,https://api.ccase.tech,http://104.64.127.24,http://104.64.127.23,http://104.64.127.23:3000"
             - name: REDIS_HOST
               value: "redis"
             - name: REDIS_PORT
