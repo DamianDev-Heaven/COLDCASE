@@ -15,9 +15,11 @@ export class SimuladorProxyController {
       if (!token && req.headers.authorization?.startsWith('Bearer ')) {
         token = req.headers.authorization.slice('Bearer '.length);
       }
-      const cookies = (req as any).cookies;
+      const cookies = (
+        req as express.Request & { cookies?: { access_token?: string } }
+      ).cookies;
       if (!token && cookies?.access_token) {
-        token = cookies.access_token;
+        token = cookies.access_token!;
       }
 
       if (token) {

@@ -98,7 +98,6 @@ export class AppController {
     };
   }
 
-  
   @Get('monitoring/coldchain')
   async getColdChainMonitoring() {
     let database = false;
@@ -128,5 +127,4 @@ export class AppController {
       timestamp: new Date(),
     };
   }
-
 }
