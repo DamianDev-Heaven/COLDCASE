@@ -638,7 +638,6 @@ export default function IaPage() {
                     description={`Store & Forward${(simState?.trip?.offlineBufferLength || 0) > 0 ? ` (${simState?.trip?.offlineBufferLength} en búfer)` : ""}`}
                     active={!!simState?.iotFailure}
                     onToggle={() => handleSimCommand("toggle-signal-loss", !simState?.iotFailure)}
-                    color="amber"
                   />
                   <FaultToggle
                     label="Abrir Compuerta"
@@ -694,14 +693,13 @@ function DownlinkCard({
 }
 
 function FaultToggle({
-  label, description, active, disabled = false, onToggle, color = "rose",
+  label, description, active, disabled = false, onToggle,
 }: {
   label: string;
   description: string;
   active: boolean;
   disabled?: boolean;
   onToggle: () => void;
-  color?: "rose" | "amber";
 }) {
   return (
     <div className="flex justify-between items-center bg-black p-3 border border-white/[0.08] rounded-xl text-[9px]">
