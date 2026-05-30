@@ -156,6 +156,7 @@ function serializeState() {
 		compressorFailed: !!state.compressorFailed,
 		routeDeviated: !!state.routeDeviated,
 		gateOpenTicks: state.gateOpenTicks || 0,
+		offlineBufferLength: (state.offlineBuffer || []).length,
 	}));
 
 	return {

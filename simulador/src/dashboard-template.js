@@ -7,20 +7,20 @@ function renderDashboardPage() {
 	<title>Simulador maestro</title>
 	<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
 	<style>
-		@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+		@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
 
 		:root {
 			color-scheme: dark;
-			--bg: #05070f;
-			--panel: #0a0f1d;
-			--panel-2: #121826;
-			--line: #1e293b;
-			--text: #f8fafc;
-			--muted: #64748b;
-			--cyan: #0ea5e9;
+			--bg: #000000;
+			--panel: #09090b;
+			--panel-2: #050505;
+			--line: rgba(255, 255, 255, 0.08);
+			--text: #ededed;
+			--muted: #71717a;
+			--cyan: #06b6d4;
 			--emerald: #10b981;
 			--amber: #f59e0b;
-			--rose: #ef4444;
+			--rose: #f43f5e;
 			--indigo: #6366f1;
 		}
 
@@ -28,18 +28,19 @@ function renderDashboardPage() {
 		
 		/* Custom scrollbar styles */
 		::-webkit-scrollbar {
-			width: 5px;
-			height: 5px;
+			width: 6px;
+			height: 6px;
 		}
 		::-webkit-scrollbar-track {
 			background: transparent;
 		}
 		::-webkit-scrollbar-thumb {
-			background: rgba(148, 163, 184, 0.12);
-			border-radius: 99px;
+			background: rgba(255, 255, 255, 0.1);
+			border-radius: 9999px;
+			transition: background-color 0.2s ease;
 		}
 		::-webkit-scrollbar-thumb:hover {
-			background: var(--cyan);
+			background: rgba(255, 255, 255, 0.2);
 		}
 
 		body {
@@ -47,15 +48,32 @@ function renderDashboardPage() {
 			height: 100vh;
 			background-color: var(--bg);
 			background-image: 
-				radial-gradient(at 50% 0%, rgba(14, 165, 233, 0.12) 0px, transparent 50%),
-				radial-gradient(at 0% 100%, rgba(99, 102, 241, 0.05) 0px, transparent 40%),
-				linear-gradient(rgba(255, 255, 255, 0.002) 1px, transparent 1px),
-				linear-gradient(90deg, rgba(255, 255, 255, 0.002) 1px, transparent 1px);
-			background-size: 100% 100%, 100% 100%, 32px 32px, 32px 32px;
+				radial-gradient(ellipse 80% 50% at 50% -20%, rgba(255, 255, 255, 0.05), transparent),
+				radial-gradient(ellipse 60% 40% at 80% 100%, rgba(255, 255, 255, 0.01), transparent),
+				var(--bg);
+			background-size: 100% 100%, 100% 100%;
 			color: var(--text);
-			font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+			font-family: 'Inter', 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 			overflow: hidden;
 			letter-spacing: -0.019em;
+			position: relative;
+		}
+
+		body::before {
+			content: "";
+			position: absolute;
+			top: 0;
+			left: 0;
+			right: 0;
+			height: 600px;
+			background-image: 
+				linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+				linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+			background-size: 32px 32px;
+			mask-image: radial-gradient(ellipse 50% 50% at 50% 0%, black, transparent);
+			-webkit-mask-image: radial-gradient(ellipse 50% 50% at 50% 0%, black, transparent);
+			pointer-events: none;
+			z-index: 0;
 		}
 
 		/* LED glow animation for active/inactive state */
@@ -90,11 +108,11 @@ function renderDashboardPage() {
 		.ia-diagnosis-card {
 			margin-top: 10px;
 			padding: 12px 14px;
-			background: rgba(10, 15, 29, 0.9);
+			background: rgba(9, 9, 11, 0.9);
 			border: 1px solid rgba(16, 185, 129, 0.15);
 			border-left: 3px solid var(--emerald);
 			border-radius: 8px;
-			color: #f1f5f9;
+			color: #ededed;
 			font-size: 12px;
 			line-height: 1.5;
 			position: relative;
@@ -120,8 +138,8 @@ function renderDashboardPage() {
 
 		.topbar {
 			height: 64px;
-			background: rgba(10, 15, 29, 0.85);
-			border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+			background: rgba(9, 9, 11, 0.85);
+			border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 			backdrop-filter: blur(16px);
 			z-index: 30;
 			display: flex;
@@ -171,12 +189,19 @@ function renderDashboardPage() {
 		.panel,
 		.card,
 		.stack-item {
-			background: rgba(10, 15, 29, 0.7);
-			border: 1px solid rgba(255, 255, 255, 0.06);
+			background: rgba(9, 9, 11, 0.75);
+			border: 1px solid rgba(255, 255, 255, 0.08);
 			border-radius: 16px;
-			box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.02);
+			box-shadow: 0 10px 30px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.02);
 			backdrop-filter: blur(12px);
-			transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+			transition: border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+		}
+
+		.panel:hover,
+		.card:hover {
+			border-color: rgba(255, 255, 255, 0.16);
+			background-color: rgba(14, 14, 17, 0.95);
+			box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.7);
 		}
 
 		.panel { padding: 16px; min-height: 0; }
@@ -195,35 +220,50 @@ function renderDashboardPage() {
 		.stack-item {
 			padding: 12px;
 			cursor: pointer;
-			background: rgba(18, 25, 41, 0.4);
-			border: 1px solid rgba(255, 255, 255, 0.04);
+			background: rgba(0, 0, 0, 0.4);
+			border: 1px solid rgba(255, 255, 255, 0.06);
 			position: relative;
 			border-radius: 12px;
+			transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 		}
 		.stack-item:hover {
-			border-color: rgba(14, 165, 233, 0.25);
-			background: rgba(18, 25, 41, 0.7);
+			border-color: rgba(255, 255, 255, 0.16);
+			background: rgba(14, 14, 17, 0.8);
 			transform: translateY(-1px);
+			box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
 		}
 		.stack-item.active {
 			border-color: var(--cyan);
-			background: rgba(14, 165, 233, 0.08);
-			box-shadow: 0 0 15px rgba(14, 165, 233, 0.08);
+			background: linear-gradient(90deg, rgba(6, 182, 212, 0.08) 0%, rgba(9, 9, 11, 0.8) 100%);
+			box-shadow: 0 0 20px rgba(6, 182, 212, 0.05);
 		}
 
 		.eyebrow {
 			text-transform: uppercase;
-			letter-spacing: 0.15em;
-			font-size: 10px;
-			color: var(--cyan);
-			font-weight: 800;
+			letter-spacing: 0.16em;
+			font-size: 9px;
+			font-weight: 700;
+			background: linear-gradient(to right, #ffffff, #a1a1aa);
+			-webkit-background-clip: text;
+			-webkit-text-fill-color: transparent;
+			display: inline-block;
+		}
+
+		.text-gradient {
+			background: linear-gradient(to right, #ffffff, #a1a1aa);
+			-webkit-background-clip: text;
+			-webkit-text-fill-color: transparent;
+			display: inline-block;
 		}
 
 		.title {
 			margin: 4px 0 0;
 			font-size: 1.5rem;
 			font-weight: 800;
-			letter-spacing: -0.02em;
+			letter-spacing: -0.03em;
+			background: linear-gradient(to right, #ffffff, #a1a1aa);
+			-webkit-background-clip: text;
+			-webkit-text-fill-color: transparent;
 		}
 
 		.muted { color: var(--muted); }
@@ -236,9 +276,9 @@ function renderDashboardPage() {
 		}
 
 		.btn {
-			border: 1px solid rgba(255, 255, 255, 0.06);
-			background: rgba(15, 23, 42, 0.6);
-			color: #e2e8f0;
+			border: 1px solid rgba(255, 255, 255, 0.1);
+			background: #000000;
+			color: #ededed;
 			border-radius: 10px;
 			padding: 8px 14px;
 			font-weight: 600;
@@ -253,33 +293,34 @@ function renderDashboardPage() {
 			letter-spacing: 0.05em;
 		}
 		.btn:hover {
-			border-color: rgba(14, 165, 233, 0.4);
-			background: rgba(15, 23, 42, 0.95);
+			border-color: rgba(255, 255, 255, 0.24);
+			background: rgba(255, 255, 255, 0.06);
 			color: #ffffff;
-			box-shadow: 0 4px 15px rgba(14, 165, 233, 0.1);
+			box-shadow: 0 4px 15px rgba(255, 255, 255, 0.04);
 		}
 		.btn:active {
 			transform: translateY(1px);
 		}
 		.btn.primary {
-			background: rgba(14, 165, 233, 0.15);
-			border-color: rgba(14, 165, 233, 0.35);
-			color: #38bdf8;
+			background: #ffffff;
+			border-color: #ffffff;
+			color: #000000;
 		}
 		.btn.primary:hover {
-			background: rgba(14, 165, 233, 0.25);
-			border-color: #38bdf8;
-			box-shadow: 0 4px 20px rgba(14, 165, 233, 0.2);
+			background: #e2e8f0;
+			border-color: #e2e8f0;
+			color: #000000;
+			box-shadow: 0 4px 20px rgba(255, 255, 255, 0.15);
 		}
 		.btn.warn {
-			background: rgba(239, 68, 68, 0.08);
-			border-color: rgba(239, 68, 68, 0.3);
+			background: rgba(244, 63, 94, 0.15);
+			border-color: rgba(244, 63, 94, 0.35);
 			color: #fca5a5;
 		}
 		.btn.warn:hover {
-			background: rgba(239, 68, 68, 0.18);
-			border-color: #ef4444;
-			box-shadow: 0 4px 15px rgba(239, 68, 68, 0.15);
+			background: rgba(244, 63, 94, 0.25);
+			border-color: #f43f5e;
+			box-shadow: 0 4px 15px rgba(244, 63, 94, 0.15);
 		}
 
 		.tag {
@@ -290,8 +331,8 @@ function renderDashboardPage() {
 			padding: 4px 10px;
 			font-size: 10px;
 			font-weight: 800;
-			border: 1px solid rgba(255, 255, 255, 0.06);
-			background: rgba(10, 15, 29, 0.85);
+			border: 1px solid rgba(255, 255, 255, 0.08);
+			background: rgba(9, 9, 11, 0.85);
 			text-transform: uppercase;
 			letter-spacing: 0.05em;
 		}
@@ -300,7 +341,7 @@ function renderDashboardPage() {
 		.tag.alerta { color: #fef08a; border-color: rgba(245, 158, 11, 0.2); background: rgba(245, 158, 11, 0.05); }
 		.tag.error { color: #fca5a5; border-color: rgba(239, 68, 68, 0.2); background: rgba(239, 68, 68, 0.05); }
 		.tag.pausado { color: #cbd5e1; border-color: rgba(148, 163, 184, 0.2); background: rgba(148, 163, 184, 0.05); }
-		.tag.osrm { color: #93c5fd; border-color: rgba(14, 165, 233, 0.2); background: rgba(14, 165, 233, 0.05); }
+		.tag.osrm { color: #38bdf8; border-color: rgba(6, 182, 212, 0.2); background: rgba(6, 182, 212, 0.05); }
 
 		.card {
 			padding: 16px;
@@ -309,20 +350,80 @@ function renderDashboardPage() {
 			min-height: 0;
 		}
 
-		.metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
-		.metric { padding: 12px; border-radius: 12px; background: rgba(15, 23, 42, 0.35); border: 1px solid rgba(255, 255, 255, 0.04); }
-		.metric span { display: block; font-size: 9px; text-transform: uppercase; letter-spacing: 0.15em; color: var(--muted); font-weight: 700; }
-		.metric strong { display: block; margin-top: 6px; font-size: 1.3rem; font-family: monospace; font-weight: 700; color: #fff; }
+		.metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+		.metric {
+			padding: 12px;
+			border-radius: 12px;
+			background: rgba(0, 0, 0, 0.4);
+			border: 1px solid rgba(255, 255, 255, 0.04);
+			transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+		}
+		.metric:hover {
+			border-color: rgba(255, 255, 255, 0.08);
+			background: rgba(0, 0, 0, 0.6);
+		}
+		.metric span { display: block; font-size: 8px; text-transform: uppercase; letter-spacing: 0.16em; color: var(--muted); font-weight: 700; }
+		.metric strong {
+			display: block;
+			margin-top: 4px;
+			font-size: 1.35rem;
+			font-family: monospace;
+			font-weight: 700;
+			background: linear-gradient(135deg, #ffffff 0%, #a1a1aa 100%);
+			-webkit-background-clip: text;
+			-webkit-text-fill-color: transparent;
+		}
+
+		.tab-nav-container, .ai-tab-nav-container {
+			display: flex;
+			background: rgba(255, 255, 255, 0.03);
+			border: 1px solid rgba(255, 255, 255, 0.06);
+			border-radius: 12px;
+			padding: 3px;
+			margin-bottom: 12px;
+			width: 100%;
+			flex-shrink: 0;
+		}
+		.tab-nav-btn, .ai-tab-nav-btn {
+			flex: 1;
+			padding: 8px 12px;
+			background: transparent;
+			border: none;
+			border-radius: 9px;
+			color: var(--muted);
+			font-size: 11px;
+			font-weight: 600;
+			cursor: pointer;
+			text-transform: uppercase;
+			letter-spacing: 0.05em;
+			transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+		}
+		.tab-nav-btn.active, .ai-tab-nav-btn.active {
+			background: rgba(255, 255, 255, 0.08);
+			color: #ffffff !important;
+			box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+			border-bottom: none !important;
+		}
+		.tab-nav-btn:hover, .ai-tab-nav-btn:hover {
+			color: #ffffff !important;
+			background: rgba(255, 255, 255, 0.03);
+		}
 
 		.map-card, .chart-card, .feed-card {
 			overflow: hidden;
-			background: rgba(10, 15, 29, 0.7);
-			border: 1px solid rgba(255, 255, 255, 0.06);
+			background: rgba(9, 9, 11, 0.75);
+			border: 1px solid rgba(255, 255, 255, 0.08);
 			border-radius: 16px;
-			box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+			box-shadow: 0 10px 30px rgba(0, 0, 0, 0.65);
 			display: flex;
 			flex-direction: column;
 			min-height: 0;
+			transition: border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+		}
+		.map-card:hover, .chart-card:hover, .feed-card:hover {
+			border-color: rgba(255, 255, 255, 0.16);
+			background-color: rgba(14, 14, 17, 0.95);
+			box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.7);
 		}
 
 		.map-card {
@@ -355,7 +456,7 @@ function renderDashboardPage() {
 			min-height: 0;
 			flex: 1;
 			position: relative;
-			background: #05070f;
+			background: #000000;
 			border-radius: 12px;
 			border: 1px solid rgba(255, 255, 255, 0.04);
 			overscroll-behavior: contain;
@@ -379,7 +480,7 @@ function renderDashboardPage() {
 			width: 100%;
 			border-radius: 12px;
 			overflow: hidden;
-			background: #05070f;
+			background: #000000;
 			border: 1px solid rgba(255, 255, 255, 0.04);
 		}
 		
@@ -392,7 +493,7 @@ function renderDashboardPage() {
 		}
 		.leaflet-container {
 			filter: invert(96%) hue-rotate(185deg) brightness(85%) contrast(100%);
-			background: #05070f !important;
+			background: #000000 !important;
 		}
 		.leaflet-tile-container {
 			opacity: 0.85;
@@ -402,7 +503,7 @@ function renderDashboardPage() {
 			box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4) !important;
 		}
 		.leaflet-bar a {
-			background-color: #0b0f19 !important;
+			background-color: #09090b !important;
 			border: 1px solid rgba(255, 255, 255, 0.06) !important;
 			color: #94a3b8 !important;
 			transition: all 0.2s ease;
@@ -435,7 +536,7 @@ function renderDashboardPage() {
 			padding: 8px 12px;
 			border-radius: 10px;
 			border: 1px solid rgba(255, 255, 255, 0.06);
-			background: rgba(10, 15, 29, 0.85);
+			background: rgba(9, 9, 11, 0.85);
 			backdrop-filter: blur(10px);
 			font-size: 11px;
 			color: var(--text);
@@ -450,7 +551,7 @@ function renderDashboardPage() {
 			padding: 8px 12px;
 			border-radius: 10px;
 			border: 1px solid rgba(255, 255, 255, 0.06);
-			background: rgba(10, 15, 29, 0.85);
+			background: rgba(9, 9, 11, 0.85);
 			backdrop-filter: blur(10px);
 			font-size: 11px;
 			color: var(--text);
@@ -482,7 +583,7 @@ function renderDashboardPage() {
 			text-align: center;
 			padding: 18px;
 			color: var(--muted);
-			background: rgba(5, 7, 15, 0.6);
+			background: rgba(0, 0, 0, 0.85);
 			z-index: 450;
 		}
 
@@ -498,13 +599,13 @@ function renderDashboardPage() {
 		.feed-item {
 			padding: 12px;
 			border-radius: 12px;
-			background: rgba(15, 23, 42, 0.3);
+			background: rgba(9, 9, 11, 0.4);
 			border: 1px solid rgba(255, 255, 255, 0.04);
 			transition: all 0.2s ease;
 		}
 		.feed-item:hover {
 			border-color: rgba(255, 255, 255, 0.08);
-			background: rgba(15, 23, 42, 0.45);
+			background: rgba(9, 9, 11, 0.65);
 		}
 		.feed-item strong { display: block; font-size: 12px; color: #fff; }
 		.feed-item small { display: block; margin-top: 4px; color: var(--muted); font-size: 10px; }
@@ -514,7 +615,7 @@ function renderDashboardPage() {
 			border-radius: 12px;
 			border: 1px dashed rgba(255, 255, 255, 0.06);
 			color: var(--muted);
-			background: rgba(10, 15, 29, 0.3);
+			background: rgba(9, 9, 11, 0.3);
 			text-align: center;
 			font-size: 11px;
 			font-family: inherit;
@@ -567,6 +668,34 @@ function renderDashboardPage() {
 			background-color: var(--cyan);
 			box-shadow: 0 0 8px rgba(14, 165, 233, 0.6);
 		}
+		
+		/* Danger state slider for failures and signal loss */
+		.switch.danger input:checked + .slider {
+			background-color: rgba(239, 68, 68, 0.25);
+			border-color: rgba(239, 68, 68, 0.5);
+		}
+		.switch.danger input:checked + .slider:before {
+			background-color: #ef4444;
+			box-shadow: 0 0 10px rgba(239, 68, 68, 0.8);
+		}
+
+		/* Warning state slider for offline queue worker */
+		.switch.warning input + .slider {
+			background-color: rgba(245, 158, 11, 0.15);
+			border-color: rgba(245, 158, 11, 0.3);
+		}
+		.switch.warning input + .slider:before {
+			background-color: #f59e0b;
+			box-shadow: 0 0 8px rgba(245, 158, 11, 0.6);
+		}
+		.switch.warning input:checked + .slider {
+			background-color: rgba(16, 185, 129, 0.2);
+			border-color: rgba(16, 185, 129, 0.4);
+		}
+		.switch.warning input:checked + .slider:before {
+			background-color: var(--emerald);
+			box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
+		}
 
 		@media (max-width: 1400px) {
 			.shell { grid-template-columns: 300px minmax(0, 1fr) 350px; gap: 12px; }
@@ -609,20 +738,51 @@ function renderDashboardPage() {
 				font-size: 10px;
 			}
 		}
-		.tab-nav-btn.active, .ai-tab-nav-btn.active {
-			color: #fff !important;
-			border-bottom-color: var(--cyan) !important;
+		.topbar-brand {
+			display: flex;
+			align-items: center;
+			gap: 8px;
 		}
-		.tab-nav-btn:hover, .ai-tab-nav-btn:hover {
-			color: #fff !important;
+		.topbar-logo-text {
+			font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+			font-weight: 800;
+			font-size: 13px;
+			letter-spacing: 0.04em;
+			background: linear-gradient(to right, #ffffff, #a1a1aa);
+			-webkit-background-clip: text;
+			-webkit-text-fill-color: transparent;
+			text-transform: uppercase;
+		}
+		.topbar-badge {
+			font-family: monospace;
+			font-size: 9px;
+			font-weight: 800;
+			color: var(--cyan);
+			border: 1px solid rgba(6, 182, 212, 0.2);
+			background: rgba(6, 182, 212, 0.06);
+			padding: 2px 6px;
+			border-radius: 6px;
+			letter-spacing: 0.05em;
+		}
+		.topbar-status {
+			display: flex;
+			align-items: center;
+			font-size: 10px;
+			font-weight: 600;
+			margin-top: 4px;
+			color: var(--muted);
+			letter-spacing: -0.01em;
 		}
 	</style>
 </head>
 <body>
 	<header class="topbar">
 		<div>
-			<div class="eyebrow" style="letter-spacing: 0.25em;">Consola de Operaciones</div>
-			<div class="muted" id="connectionState" style="display:flex; align-items:center; font-size: 11px; font-weight: 600; margin-top: 2px;">
+			<div class="topbar-brand">
+				<span class="topbar-logo-text">Consola de Operaciones</span>
+				<span class="topbar-badge">SIMULADOR IOT</span>
+			</div>
+			<div id="connectionState" class="topbar-status">
 				<span class="led-indicator active" id="ledStatus"></span>
 				<span id="connectionText">Conectando con backend...</span>
 			</div>
@@ -637,9 +797,9 @@ function renderDashboardPage() {
 	<div class="shell">
 		<!-- COLUMNA 1: CONTROL DE WORKER & LISTADO DE VIAJES (IZQUIERDA) -->
 		<aside class="sidebar" style="display: flex; flex-direction: column; gap: 12px; height: 100%;">
-			<div class="sidebar-tabs-nav" style="display: flex; border-bottom: 1px solid rgba(255,255,255,0.06); margin-bottom: 4px; width: 100%; shrink: 0;">
-				<button class="tab-nav-btn active" onclick="switchSidebarTab('tab-trips')" style="flex: 1; padding: 10px; background: transparent; border: none; border-bottom: 2px solid var(--cyan); color: #fff; font-size: 11px; font-weight: 700; cursor: pointer; text-transform: uppercase; letter-spacing: 0.05em; transition: all 0.2s ease;">Viajes</button>
-				<button class="tab-nav-btn" onclick="switchSidebarTab('tab-resilience')" style="flex: 1; padding: 10px; background: transparent; border: none; border-bottom: 2px solid transparent; color: var(--muted); font-size: 11px; font-weight: 700; cursor: pointer; text-transform: uppercase; letter-spacing: 0.05em; transition: all 0.2s ease;">Fallas & Worker</button>
+			<div class="tab-nav-container">
+				<button class="tab-nav-btn active" onclick="switchSidebarTab('tab-trips')">Viajes</button>
+				<button class="tab-nav-btn" onclick="switchSidebarTab('tab-resilience')">Fallas & Worker</button>
 			</div>
 
 			<!-- CONTENIDO DE PESTAÑA: VIAJES -->
@@ -664,10 +824,10 @@ function renderDashboardPage() {
 			<div id="tab-resilience" class="tab-content" style="display: none; flex-direction: column; gap: 12px;">
 				<div class="panel">
 					<div class="eyebrow" style="margin-bottom: 2px;">Simulación Global</div>
-					<h1 class="title" style="font-size: 1.15rem; margin-bottom: 8px; color: #fff;">Consola de Worker</h1>
+					<h1 class="title" style="font-size: 1.15rem; margin-bottom: 8px;">Consola de Worker</h1>
 					
 					<!-- Global Simulation Speed / Turbo Control -->
-					<div style="margin-top: 10px; padding: 10px 12px; border-radius: 10px; background: rgba(15, 23, 42, 0.3); border: 1px solid rgba(255, 255, 255, 0.04); display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+					<div style="margin-top: 10px; padding: 10px 12px; border-radius: 10px; background: rgba(9, 9, 11, 0.45); border: 1px solid rgba(255, 255, 255, 0.04); display: flex; align-items: center; justify-content: space-between; gap: 10px;">
 						<div>
 							<div style="font-size: 11px; font-weight: 700; color: #e2e8f0;">Avance Rápido (Modo Turbo)</div>
 							<div style="font-size: 9px; color: var(--muted); margin-top: 1px;">Ticks de 2s y saltos de tramo</div>
@@ -679,24 +839,24 @@ function renderDashboardPage() {
 					</div>
 				</div>
 				
-				<div class="panel" style="background: rgba(10, 15, 29, 0.4);">
+				<div class="panel" style="background: rgba(9, 9, 11, 0.4);">
 					<div class="eyebrow" style="margin-bottom: 2px;">Resiliencia & Red</div>
-					<h2 class="title" style="font-size: 1rem; margin-bottom: 8px; color: #fff;">Control de Infraestructura</h2>
+					<h2 class="title" style="font-size: 1rem; margin-bottom: 8px;">Control de Infraestructura</h2>
 					
 					<!-- Fallo IoT Toggle -->
-					<div style="padding: 10px 12px; border-radius: 10px; background: rgba(15, 23, 42, 0.3); border: 1px solid rgba(255, 255, 255, 0.04); display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+					<div style="padding: 10px 12px; border-radius: 10px; background: rgba(9, 9, 11, 0.45); border: 1px solid rgba(255, 255, 255, 0.04); display: flex; align-items: center; justify-content: space-between; gap: 10px;">
 						<div>
 							<div style="font-size: 11px; font-weight: 700; color: #e2e8f0;">Falla de Señal IoT</div>
 							<div style="font-size: 9px; color: var(--muted); margin-top: 1px;">Simula desconexión celular del camión</div>
 						</div>
-						<label class="switch">
+						<label class="switch danger">
 							<input type="checkbox" id="iotFailureToggle">
 							<span class="slider"></span>
 						</label>
 					</div>
 					
 					<!-- Worker Cola IA Toggle -->
-					<div style="margin-top: 6px; padding: 10px 12px; border-radius: 10px; background: rgba(15, 23, 42, 0.3); border: 1px solid rgba(255, 255, 255, 0.04); display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+					<div style="margin-top: 6px; padding: 10px 12px; border-radius: 10px; background: rgba(9, 9, 11, 0.45); border: 1px solid rgba(255, 255, 255, 0.04); display: flex; align-items: center; justify-content: space-between; gap: 10px;">
 						<div>
 							<div style="font-size: 11px; font-weight: 700; color: #e2e8f0;">Worker de Diagnóstico IA</div>
 							<div style="font-size: 9px; color: var(--muted); margin-top: 1px; display: flex; align-items: center; gap: 4px;">
@@ -704,7 +864,7 @@ function renderDashboardPage() {
 								<span id="workerStatusText">Cargando...</span>
 							</div>
 						</div>
-						<label class="switch">
+						<label class="switch warning">
 							<input type="checkbox" id="queueToggle" checked>
 							<span class="slider"></span>
 						</label>
@@ -720,7 +880,7 @@ function renderDashboardPage() {
 				<div style="display:flex; justify-content:space-between; gap:12px; align-items:center; flex-wrap:wrap;">
 					<div style="min-width: 0; flex: 1;">
 						<div class="eyebrow" style="letter-spacing:0.2em; font-size: 9px;">Geometría & Ruta en Tiempo Real</div>
-						<h2 style="margin:4px 0 0; font-size:1.15rem; font-weight:800; color:#fff; font-family: monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" id="selectedTitle">Sin viaje seleccionado</h2>
+						<h2 class="title" style="font-size:1.15rem; margin:4px 0 0; font-family: monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" id="selectedTitle">Sin viaje seleccionado</h2>
 						<p class="muted" id="selectedSubtitle" style="margin:4px 0 0; font-size:11px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">La telemetría aparecerá aquí al seleccionar un viaje activo.</p>
 					</div>
 					<div style="display:flex; gap:6px; flex-shrink: 0;">
@@ -760,16 +920,16 @@ function renderDashboardPage() {
 
 		<!-- COLUMNA 3: COGNICIÓN E INTEGRACIÓN IA (DERECHA) -->
 		<aside class="workspace-ai" style="display: flex; flex-direction: column; gap: 12px; height: 100%;">
-			<div class="ai-tabs-nav" style="display: flex; border-bottom: 1px solid rgba(255,255,255,0.06); margin-bottom: 4px; width: 100%; shrink: 0;">
-				<button class="ai-tab-nav-btn active" onclick="switchAiTab('tab-telemetry')" style="flex: 1; padding: 10px; background: transparent; border: none; border-bottom: 2px solid var(--cyan); color: #fff; font-size: 11px; font-weight: 700; cursor: pointer; text-transform: uppercase; letter-spacing: 0.05em; transition: all 0.2s ease;">Telemetría</button>
-				<button class="ai-tab-nav-btn" onclick="switchAiTab('tab-failures')" style="flex: 1; padding: 10px; background: transparent; border: none; border-bottom: 2px solid transparent; color: var(--muted); font-size: 11px; font-weight: 700; cursor: pointer; text-transform: uppercase; letter-spacing: 0.05em; transition: all 0.2s ease;">Inyector & Colas</button>
+			<div class="ai-tab-nav-container">
+				<button class="ai-tab-nav-btn active" onclick="switchAiTab('tab-telemetry')">Telemetría</button>
+				<button class="ai-tab-nav-btn" onclick="switchAiTab('tab-failures')">Inyector & Colas</button>
 			</div>
 
 			<!-- CONTENIDO DE PESTAÑA: TELEMETRÍA -->
 			<div id="tab-telemetry" class="ai-tab-content" style="display: flex; flex-direction: column; gap: 12px; flex: 1; min-height: 0;">
 				<!-- Telemetría actual instantánea -->
 				<section class="card" style="padding: 12px; shrink: 0;">
-					<div class="eyebrow" style="color:var(--emerald); margin-bottom:6px; font-size: 9px; letter-spacing: 0.2em;">Métricas Instantáneas</div>
+					<div class="eyebrow" style="margin-bottom:6px; font-size: 9px; letter-spacing: 0.2em;">Métricas Instantáneas</div>
 					<div class="metrics" style="grid-template-columns: repeat(2, 1fr); gap: 6px;">
 						<div class="metric">
 							<span>Temperatura</span>
@@ -811,17 +971,17 @@ function renderDashboardPage() {
 				<div class="panel" style="padding: 12px;">
 					<div class="eyebrow" style="margin-bottom: 8px; font-size: 9px; letter-spacing: 0.2em;">Inyector de Anomalías</div>
 					
-					<div style="padding: 8px 12px; border-radius: 8px; background: rgba(15, 23, 42, 0.35); border: 1px solid rgba(255,255,255,0.04); display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+					<div style="padding: 8px 12px; border-radius: 8px; background: rgba(9, 9, 11, 0.4); border: 1px solid rgba(255,255,255,0.04); display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
 						<span style="font-size: 11px; font-weight: 700; color: #cbd5e1;">Falla de Compresor</span>
-						<label class="switch">
+						<label class="switch danger">
 							<input type="checkbox" id="compressorToggle">
 							<span class="slider"></span>
 						</label>
 					</div>
 					
-					<div style="padding: 8px 12px; border-radius: 8px; background: rgba(15, 23, 42, 0.35); border: 1px solid rgba(255,255,255,0.04); display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+					<div style="padding: 8px 12px; border-radius: 8px; background: rgba(9, 9, 11, 0.4); border: 1px solid rgba(255,255,255,0.04); display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
 						<span style="font-size: 11px; font-weight: 700; color: #cbd5e1;">Desvío de Ruta (GPS)</span>
-						<label class="switch">
+						<label class="switch danger">
 							<input type="checkbox" id="deviationToggle">
 							<span class="slider"></span>
 						</label>
@@ -829,26 +989,26 @@ function renderDashboardPage() {
 				</div>
 
 				<!-- NUEVO PANEL: AUDITOR EN VIVO DE REDIS & BULLMQ -->
-				<section class="card" style="padding:12px; border: 1px solid rgba(14, 165, 233, 0.15); background: linear-gradient(135deg, rgba(10, 15, 29, 0.8) 0%, rgba(5, 7, 15, 0.95) 100%);">
+				<section class="card" style="padding:12px; border: 1px solid rgba(14, 165, 233, 0.15); background: linear-gradient(135deg, rgba(9, 9, 11, 0.8) 0%, rgba(0, 0, 0, 0.95) 100%);">
 					<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-						<div class="eyebrow" style="color:var(--cyan); font-size: 9px; letter-spacing: 0.15em; margin-bottom: 0;">Redis & BullMQ IA Queue</div>
+						<div class="eyebrow" style="font-size: 9px; letter-spacing: 0.15em; margin-bottom: 0;">Redis & BullMQ IA Queue</div>
 						<span class="tag" id="redisConnTag" style="font-size: 8px; font-weight: 800; background: rgba(16, 185, 129, 0.08); color: var(--emerald); border: 1px solid rgba(16, 185, 129, 0.15);">REDIS OK</span>
 					</div>
 					
 					<div class="metrics" style="grid-template-columns: repeat(2, 1fr); gap: 6px; margin-top: 4px;">
-						<div class="metric" style="padding: 6px 8px; background: rgba(15, 23, 42, 0.35);">
+						<div class="metric" style="padding: 6px 8px; background: rgba(9, 9, 11, 0.45);">
 							<span style="font-size: 8px; color: var(--muted);">En Espera (Waiting)</span>
 							<strong id="queueWaiting" style="color: var(--amber); font-size: 1rem; margin-top: 2px;">0</strong>
 						</div>
-						<div class="metric" style="padding: 6px 8px; background: rgba(15, 23, 42, 0.35);">
+						<div class="metric" style="padding: 6px 8px; background: rgba(9, 9, 11, 0.45);">
 							<span style="font-size: 8px; color: var(--muted);">Procesando (Active)</span>
 							<strong id="queueActive" style="color: var(--cyan); font-size: 1rem; margin-top: 2px;">0</strong>
 						</div>
-						<div class="metric" style="padding: 6px 8px; background: rgba(15, 23, 42, 0.35);">
+						<div class="metric" style="padding: 6px 8px; background: rgba(9, 9, 11, 0.45);">
 							<span style="font-size: 8px; color: var(--muted);">Completados (Done)</span>
 							<strong id="queueCompleted" style="color: var(--emerald); font-size: 1rem; margin-top: 2px;">0</strong>
 						</div>
-						<div class="metric" style="padding: 6px 8px; background: rgba(15, 23, 42, 0.35);">
+						<div class="metric" style="padding: 6px 8px; background: rgba(9, 9, 11, 0.45);">
 							<span style="font-size: 8px; color: var(--muted);">Fallidos (Failed)</span>
 							<strong id="queueFailed" style="color: var(--rose); font-size: 1rem; margin-top: 2px;">0</strong>
 						</div>
@@ -870,13 +1030,13 @@ function renderDashboardPage() {
 			document.getElementById(tabId).style.display = tabId === 'tab-trips' ? 'flex' : 'block';
 			
 			const buttons = document.querySelectorAll('.tab-nav-btn');
-			buttons[0].classList.toggle('active', tabId === 'tab-trips');
-			buttons[0].style.borderBottomColor = tabId === 'tab-trips' ? 'var(--cyan)' : 'transparent';
-			buttons[0].style.color = tabId === 'tab-trips' ? '#fff' : 'var(--muted)';
+			buttons.forEach(btn => btn.classList.remove('active'));
 			
-			buttons[1].classList.toggle('active', tabId === 'tab-resilience');
-			buttons[1].style.borderBottomColor = tabId === 'tab-resilience' ? 'var(--cyan)' : 'transparent';
-			buttons[1].style.color = tabId === 'tab-resilience' ? '#fff' : 'var(--muted)';
+			if (tabId === 'tab-trips') {
+				buttons[0].classList.add('active');
+			} else {
+				buttons[1].classList.add('active');
+			}
 		}
 
 		function switchAiTab(tabId) {
@@ -884,13 +1044,13 @@ function renderDashboardPage() {
 			document.getElementById(tabId).style.display = tabId === 'tab-telemetry' ? 'flex' : 'block';
 			
 			const buttons = document.querySelectorAll('.ai-tab-nav-btn');
-			buttons[0].classList.toggle('active', tabId === 'tab-telemetry');
-			buttons[0].style.borderBottomColor = tabId === 'tab-telemetry' ? 'var(--cyan)' : 'transparent';
-			buttons[0].style.color = tabId === 'tab-telemetry' ? '#fff' : 'var(--muted)';
+			buttons.forEach(btn => btn.classList.remove('active'));
 			
-			buttons[1].classList.toggle('active', tabId === 'tab-failures');
-			buttons[1].style.borderBottomColor = tabId === 'tab-failures' ? 'var(--cyan)' : 'transparent';
-			buttons[1].style.color = tabId === 'tab-failures' ? '#fff' : 'var(--muted)';
+			if (tabId === 'tab-telemetry') {
+				buttons[0].classList.add('active');
+			} else {
+				buttons[1].classList.add('active');
+			}
 		}
 
 		function toggleGuide() {
@@ -1268,7 +1428,7 @@ function renderDashboardPage() {
 				+ '<stop offset="100%" stop-color="#10b981" stop-opacity="0.01"/>'
 				+ '</linearGradient>'
 				+ '</defs>'
-				+ '<rect width="' + width + '" height="' + height + '" fill="#050811" />'
+				+ '<rect width="' + width + '" height="' + height + '" fill="#000000" />'
 				+ '<rect x="' + pad + '" y="' + yScale(maxTemp) + '" width="' + (width - pad * 2) + '" height="' + (yScale(minTemp) - yScale(maxTemp)) + '" fill="url(#safeZoneGrad)" stroke="rgba(16,185,129,0.18)" stroke-width="1" stroke-dasharray="4 4" />'
 				+ Array.from({ length: 5 }, (_, index) => '<line x1="' + pad + '" y1="' + (pad + index * ((height - pad * 2) / 4)) + '" x2="' + (width - pad) + '" y2="' + (pad + index * ((height - pad * 2) / 4)) + '" stroke="rgba(255, 255, 255, 0.03)" />').join('')
 				+ '<line x1="' + pad + '" y1="' + yScale(minTemp) + '" x2="' + (width - pad) + '" y2="' + yScale(minTemp) + '" stroke="rgba(16,185,129,0.3)" stroke-width="1.5" />'
@@ -1279,7 +1439,7 @@ function renderDashboardPage() {
 					const x = xScale(index);
 					const y = yScale(temp);
 					const breach = temp > maxTemp || temp < minTemp || (point.bateria != null && Number(point.bateria) <= 10);
-					return '<circle cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="' + (breach ? 6 : 4) + '" fill="' + (breach ? '#f43f5e' : '#38bdf8') + '" stroke="#050811" stroke-width="1.5" />';
+					return '<circle cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="' + (breach ? 6 : 4) + '" fill="' + (breach ? '#f43f5e' : '#38bdf8') + '" stroke="#000000" stroke-width="1.5" />';
 				}).join('')
 				+ '</svg>'
 				+ '</div>';
@@ -1321,7 +1481,7 @@ function renderDashboardPage() {
 					: '';
 
 				const feedItemStyle = breach
-					? 'margin-bottom: 10px; padding: 14px; background: linear-gradient(135deg, rgba(239, 68, 68, 0.08) 0%, rgba(5, 7, 15, 0.95) 100%); border: 1px solid rgba(239, 68, 68, 0.2); border-left: 3px solid var(--rose);'
+					? 'margin-bottom: 10px; padding: 14px; background: linear-gradient(135deg, rgba(239, 68, 68, 0.08) 0%, rgba(0, 0, 0, 0.95) 100%); border: 1px solid rgba(239, 68, 68, 0.2); border-left: 3px solid var(--rose);'
 					: 'margin-bottom: 10px; padding: 14px;';
 
 				const badge = breach
@@ -1331,7 +1491,7 @@ function renderDashboardPage() {
 				return '<div class="feed-item" style="' + feedItemStyle + '">'
 					+ '<div style="display:flex; justify-content:space-between; align-items: flex-start;">'
 					+ '<div style="display:flex; align-items: center;">'
-					+ '<strong>' + (breach ? 'Incidente detectado' : 'Telemetría recibida') + '</strong>'
+					+ '<strong class="text-gradient">' + (breach ? 'Incidente detectado' : 'Telemetría recibida') + '</strong>'
 					+ badge
 					+ '</div>'
 					+ '<small style="color: var(--muted); font-size: 11px;">' + formatDate(point.timestamp_sensor) + '</small>'
@@ -1361,7 +1521,7 @@ function renderDashboardPage() {
 					+ '<div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;">'
 					+ '<div style="flex:1;min-width:0;">'
 					+ '<div class="eyebrow">' + escapeHtml(trip.viajeId) + '</div>'
-					+ '<div style="margin-top:6px;font-weight:800;">' + escapeHtml(isPendiente ? 'En espera de despacho' : (trip.status === 'alerta' ? 'Viaje en alerta' : 'Viaje en simulación')) + '</div>'
+					+ '<div class="text-gradient" style="margin-top:6px;font-weight:800;display:block;">' + escapeHtml(isPendiente ? 'En espera de despacho' : (trip.status === 'alerta' ? 'Viaje en alerta' : 'Viaje en simulación')) + '</div>'
 					+ '<div class="muted" style="margin-top:4px;font-size:12px;">'
 					+ (isPendiente ? 'Pendiente de inicio' : 'Temp ' + formatNumber(lastPayload.temp) + '°C · Bat ' + formatNumber(lastPayload.bateria, 0) + '%')
 					+ '</div>'

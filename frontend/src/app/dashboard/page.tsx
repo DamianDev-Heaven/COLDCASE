@@ -778,7 +778,7 @@ export default function Dashboard() {
       </header>
 
       {/* ── WORKSPACE ──────────────────────────────────────────────────────── */}
-      <div className="flex h-full pt-14">
+      <div className="flex h-[calc(100vh-3.5rem)] mt-14 overflow-hidden w-full">
 
         {/* ── SIDEBAR ──────────────────────────────────────────────────────── */}
         <nav
@@ -1403,10 +1403,10 @@ export default function Dashboard() {
             className="fixed inset-0 z-50 flex items-center justify-center bg-[#020408]/85 backdrop-blur-md overflow-y-auto p-4 md:p-6"
             onClick={(e) => { if (e.target === e.currentTarget) { setIsModalOpen(false); resetModalForm(); } }}
           >
-            <div className="relative w-full max-w-5xl rounded-2xl border border-slate-800/80 bg-[#090b11] shadow-[0_24px_60px_rgba(0,0,0,0.85)] flex flex-col max-h-[92vh] overflow-hidden">
+            <div className="relative w-full max-w-5xl rounded-2xl border border-white/10 bg-[#050505] shadow-[0_24px_60px_rgba(0,0,0,0.9)] flex flex-col max-h-[92vh] overflow-hidden">
               
               {/* Header */}
-              <div className="flex items-center justify-between px-6 py-4.5 border-b border-slate-800/60 bg-[#0c0e16]">
+              <div className="flex items-center justify-between px-6 py-4.5 border-b border-white/8 bg-[#0a0a0a]">
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 rounded-xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center shrink-0">
                     <Truck className="w-4 h-4 text-sky-400" />
@@ -1434,7 +1434,7 @@ export default function Dashboard() {
                   className="flex-1 p-6 overflow-y-auto flex flex-col gap-6 scrollbar-thin"
                 >
                   {/* Empresa / Tenant Selector (Contextual Filter) */}
-                  <section className="bg-slate-900/20 border border-slate-800/40 p-4 rounded-xl">
+                  <section className="bg-white/[0.015] border border-white/6 p-4 rounded-xl">
                     <div className="flex items-center justify-between gap-3 mb-3">
                       <div className="flex items-center gap-2">
                         <span className="flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-bold bg-sky-500/10 text-sky-400 border border-sky-500/20">A</span>
@@ -1459,7 +1459,7 @@ export default function Dashboard() {
                   <section className="flex flex-col gap-3.5">
                     <div className="flex items-center gap-2">
                       <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">01 · Sucursales de Trayecto</span>
-                      <div className="flex-1 h-px bg-slate-800/40" />
+                      <div className="flex-1 h-px bg-white/6" />
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <ModalField label="Sucursal de Origen">
@@ -1496,7 +1496,7 @@ export default function Dashboard() {
                   <section className="flex flex-col gap-3">
                     <div className="flex items-center gap-2">
                       <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">02 · Unidad de Transporte</span>
-                      <div className="flex-1 h-px bg-slate-800/40" />
+                      <div className="flex-1 h-px bg-white/6" />
                     </div>
 
                     <div className="relative">
@@ -1507,8 +1507,8 @@ export default function Dashboard() {
                             onClick={() => setVehicleDropOpen((o) => !o)}
                             className={`w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg border text-[11px] transition-all duration-150 cursor-pointer ${
                               vehicleDropOpen
-                                ? "border-white/10 bg-[#0c0f1b] ring-2 ring-white/6"
-                                : "border-slate-800 bg-[#0a0d15] hover:border-slate-700"
+                                ? "border-white/20 bg-black ring-2 ring-white/6"
+                                : "border-white/10 bg-black hover:border-white/20"
                             }`}
                           >
                             <div className="flex items-center gap-2 min-w-0">
@@ -1520,7 +1520,7 @@ export default function Dashboard() {
                                   <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wide ${
                                     selectedVehicle.estado === "disponible"
                                       ? "bg-black border border-white/10 text-white"
-                                      : "bg-slate-850 text-slate-400 border border-slate-700/30"
+                                      : "bg-slate-800 text-slate-400 border border-slate-700/30"
                                   }`}>
                                     {selectedVehicle.estado}
                                   </span>
@@ -1533,9 +1533,9 @@ export default function Dashboard() {
                           </button>
 
                           {vehicleDropOpen && (
-                            <div className="absolute top-full left-0 right-0 mt-1.5 z-30 rounded-lg border border-slate-800 bg-[#0a0d15] shadow-[0_16px_40px_rgba(0,0,0,0.8)] overflow-hidden">
+                            <div className="absolute top-full left-0 right-0 mt-1.5 z-30 rounded-lg border border-white/10 bg-[#080808] shadow-[0_16px_40px_rgba(0,0,0,0.9)] overflow-hidden">
                               {/* Búsqueda en el combobox */}
-                              <div className="flex items-center gap-2 px-3 py-2 border-b border-slate-800 bg-[#0e111d]">
+                              <div className="flex items-center gap-2 px-3 py-2 border-b border-white/6 bg-[#0c0c0c]">
                                 <Search className="w-3 h-3 text-slate-400 shrink-0" />
                                 <input
                                   type="text"
@@ -1561,7 +1561,7 @@ export default function Dashboard() {
                                 ) : (
                                   Object.entries(vehiclesByEmpresa).map(([empresa, vehicles]) => (
                                     <div key={empresa}>
-                                      <div className="px-3 py-1.5 bg-[#0d101a] border-b border-slate-800/40">
+                                      <div className="px-3 py-1.5 bg-white/[0.015] border-b border-white/6">
                                         <span className="text-[8px] font-bold uppercase tracking-wider text-sky-400">{empresa}</span>
                                       </div>
                                       {vehicles.map((t) => (
@@ -1569,8 +1569,8 @@ export default function Dashboard() {
                                           type="button"
                                           key={t.id}
                                           onClick={() => { setTransporteIdForm(t.id); setVehicleDropOpen(false); setVehicleSearch(""); }}
-                                          className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors duration-100 cursor-pointer border-b border-slate-800/30 last:border-0 ${
-                                            transporteIdForm === t.id ? "bg-[#161a29]" : "hover:bg-slate-900/40"
+                                          className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors duration-100 cursor-pointer border-b border-white/4 last:border-0 ${
+                                            transporteIdForm === t.id ? "bg-white/8" : "hover:bg-white/[0.02]"
                                           }`}
                                         >
                                           <span className="font-mono text-[12px] font-bold text-white w-24 shrink-0">{t.placa}</span>
@@ -1578,7 +1578,7 @@ export default function Dashboard() {
                                           <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded uppercase ${
                                             t.estado === "disponible"
                                               ? "bg-black border border-white/10 text-white"
-                                              : "bg-slate-800/80 text-slate-400"
+                                              : "bg-slate-800 text-slate-400"
                                           }`}>
                                             {t.estado}
                                           </span>
@@ -1590,7 +1590,7 @@ export default function Dashboard() {
                               </div>
 
                               {transporteIdForm && (
-                                <div className="border-t border-slate-800 bg-[#080a10] px-3 py-2 text-right">
+                                <div className="border-t border-white/6 bg-black px-3 py-2 text-right">
                                   <button
                                     type="button"
                                     onClick={() => { setTransporteIdForm(""); setVehicleDropOpen(false); }}
@@ -1611,7 +1611,7 @@ export default function Dashboard() {
                   <section className="flex flex-col gap-3.5">
                     <div className="flex items-center gap-2">
                       <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">03 · Especificaciones de Carga y Recetario</span>
-                      <div className="flex-1 h-px bg-slate-800/40" />
+                      <div className="flex-1 h-px bg-white/6" />
                     </div>
 
                     <div className="w-full">
@@ -1672,7 +1672,7 @@ export default function Dashboard() {
                   <section className="flex flex-col gap-4">
                     <div className="flex items-center gap-2">
                       <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">04 · Control Térmico, Humedad y Operativo</span>
-                      <div className="flex-1 h-px bg-slate-800/40" />
+                      <div className="flex-1 h-px bg-white/6" />
                     </div>
                     
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1715,11 +1715,11 @@ export default function Dashboard() {
                     </div>
 
                     {/* Visual range bar */}
-                    <div className="bg-[#0b0e16] border border-slate-800 rounded-xl p-3.5 flex items-center justify-between gap-6">
+                    <div className="bg-black border border-white/6 rounded-xl p-3.5 flex items-center justify-between gap-6">
                       <div className="flex-1 relative">
-                        <div className="h-1.5 rounded-full bg-slate-800 overflow-hidden relative">
+                        <div className="h-1.5 rounded-full bg-white/10 overflow-hidden relative">
                           <div 
-                            className="absolute h-full rounded-full bg-white/6"
+                            className="absolute h-full rounded-full bg-white/16"
                             style={{ left: "25%", right: "30%" }}
                           />
                         </div>
@@ -1751,7 +1751,7 @@ export default function Dashboard() {
                               className={`flex items-center gap-3 px-4 py-3.5 rounded-xl border text-left cursor-pointer transition-all duration-150 ${
                                 estadoForm === opt
                                   ? "border-sky-500/40 bg-sky-500/5 shadow-[0_0_12px_rgba(14,165,233,0.06)]"
-                                  : "border-slate-800 bg-[#0a0d15] hover:border-slate-700"
+                                  : "border-white/10 bg-black hover:border-white/16"
                               }`}
                             >
                               <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${opt === "en_curso" ? "bg-sky-400" : "bg-amber-400"}`} />
@@ -1780,9 +1780,9 @@ export default function Dashboard() {
                 </form>
 
                 {/* Right Side: Map Preview (Desktop Only) */}
-                <div className="w-full lg:w-[350px] shrink-0 border-t lg:border-t-0 lg:border-l border-slate-800/60 bg-[#0c0e15] flex flex-col overflow-hidden">
+                <div className="w-full lg:w-[350px] shrink-0 border-t lg:border-t-0 lg:border-l border-white/8 bg-[#050505] flex flex-col overflow-hidden">
                   
-                  <div className="px-5 py-4 border-b border-slate-800/50 flex items-center justify-between">
+                  <div className="px-5 py-4 border-b border-white/6 flex items-center justify-between">
                     <div>
                       <p className="text-[8px] font-mono tracking-widest text-slate-500 uppercase">Geovisor Dinámico</p>
                       <p className="text-[11px] font-bold text-slate-300 mt-0.5">Vista Previa del Trayecto</p>
@@ -1799,7 +1799,7 @@ export default function Dashboard() {
                   </div>
 
                   {/* Map visualization */}
-                  <div className="flex-1 relative overflow-hidden min-h-[250px] lg:min-h-0 bg-[#07090f]">
+                  <div className="flex-1 relative overflow-hidden min-h-[250px] lg:min-h-0 bg-[#020202]">
                     {mapMounted && (
                       <RouteMap
                         waypoints={waypointsFormModal}
@@ -1811,8 +1811,8 @@ export default function Dashboard() {
                       />
                     )}
                     {waypointsFormModal.length === 0 && (
-                      <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-[#0a0c14]/95">
-                        <div className="w-11 h-11 rounded-xl border border-slate-800 bg-[#0e111d]/85 flex items-center justify-center shadow-lg shadow-black/20">
+                      <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/95">
+                        <div className="w-11 h-11 rounded-xl border border-white/10 bg-[#050505]/85 flex items-center justify-center shadow-lg shadow-black/20">
                           <svg className="w-4.5 h-4.5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M9 6.75V15m6-6v8.25m.503 3.498l4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934c-.317.159-.69.159-1.006 0L9.503 3.252a1.125 1.125 0 00-1.006 0L3.622 5.689C3.24 5.88 3 6.27 3 6.695V19.18c0 .836.88 1.38 1.628 1.006l3.869-1.934c.317-.159.69-.159 1.006 0l4.994 2.497c.317.158.69.158 1.006 0z" />
                           </svg>
@@ -1826,14 +1826,14 @@ export default function Dashboard() {
                   </div>
 
                   {/* Summary grid */}
-                  <div className="border-t border-slate-800/80 bg-[#080a10] p-4 grid grid-cols-2 gap-2 shrink-0">
+                  <div className="border-t border-white/8 bg-black p-4 grid grid-cols-2 gap-2 shrink-0">
                     {[
                       { k: "Mercancía", v: tipoProductoForm || "—" },
                       { k: "Carga total", v: pesoKgForm ? `${Number(pesoKgForm).toLocaleString()} kg` : "—" },
                       { k: "Valor Asegurado", v: valorComercialForm ? `$${Number(valorComercialForm).toLocaleString()} USD` : "—" },
                       { k: "Rango Óptimo", v: limiteMinTempForm && limiteMaxTempForm ? `${limiteMinTempForm}°C a ${limiteMaxTempForm}°C` : "—" },
                     ].map(({ k, v }) => (
-                      <div key={k} className="bg-slate-900/10 rounded-lg px-3 py-2 border border-slate-800/40">
+                      <div key={k} className="bg-white/[0.015] rounded-lg px-3 py-2 border border-white/6">
                         <p className="text-[7px] font-mono uppercase tracking-widest text-slate-500">{k}</p>
                         <p className="text-[10px] font-bold text-slate-300 truncate mt-0.5">{v}</p>
                       </div>
@@ -1845,7 +1845,7 @@ export default function Dashboard() {
               </div>
 
               {/* Sticky Footer actions */}
-              <div className="border-t border-slate-800/80 bg-[#0c0e16] px-6 py-4 flex items-center justify-between shrink-0">
+              <div className="border-t border-white/8 bg-[#0a0a0a] px-6 py-4 flex items-center justify-between shrink-0">
                 <button
                   type="button"
                   onClick={() => { setIsModalOpen(false); resetModalForm(); }}
@@ -1919,55 +1919,129 @@ interface ZepEdge {
 
 function formatMarkdown(text: string) {
   if (!text) return null;
-  return text.split("\n").map((line, idx) => {
-    let cleanLine = line.trim();
-    if (!cleanLine) return <div key={idx} className="h-2" />;
 
-    // Check for headings
-    if (cleanLine.startsWith("###")) {
-      const headingText = cleanLine.replace(/^###\s*/, "");
-      return (
-        <h4 key={idx} className="text-[10px] font-bold text-cyan-400 uppercase tracking-widest mt-3 mb-2 flex items-center gap-1.5 border-b border-white/[0.04] pb-1">
-          <Sparkles className="w-3 h-3 text-cyan-400 animate-pulse" />
-          {headingText}
-        </h4>
-      );
-    }
+  const lines = text.split("\n");
+  const elements: React.ReactNode[] = [];
+  let i = 0;
 
-    // Check for bullet points
-    const isBullet = cleanLine.startsWith("-") || cleanLine.startsWith("*");
-    if (isBullet) {
-      cleanLine = cleanLine.replace(/^[-*]\s*/, "");
-    }
-
-    // Parse bold text **word**
-    const parts = cleanLine.split(/\*\*([\s\S]*?)\*\*/g);
-    const content = parts.map((part, pIdx) => {
-      if (pIdx % 2 === 1) {
+  const parseBold = (line: string, key: string | number) => {
+    // Also highlight backtick values `...` as monospace tokens
+    const parts = line.split(/(`[^`]+`|\*\*[\s\S]*?\*\*)/g);
+    return parts.map((part, pIdx) => {
+      if (part.startsWith("**") && part.endsWith("**")) {
         return (
-          <span key={pIdx} className="text-cyan-300 font-bold font-mono bg-cyan-950/45 px-1.5 py-0.5 rounded border border-cyan-800/30 shadow-[0_0_8px_rgba(34,211,238,0.06)] mx-0.5">
-            {part}
+          <span key={`${key}-b-${pIdx}`} className="text-white font-bold">
+            {part.slice(2, -2)}
           </span>
         );
       }
-      return part;
+      if (part.startsWith("`") && part.endsWith("`")) {
+        return (
+          <code key={`${key}-c-${pIdx}`} className="font-mono text-emerald-400 bg-emerald-950/30 px-1.5 py-0.5 rounded border border-emerald-900/30 text-[9px] tracking-wide">
+            {part.slice(1, -1)}
+          </code>
+        );
+      }
+      return <span key={`${key}-t-${pIdx}`}>{part}</span>;
     });
+  };
 
-    if (isBullet) {
-      return (
-        <div key={idx} className="flex items-start gap-2 text-[10px] text-slate-300 font-mono leading-relaxed pl-2 mb-1.5">
-          <span className="text-cyan-400 mt-1 shrink-0">•</span>
-          <span>{content}</span>
-        </div>
-      );
+  while (i < lines.length) {
+    const raw = lines[i];
+    const line = raw.trim();
+
+    if (!line) {
+      elements.push(<div key={i} className="h-3" />);
+      i++;
+      continue;
     }
 
-    return (
-      <p key={idx} className="text-[10px] text-slate-300 font-mono leading-relaxed mb-2 pl-2">
-        {content}
+    // H2 heading: ##
+    if (line.startsWith("## ")) {
+      const text = line.replace(/^##\s*/, "");
+      elements.push(
+        <div key={i} className="flex items-center gap-3 mt-5 mb-3 pb-2 border-b border-white/[0.08]">
+          <div className="w-0.5 h-5 bg-gradient-to-b from-cyan-400 to-indigo-500 rounded-full" />
+          <h2 className="text-sm font-bold bg-gradient-to-r from-white to-zinc-300 bg-clip-text text-transparent uppercase tracking-widest font-sans">
+            {text}
+          </h2>
+        </div>
+      );
+      i++;
+      continue;
+    }
+
+    // H3 heading: ###
+    if (line.startsWith("###")) {
+      const text = line.replace(/^###\s*/, "");
+      elements.push(
+        <div key={i} className="flex items-center gap-2 mt-4 mb-2">
+          <Sparkles className="w-3 h-3 text-cyan-500 shrink-0" />
+          <h3 className="text-[11px] font-bold text-cyan-300 uppercase tracking-widest">
+            {text}
+          </h3>
+        </div>
+      );
+      i++;
+      continue;
+    }
+
+    // H1: #
+    if (line.startsWith("# ")) {
+      const text = line.replace(/^#\s*/, "");
+      elements.push(
+        <div key={i} className="mt-2 mb-4">
+          <h1 className="text-base font-bold bg-gradient-to-r from-white via-zinc-200 to-zinc-400 bg-clip-text text-transparent font-sans tracking-wide">
+            {text}
+          </h1>
+        </div>
+      );
+      i++;
+      continue;
+    }
+
+    // Bullet: - or *
+    if (line.startsWith("- ") || line.startsWith("* ") || line.startsWith("+ ")) {
+      const content = line.replace(/^[-*+]\s*/, "");
+      elements.push(
+        <div key={i} className="flex items-start gap-3 py-1 pl-1 group">
+          <div className="w-1 h-1 rounded-full bg-cyan-500/70 mt-[7px] shrink-0" />
+          <p className="text-[11px] text-zinc-300 font-mono leading-relaxed flex-1">
+            {parseBold(content, i)}
+          </p>
+        </div>
+      );
+      i++;
+      continue;
+    }
+
+    // Numbered list: 1. 2. etc
+    const numberedMatch = line.match(/^(\d+)\.\s+(.+)/);
+    if (numberedMatch) {
+      elements.push(
+        <div key={i} className="flex items-start gap-3 py-1 pl-1">
+          <span className="text-[9px] font-bold font-mono text-cyan-500/70 mt-0.5 shrink-0 w-4 text-right">
+            {numberedMatch[1]}.
+          </span>
+          <p className="text-[11px] text-zinc-300 font-mono leading-relaxed flex-1">
+            {parseBold(numberedMatch[2], i)}
+          </p>
+        </div>
+      );
+      i++;
+      continue;
+    }
+
+    // Regular paragraph
+    elements.push(
+      <p key={i} className="text-[11px] text-zinc-400 font-mono leading-relaxed">
+        {parseBold(line, i)}
       </p>
     );
-  });
+    i++;
+  }
+
+  return <div className="space-y-0.5">{elements}</div>;
 }
 
 function GraphExplorer({
@@ -2005,13 +2079,11 @@ function GraphExplorer({
       if (filterByTrip && selectedTripId) {
         bodyPayload.viajeId = selectedTripId;
       }
-      
       const res = await apiFetch(`${apiUrl}/ia/grafo/sintetizar`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(bodyPayload),
       });
-
       if (res.ok) {
         const data = await res.json();
         setNodes(data.nodes || []);
@@ -2031,93 +2103,100 @@ function GraphExplorer({
   };
 
   return (
-    <div className="flex-grow flex flex-col h-full overflow-hidden p-6 gap-6 bg-[#080a0f]">
-      {/* HEADER */}
-      <div className="flex flex-col gap-1.5 border-b border-white/[0.05] pb-4">
-        <h2 className="text-base font-bold text-white uppercase tracking-wider flex items-center gap-2">
-          <Network className="w-5 h-5 text-cyan-400" />
-          Explorador de Grafo de Conocimiento IA (Zep Memory)
-        </h2>
-        <p className="text-[11px] text-slate-400 font-mono">
-          Consulta y busca en la red de conocimiento semántico que la IA aprende a partir de las telemetrías y alertas del sistema.
+    <div className="flex-grow flex flex-col h-full p-4 sm:p-6 gap-4 bg-black border border-white/[0.06] rounded-3xl shadow-2xl relative overflow-hidden">
+
+      {/* ── HEADER ── shrink-0 so it never grows */}
+      <div className="flex flex-col gap-1 border-b border-white/[0.06] pb-4 shrink-0 z-10">
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="bg-gradient-to-br from-cyan-500/20 to-cyan-500/5 p-2 rounded-xl border border-cyan-500/25 shadow-[0_0_20px_rgba(6,182,212,0.12)]">
+            <Network className="w-4 h-4 text-cyan-400" />
+          </div>
+          <h2 className="text-sm font-bold uppercase tracking-widest bg-gradient-to-r from-white via-zinc-200 to-zinc-500 bg-clip-text text-transparent font-sans">
+            Explorador de Grafo de Conocimiento IA
+          </h2>
+          <span className="text-[9px] font-mono px-2.5 py-1 rounded-md bg-cyan-950/60 text-cyan-400 border border-cyan-500/20 tracking-widest uppercase shadow-[inset_0_1px_0_rgba(6,182,212,0.1)]">
+            Zep Memory
+          </span>
+        </div>
+        <p className="text-[11px] text-zinc-500 font-mono pl-0.5">
+          Consulta la red de conocimiento semántico aprendida por la IA a partir de telemetrías y alertas del sistema.
         </p>
       </div>
 
-      {/* SEARCH BAR & CHIPS */}
-      <div className="flex flex-col gap-3 bg-slate-900/30 border border-white/[0.05] p-4 rounded-2xl shrink-0 shadow-xl">
-        <div className="flex items-center gap-4 flex-wrap pb-2 border-b border-white/[0.03]">
-          {/* Select Trip Dropdown */}
+      {/* ── SEARCH PANEL ── shrink-0 */}
+      <div className="flex flex-col gap-3 bg-gradient-to-b from-zinc-950/80 to-zinc-950/40 border border-white/[0.05] px-4 py-3.5 rounded-2xl shrink-0 z-10 backdrop-blur-sm shadow-[0_4px_24px_rgba(0,0,0,0.4)]">
+        {/* Trip selector row */}
+        <div className="flex items-center gap-4 flex-wrap">
           <div className="flex items-center gap-2 select-none">
-            <span className="text-[10px] text-slate-500 font-mono uppercase tracking-wider">Ver Viaje:</span>
-            <select
-              value={selectedTripId || "global"}
-              onChange={(e) => {
-                const val = e.target.value;
-                if (val === "global") {
-                  onSelectTrip("");
-                } else {
-                  onSelectTrip(val);
-                }
-              }}
-              className="bg-slate-950/70 border border-white/10 hover:border-white/20 rounded-xl px-3 py-1.5 text-[11px] text-slate-200 font-mono outline-none focus:border-white/20 cursor-pointer max-w-[280px] transition-colors"
-            >
-              <option value="global">🌍 Grafo Global (Todos los viajes)</option>
-              {viajes.map((v) => (
-                <option key={v.id} value={v.id}>
-                  📦 {v.tipo_producto || "Perecedero"} ({v.id.slice(0, 8)}...) - {v.estado}
-                </option>
-              ))}
-            </select>
+            <span className="text-[9px] text-zinc-600 font-mono uppercase tracking-widest">Viaje:</span>
+            <div className="relative">
+              <select
+                value={selectedTripId || "global"}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === "global") { onSelectTrip(""); } else { onSelectTrip(val); }
+                }}
+                className="bg-zinc-900/80 border border-white/[0.07] hover:border-white/15 rounded-lg pl-3 pr-7 py-1.5 text-[11px] text-zinc-300 font-mono outline-none focus:border-cyan-500/40 cursor-pointer w-full sm:max-w-[260px] transition-all duration-200 appearance-none"
+              >
+                <option value="global" className="bg-zinc-900 text-zinc-200">Grafo Global — Todos los viajes</option>
+                {viajes.map((v) => (
+                  <option key={v.id} value={v.id} className="bg-zinc-900 text-zinc-200">
+                    {v.tipo_producto || "Perecedero"} · {v.id.slice(0, 8)} · {v.estado}
+                  </option>
+                ))}
+              </select>
+              <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-600">
+                <ChevronDown className="w-3 h-3" />
+              </div>
+            </div>
           </div>
-
           {selectedTripId && (
-            <div className="flex items-center gap-2 select-none">
+            <label className="flex items-center gap-2 cursor-pointer select-none">
               <input
                 type="checkbox"
-                id="filterByTripCheckbox"
                 checked={filterByTrip}
                 onChange={(e) => setFilterByTrip(e.target.checked)}
-                className="accent-white/60 rounded border-white/10 bg-slate-950/50 cursor-pointer w-3.5 h-3.5"
+                className="accent-cyan-500 w-3.5 h-3.5 cursor-pointer"
               />
-              <label htmlFor="filterByTripCheckbox" className="text-[10px] text-slate-400 font-mono cursor-pointer hover:text-white transition-colors">
-                Limitar búsqueda estrictamente a este viaje seleccionado
-              </label>
-            </div>
+              <span className="text-[10px] text-zinc-500 font-mono hover:text-zinc-300 transition-colors">
+                Solo este viaje
+              </span>
+            </label>
           )}
         </div>
+
+        {/* Search input row */}
         <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            handleSearch(query);
-          }}
+          onSubmit={(e) => { e.preventDefault(); handleSearch(query); }}
           className="flex gap-2"
         >
           <div className="relative flex-1">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-600" />
+            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-600" />
             <input
               type="text"
-              placeholder="Buscar en el grafo semántico... (ej. falla, compresor, desvío, viaje)"
+              placeholder="falla, temperatura, camión, incidente..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              className="w-full bg-slate-950/50 border border-white/[0.07] rounded-xl pl-9 pr-3 py-2.5 text-xs text-white placeholder-slate-600 outline-none focus:border-white/20 focus:ring-1 focus:ring-white/6 font-mono"
+              className="w-full bg-black/40 border border-white/[0.05] rounded-xl pl-9 pr-4 py-2.5 text-xs text-white placeholder-zinc-700 outline-none focus:border-cyan-500/30 focus:bg-black/60 font-mono transition-all duration-200"
             />
           </div>
           <button
             type="submit"
             disabled={isLoading}
-            className="bg-black hover:bg-white/6 text-white font-bold px-6 py-2.5 rounded-xl text-xs uppercase tracking-wider transition-all duration-150 cursor-pointer disabled:opacity-40"
+            className="bg-white hover:bg-zinc-100 text-black font-bold px-5 py-2.5 rounded-xl text-[11px] uppercase tracking-widest transition-all duration-200 cursor-pointer disabled:opacity-40 active:scale-[0.97] shrink-0"
           >
-            {isLoading ? "Buscando..." : "Buscar"}
+            {isLoading ? "..." : "Buscar"}
           </button>
         </form>
 
+        {/* Chips */}
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-[9px] font-mono uppercase text-slate-500 tracking-wider">Sugerencias:</span>
+          <span className="text-[9px] font-mono text-zinc-700 tracking-widest uppercase shrink-0">Sugerencias:</span>
           {["falla", "temperatura", "batería", "camión", "incidente", "excursión"].map((term) => (
             <button
               key={term}
               onClick={() => quickSearch(term)}
-              className="bg-slate-950/60 hover:bg-white/6 border border-white/[0.05] hover:border-white/6 text-slate-400 hover:text-white/70 px-2.5 py-1 rounded-lg text-[10px] font-mono transition-colors"
+              className="bg-zinc-900/60 hover:bg-zinc-800/80 border border-white/[0.04] hover:border-cyan-500/20 text-zinc-500 hover:text-cyan-300 px-2.5 py-1 rounded-md text-[10px] font-mono transition-all duration-150 cursor-pointer active:scale-95"
             >
               {term}
             </button>
@@ -2125,134 +2204,154 @@ function GraphExplorer({
         </div>
       </div>
 
-      {/* RESULTS WORKSPACE */}
-      <div className="flex-1 flex gap-6 overflow-hidden min-h-0">
+      {/* ── WORKSPACE ── flex-1 min-h-0 = fills remaining space, never overflows */}
+      <div className="flex-1 min-h-0 z-10 flex flex-col">
         {isLoading ? (
-          <div className="flex-grow flex items-center justify-center border border-dashed border-white/[0.05] rounded-2xl p-12 bg-slate-950/20">
+          /* Loading */
+          <div className="flex-1 flex items-center justify-center border border-dashed border-white/[0.05] rounded-2xl bg-zinc-950/20">
             <div className="text-center font-mono">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white/20 mx-auto mb-4" />
-              <p className="text-xs text-slate-500 uppercase tracking-widest">Interrogando Grafo Semántico de Zep...</p>
+              <div className="relative mx-auto mb-4 w-8 h-8">
+                <div className="absolute inset-0 rounded-full border border-cyan-500/20 animate-ping" />
+                <div className="absolute inset-0 rounded-full border-2 border-t-cyan-400 border-zinc-800 animate-spin" />
+              </div>
+              <p className="text-[10px] text-zinc-600 uppercase tracking-widest">Interrogando grafo semántico...</p>
             </div>
           </div>
         ) : !hasSearched ? (
-          <div className="flex-grow flex items-center justify-center border border-dashed border-white/[0.05] rounded-2xl p-12 bg-slate-950/20 text-center">
-            <div className="max-w-md">
-              <Network className="w-10 h-10 text-white/40 mx-auto mb-4" />
-              <span className="text-xs text-slate-400 font-bold uppercase tracking-wider block">Búsqueda Semántica de Grafo</span>
-              <p className="text-[10px] text-slate-500 font-mono mt-2 leading-relaxed">
-                Ingresa una consulta arriba para interrogar al grafo Standalone de Zep. Se recuperarán relaciones e incidentes previos correlacionados vectorialmente.
+          /* Empty state */
+          <div className="flex-1 flex flex-col items-center justify-center border border-dashed border-white/[0.05] rounded-2xl bg-gradient-to-b from-zinc-950/30 to-black/20 relative overflow-hidden">
+            {/* Decorative grid */}
+            <div className="absolute inset-0 opacity-[0.03]" style={{
+              backgroundImage: "repeating-linear-gradient(0deg, #fff 0, #fff 1px, transparent 1px, transparent 40px), repeating-linear-gradient(90deg, #fff 0, #fff 1px, transparent 1px, transparent 40px)"
+            }} />
+            <div className="relative text-center max-w-sm px-6">
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-cyan-500/10 to-indigo-500/10 border border-white/[0.07] flex items-center justify-center mx-auto mb-5 shadow-[0_0_40px_rgba(6,182,212,0.05)]">
+                <Network className="w-7 h-7 text-zinc-600" />
+              </div>
+              <h3 className="text-sm font-bold bg-gradient-to-r from-zinc-300 to-zinc-600 bg-clip-text text-transparent uppercase tracking-widest mb-2">
+                Búsqueda Semántica de Grafo
+              </h3>
+              <p className="text-[10px] text-zinc-700 font-mono leading-relaxed">
+                Escribe una consulta arriba para interrogar el grafo Zep. Se recuperarán relaciones e incidentes correlacionados vectorialmente.
               </p>
+              <div className="mt-5 flex items-center justify-center gap-2">
+                {["falla", "temperatura", "excursión"].map((t) => (
+                  <button key={t} onClick={() => quickSearch(t)}
+                    className="text-[9px] font-mono px-2.5 py-1 rounded border border-white/[0.05] text-zinc-600 hover:text-cyan-400 hover:border-cyan-500/20 transition-colors cursor-pointer">
+                    {t}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         ) : edges.length === 0 && nodes.length === 0 ? (
-          <div className="flex-grow flex items-center justify-center border border-dashed border-white/[0.05] rounded-2xl p-12 bg-slate-950/20 text-center">
-            <div className="max-w-md">
-              <Network className="w-10 h-10 text-white/40 mx-auto mb-4" />
-              <span className="text-xs text-white/70 font-bold uppercase tracking-wider block">Sin resultados encontrados</span>
-              <p className="text-[10px] text-slate-500 font-mono mt-2 leading-relaxed">
-                No se encontraron hechos semánticos ni nodos coincidentes con la palabra &quot;{query}&quot; en el grafo de conocimiento global.
+          /* No results */
+          <div className="flex-1 flex items-center justify-center border border-dashed border-white/[0.05] rounded-2xl bg-zinc-950/20">
+            <div className="text-center max-w-sm px-6">
+              <div className="w-12 h-12 rounded-xl bg-zinc-900/60 border border-white/[0.06] flex items-center justify-center mx-auto mb-4">
+                <Network className="w-6 h-6 text-zinc-700" />
+              </div>
+              <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Sin resultados</p>
+              <p className="text-[10px] text-zinc-700 font-mono mt-1.5">
+                No hay relaciones para &quot;{query}&quot;
               </p>
             </div>
           </div>
         ) : (
-          <div className="flex-grow flex flex-col gap-6 overflow-hidden min-h-0">
-            {sintesis && (
-              <div className="bg-[#0b0e14]/90 border border-cyan-500/25 backdrop-blur-md p-4 rounded-2xl shadow-[0_0_25px_rgba(6,182,212,0.06)] flex flex-col gap-3 shrink-0 max-h-[300px] overflow-y-auto border-t-2 border-t-cyan-500/40">
-                <div className="flex items-center justify-between border-b border-white/[0.04] pb-2">
-                  <div className="flex items-center gap-2">
-                    <div className="bg-cyan-500/10 p-1.5 rounded-lg border border-cyan-500/20">
-                      <Bot className="w-4 h-4 text-cyan-400 animate-bounce" style={{ animationDuration: '3s' }} />
+          /* ── RESULTS: Synthesis (dominant) + Relations (right column) ── */
+          <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-4">
+
+            {/* LEFT — AI Synthesis Briefing (dominant panel) */}
+            {sintesis ? (
+              <div className="flex-1 min-h-0 flex flex-col bg-gradient-to-b from-zinc-950/70 to-black/60 border border-cyan-500/20 rounded-2xl overflow-hidden relative" style={{boxShadow: '0 0 60px rgba(6,182,212,0.04), inset 0 1px 0 rgba(6,182,212,0.1)'}}>
+                {/* Top glow line */}
+                <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-cyan-400/50 to-transparent" />
+                {/* Ambient inner glow */}
+                <div className="absolute top-0 left-0 w-[300px] h-[200px] bg-cyan-500/3 rounded-full blur-[80px] pointer-events-none" />
+
+                {/* ── Panel Header ── */}
+                <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-white/[0.06] shrink-0">
+                  <div className="flex items-center gap-4">
+                    <div className="bg-gradient-to-br from-cyan-500/25 to-cyan-500/5 p-2.5 rounded-xl border border-cyan-500/30 shadow-[0_0_20px_rgba(6,182,212,0.15)]">
+                      <Bot className="w-5 h-5 text-cyan-400" />
                     </div>
                     <div>
-                      <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+                      <h3 className="text-sm font-bold bg-gradient-to-r from-white via-zinc-100 to-zinc-400 bg-clip-text text-transparent uppercase tracking-widest font-sans">
                         Informe de Trazabilidad IA
                       </h3>
-                      <p className="text-[8px] text-cyan-400/80 font-mono tracking-widest uppercase">GRAPHSYNC BRIEFING — SÍNTESIS DE INCIDENTES</p>
+                      <p className="text-[9px] text-cyan-500/70 font-mono tracking-[0.2em] uppercase mt-0.5">
+                        GraphSync Briefing · Síntesis de Incidentes
+                      </p>
                     </div>
                   </div>
-                  <span className="text-[8px] font-mono font-bold uppercase px-2 py-0.5 rounded bg-cyan-950/70 text-cyan-400 border border-cyan-800/30 tracking-widest animate-pulse">
-                    LIVE REPORT
-                  </span>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <div className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_8px_rgba(6,182,212,0.8)]" />
+                    <span className="text-[9px] font-mono font-bold uppercase px-2.5 py-1 rounded-md bg-cyan-950/80 text-cyan-300 border border-cyan-500/25 tracking-widest">
+                      LIVE REPORT
+                    </span>
+                  </div>
                 </div>
-                <div className="space-y-1 overflow-y-auto max-h-[220px] pr-1 scrollbar-thin scrollbar-thumb-cyan-500/20 scrollbar-track-transparent">
+
+                {/* ── Panel Body ── */}
+                <div className="flex-1 min-h-0 overflow-y-auto px-6 py-5">
                   {formatMarkdown(sintesis)}
                 </div>
               </div>
-            )}
+            ) : null}
 
-            <div className="flex-1 flex gap-6 overflow-hidden min-h-0">
-              {/* EDGES / SEMANTIC FACTS COLUMN */}
-              <div className="flex-grow flex flex-col min-w-0 h-full border border-white/[0.05] bg-slate-950/20 rounded-2xl overflow-hidden p-4">
-                <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider mb-4 shrink-0 flex justify-between items-center">
-                  <span>Relaciones Semánticas Detectadas ({edges.length})</span>
-                  <span className="text-[9px] text-slate-500 font-mono normal-case">Hechos de Grafo</span>
-                </h3>
-                <div className="flex-grow overflow-y-auto pr-1 space-y-3.5 no-scrollbar">
-                  {edges.map((edge, index) => (
-                    <div
-                      key={index}
-                      className="bg-[#111319]/80 border border-slate-800/80 rounded-xl p-4 flex flex-col gap-3 shadow-md hover:border-cyan-500/20 transition-all duration-200"
-                    >
-                      <div className="flex items-center gap-2 text-[9px] font-mono uppercase tracking-wider flex-wrap">
-                        <span className="text-sky-400 font-bold px-2 py-0.5 rounded bg-sky-500/5 border border-sky-500/10 truncate max-w-[150px]">
-                          {edge.source}
-                        </span>
-                        <span className="text-slate-500 font-bold">
-                          → [{edge.type || "RELACIÓN"}] →
-                        </span>
-                        <span className="text-indigo-400 font-bold px-2 py-0.5 rounded bg-indigo-500/5 border border-indigo-500/10 truncate max-w-[150px]">
-                          {edge.target}
-                        </span>
-                      </div>
-                      <div className="bg-slate-950/60 border border-slate-800/40 rounded-lg p-3 text-[11px] text-slate-300 font-mono leading-relaxed">
-                        <div className="text-[8px] font-bold text-cyan-400 uppercase tracking-wider mb-1 font-sans">Hecho Semántico Extraído por Zep:</div>
-                        {edge.fact}
-                      </div>
-                    </div>
-                  ))}
+            {/* RIGHT — Semantic Relations (solo panel) */}
+            <div className={`${sintesis ? "w-full lg:w-[360px] shrink-0" : "flex-1"} min-h-0 flex flex-col bg-zinc-950/40 border border-white/[0.06] rounded-2xl overflow-hidden relative`}>
+              <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-white/8 to-transparent" />
+
+              {/* Header */}
+              <div className="px-5 pt-4 pb-3 border-b border-white/[0.05] shrink-0 flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-cyan-500 shadow-[0_0_8px_rgba(6,182,212,0.9)]" />
+                  <span className="text-xs font-bold bg-gradient-to-r from-white to-zinc-400 bg-clip-text text-transparent uppercase tracking-widest">
+                    Relaciones Semánticas
+                  </span>
                 </div>
+                <span className="text-[9px] font-mono font-bold bg-zinc-900 border border-white/[0.06] text-zinc-500 px-2 py-0.5 rounded-md tracking-widest">
+                  {edges.length} hechos
+                </span>
               </div>
 
-              {/* NODES / ENTITIES COLUMN */}
-              <div className="w-[340px] shrink-0 h-full border border-white/[0.05] bg-slate-950/20 rounded-2xl overflow-hidden p-4 flex flex-col">
-                <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider mb-4 shrink-0">
-                  Entidades del Grafo ({nodes.length})
-                </h3>
-                <div className="flex-1 overflow-y-auto pr-1 space-y-2.5 no-scrollbar">
-                  {nodes.map((node, index) => (
-                    <div
-                      key={index}
-                      className="bg-slate-900/40 border border-white/[0.04] rounded-xl p-3 flex flex-col gap-2 shadow-sm hover:bg-slate-900/60 transition-colors"
-                    >
-                      <div className="flex justify-between items-center">
-                        <span className="text-[11px] font-bold text-slate-200 truncate pr-2 font-mono">
-                          {node.name}
+              {/* Edges list */}
+              <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-2">
+                {edges.map((edge, i) => (
+                  <div key={i} className="group bg-black/40 border border-white/[0.04] hover:border-cyan-500/20 rounded-xl p-3.5 flex flex-col gap-2.5 transition-all duration-200">
+                    {/* Source → Relation → Target */}
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-[9px] font-bold font-mono text-cyan-400 bg-cyan-950/50 border border-cyan-900/40 px-2 py-0.5 rounded-md truncate max-w-[120px]">
+                        {edge.source}
+                      </span>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <div className="w-3 h-px bg-zinc-700" />
+                        <span className="text-[8px] font-mono text-zinc-600 bg-zinc-900/60 border border-white/[0.04] px-1.5 py-0.5 rounded uppercase tracking-wider">
+                          {edge.type || "REL"}
                         </span>
-                        <span className="text-[8px] font-bold uppercase font-sans px-1.5 py-0.5 rounded bg-cyan-950/70 text-cyan-400 border border-cyan-800/30">
-                          {node.type}
-                        </span>
+                        <div className="w-3 h-px bg-zinc-700" />
                       </div>
-                      {node.properties && Object.keys(node.properties).length > 0 && (
-                        <div className="text-[9px] font-mono text-slate-500 bg-slate-950/30 p-2 rounded border border-white/[0.02] space-y-1">
-                          {Object.entries(node.properties).map(([key, val]) => (
-                            <div key={key} className="flex justify-between gap-2">
-                              <span className="text-slate-600 uppercase tracking-wider">{key}:</span>
-                              <span className="text-slate-400 truncate max-w-[180px]">{String(val)}</span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
+                      <span className="text-[9px] font-bold font-mono text-indigo-400 bg-indigo-950/50 border border-indigo-900/40 px-2 py-0.5 rounded-md truncate max-w-[120px]">
+                        {edge.target}
+                      </span>
                     </div>
-                  ))}
-                </div>
+                    {/* Fact */}
+                    <p className="text-[10px] text-zinc-500 font-mono leading-relaxed group-hover:text-zinc-300 transition-colors duration-200 pl-0.5">
+                      {edge.fact}
+                    </p>
+                  </div>
+                ))}
               </div>
             </div>
+
           </div>
         )}
       </div>
     </div>
   );
 }
+
 
 function StatCard({ label, value, valueClass = "text-white" }: { label: string; value: string; valueClass?: string }) {
   return (
@@ -2781,14 +2880,25 @@ function AdminPanel({ apiUrl }: { apiUrl: string }) {
   };
 
   return (
-    <div className="flex-grow flex flex-col h-full overflow-hidden p-6 gap-6 bg-[#080a0f] text-slate-100 select-none">
+    <div className="flex-grow flex flex-col h-full overflow-hidden p-6 gap-6 bg-black border border-white/[0.06] rounded-3xl shadow-2xl relative select-none">
+      {/* Background radial gradients */}
+      <div className="absolute top-0 left-1/4 w-[300px] h-[300px] bg-violet-500/5 rounded-full blur-[100px] pointer-events-none" />
+      <div className="absolute bottom-0 right-1/4 w-[300px] h-[300px] bg-emerald-500/5 rounded-full blur-[100px] pointer-events-none" />
+
       {/* HEADER */}
-      <div className="flex flex-col gap-1.5 border-b border-white/[0.05] pb-4">
-        <h2 className="text-base font-bold text-white uppercase tracking-wider flex items-center gap-2">
-          <Building className="w-5 h-5 text-white/70" />
-          Administrar Entidades Logísticas
+      <div className="flex flex-col gap-1.5 border-b border-white/[0.06] pb-5 shrink-0 z-10">
+        <h2 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2.5">
+          <div className="bg-zinc-800/30 p-2 rounded-xl border border-white/[0.08] shadow-[0_0_15px_rgba(255,255,255,0.03)]">
+            <Building className="w-4 h-4 text-zinc-300" />
+          </div>
+          <span className="bg-gradient-to-r from-white to-zinc-400 bg-clip-text text-transparent">
+            Administración de Entidades Logísticas
+          </span>
+          <span className="text-[9px] font-mono px-2 py-0.5 rounded bg-zinc-900 text-zinc-400 border border-white/10 tracking-widest uppercase">
+            Control Panel
+          </span>
         </h2>
-        <p className="text-[11px] text-slate-400 font-mono">
+        <p className="text-[11px] text-zinc-400 font-mono">
           Registra y gestiona las empresas, sucursales (geocercas) y vehículos de transporte con telemetría activa.
         </p>
       </div>
@@ -2796,14 +2906,17 @@ function AdminPanel({ apiUrl }: { apiUrl: string }) {
       {/* FEEDBACK STATUS BANNER */}
       {feedback && (
         <div
-          className={`rounded-2xl border px-4 py-3 text-[11px] font-mono flex items-center justify-between shrink-0 shadow-lg ${
+          className={`rounded-2xl border px-4.5 py-3 text-[11px] font-mono flex items-center justify-between shrink-0 shadow-lg z-10 transition-all ${
             feedback.type === "success"
-                ? "border-white/10 bg-white/6 text-white/70"
-                  : "border-white/10 bg-white/6 text-white/70"
+              ? "border-emerald-500/20 bg-emerald-500/5 text-emerald-400"
+              : "border-rose-500/20 bg-rose-500/5 text-rose-400"
           }`}
         >
-          <span>{feedback.message}</span>
-          <button onClick={() => setFeedback(null)} className="text-slate-500 hover:text-white transition cursor-pointer">
+          <div className="flex items-center gap-2">
+            <div className={`w-1.5 h-1.5 rounded-full ${feedback.type === 'success' ? 'bg-emerald-400 animate-ping' : 'bg-rose-400'}`} />
+            <span>{feedback.message}</span>
+          </div>
+          <button onClick={() => setFeedback(null)} className="text-zinc-500 hover:text-zinc-200 transition cursor-pointer">
             <X className="w-3.5 h-3.5" />
           </button>
         </div>
@@ -2813,244 +2926,266 @@ function AdminPanel({ apiUrl }: { apiUrl: string }) {
       <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-6 overflow-hidden min-h-0">
         
         {/* COLUMN 1: EMPRESAS */}
-        <div className="bg-slate-900/30 border border-white/[0.05] hover:border-white/6 rounded-[1.5rem] p-5 flex flex-col gap-4 overflow-hidden shadow-2xl transition-all">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2 border-b border-white/[0.05] pb-3 shrink-0">
-            <Building className="w-4 h-4 text-white/70" />
+        <div className="bg-zinc-950/40 border border-white/[0.06] rounded-2xl p-5 flex flex-col gap-4 overflow-hidden shadow-xl z-10 backdrop-blur-md">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-300 flex items-center gap-2 border-b border-white/[0.04] pb-3 shrink-0">
+            <Building className="w-4 h-4 text-cyan-400" />
             1. Registrar Empresa
           </h3>
 
           <form onSubmit={handleCreateEmpresa} className="flex flex-col gap-3 shrink-0">
             <div className="space-y-1.5">
-              <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">Nombre de Empresa</label>
+              <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">Nombre de Empresa</label>
               <input
                 type="text"
                 required
                 value={empresaNombre}
                 onChange={(e) => setEmpresaNombre(e.target.value)}
                 placeholder="Ej. Exportadora del Norte"
-                className="w-full bg-[#0a0d15] border border-slate-800 rounded-lg px-3 py-2 text-[11px] text-slate-200 outline-none transition focus:border-cyan-500/50"
+                className="w-full bg-zinc-950 border border-white/[0.06] rounded-xl px-3 py-2.5 text-xs text-zinc-200 outline-none transition focus:border-cyan-500/40 focus:ring-1 focus:ring-cyan-500/10 placeholder-zinc-700 font-mono"
               />
             </div>
             <button
               type="submit"
               disabled={isLoading || !empresaNombre.trim()}
-              className="w-full bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-bold rounded-lg py-2 text-[10px] uppercase tracking-wider transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+              className="w-full bg-white hover:bg-zinc-200 text-black font-bold rounded-xl py-2.5 text-[10px] uppercase tracking-wider transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-lg shadow-white/5 active:scale-[0.98]"
             >
               Registrar
             </button>
           </form>
 
           <div className="flex-grow overflow-hidden flex flex-col gap-2 min-h-0">
-            <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider shrink-0 mt-2">Empresas Registradas ({empresas.length})</span>
-            <div className="flex-1 overflow-y-auto no-scrollbar space-y-2 pr-1">
+            <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest shrink-0 mt-2">Empresas ({empresas.length})</span>
+            <div className="flex-1 overflow-y-auto pr-1 space-y-2 scrollbar-thin scrollbar-thumb-white/5 scrollbar-track-transparent">
               {empresas.map((emp) => (
-                <div key={emp.id} className="bg-slate-950/40 border border-white/[0.03] rounded-xl p-3 flex flex-col gap-1 transition hover:border-white/[0.08]">
-                  <p className="text-[11px] font-bold text-white font-mono">{emp.nombre}</p>
-                  <p className="text-[8px] text-slate-600 font-mono truncate">ID: {emp.id}</p>
+                <div key={emp.id} className="bg-zinc-950/60 border border-white/[0.03] rounded-xl p-3.5 flex flex-col gap-1.5 transition duration-200 hover:border-white/10 hover:bg-zinc-900/10">
+                  <p className="text-[11px] font-bold text-zinc-100 font-mono tracking-tight">{emp.nombre}</p>
+                  <p className="text-[8px] text-zinc-600 font-mono truncate tracking-tight">ID: {emp.id}</p>
                 </div>
               ))}
               {empresas.length === 0 && (
-                <p className="text-slate-600 text-[10px] font-mono text-center py-8">Sin empresas registradas.</p>
+                <p className="text-zinc-700 text-[10px] font-mono text-center py-12">Sin empresas registradas.</p>
               )}
             </div>
           </div>
         </div>
 
         {/* COLUMN 2: SUCURSALES */}
-        <div className="bg-slate-900/30 border border-white/[0.05] hover:border-cyan-500/10 rounded-[1.5rem] p-5 flex flex-col gap-4 overflow-hidden shadow-2xl transition-all">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2 border-b border-white/[0.05] pb-3 shrink-0">
-            <MapPin className="w-4 h-4 text-white/70" />
+        <div className="bg-zinc-950/40 border border-white/[0.06] rounded-2xl p-5 flex flex-col gap-4 overflow-hidden shadow-xl z-10 backdrop-blur-md">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-300 flex items-center gap-2 border-b border-white/[0.04] pb-3 shrink-0">
+            <MapPin className="w-4 h-4 text-emerald-400" />
             2. Registrar Sucursal
           </h3>
 
           <form onSubmit={handleCreateSucursal} className="flex flex-col gap-3 shrink-0">
             <div className="space-y-1.5">
-              <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">Empresa</label>
-              <select
-                required
-                value={sucursalEmpresaId}
-                onChange={(e) => setSucursalEmpresaId(e.target.value)}
-                className="w-full bg-[#0a0d15] border border-slate-800 rounded-lg px-3 py-2 text-[11px] text-slate-200 outline-none cursor-pointer transition focus:border-white/20"
-              >
-                <option value="">Selecciona una empresa...</option>
-                {empresas.map((e) => (
-                  <option key={e.id} value={e.id}>{e.nombre}</option>
-                ))}
-              </select>
+              <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">Empresa</label>
+              <div className="relative">
+                <select
+                  required
+                  value={sucursalEmpresaId}
+                  onChange={(e) => setSucursalEmpresaId(e.target.value)}
+                  className="w-full bg-zinc-950 border border-white/[0.06] rounded-xl pl-3 pr-8 py-2.5 text-xs text-zinc-200 outline-none cursor-pointer transition focus:border-emerald-500/40 focus:ring-1 focus:ring-emerald-500/10 appearance-none font-mono"
+                >
+                  <option value="" className="bg-zinc-950 text-zinc-400">Selecciona una empresa...</option>
+                  {empresas.map((e) => (
+                    <option key={e.id} value={e.id} className="bg-zinc-950 text-zinc-200">{e.nombre}</option>
+                  ))}
+                </select>
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-500">
+                  <ChevronDown className="w-3.5 h-3.5" />
+                </div>
+              </div>
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">Nombre de Sucursal</label>
+              <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">Nombre de Sucursal</label>
               <input
                 type="text"
                 required
                 value={sucursalNombre}
                 onChange={(e) => setSucursalNombre(e.target.value)}
-                placeholder="Ej. Centro de Distribución A"
-                className="w-full bg-[#0a0d15] border border-slate-800 rounded-lg px-3 py-2 text-[11px] text-slate-200 outline-none transition focus:border-white/20"
+                placeholder="Ej. CD Querétaro"
+                className="w-full bg-zinc-950 border border-white/[0.06] rounded-xl px-3 py-2.5 text-xs text-zinc-200 outline-none transition focus:border-emerald-500/40 focus:ring-1 focus:ring-emerald-500/10 placeholder-zinc-700 font-mono"
               />
             </div>
 
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1.5">
-                <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">Latitud (GPS)</label>
+                <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">Latitud</label>
                 <input
                   type="number"
                   step="0.000001"
                   required
                   value={sucursalLat}
                   onChange={(e) => setSucursalLat(e.target.value)}
-                  placeholder="Ej. 13.6929"
-                  className="w-full bg-[#0a0d15] border border-slate-800 rounded-lg px-3 py-2 text-[11px] text-slate-200 outline-none transition focus:border-white/20 font-mono"
+                  placeholder="Ej. 20.5888"
+                  className="w-full bg-zinc-950 border border-white/[0.06] rounded-xl px-3 py-2.5 text-xs text-zinc-200 outline-none transition focus:border-emerald-500/40 focus:ring-1 focus:ring-emerald-500/10 placeholder-zinc-700 font-mono"
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">Longitud (GPS)</label>
+                <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">Longitud</label>
                 <input
                   type="number"
                   step="0.000001"
                   required
                   value={sucursalLon}
                   onChange={(e) => setSucursalLon(e.target.value)}
-                  placeholder="Ej. -89.2182"
-                  className="w-full bg-[#0a0d15] border border-slate-800 rounded-lg px-3 py-2 text-[11px] text-slate-200 outline-none transition focus:border-white/20 font-mono"
+                  placeholder="Ej. -100.389"
+                  className="w-full bg-zinc-950 border border-white/[0.06] rounded-xl px-3 py-2.5 text-xs text-zinc-200 outline-none transition focus:border-emerald-500/40 focus:ring-1 focus:ring-emerald-500/10 placeholder-zinc-700 font-mono"
                 />
               </div>
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">Dirección (Opcional)</label>
+              <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">Dirección (Opcional)</label>
               <input
                 type="text"
                 value={sucursalDireccion}
                 onChange={(e) => setSucursalDireccion(e.target.value)}
-                placeholder="Calle 23 oriente, No. 5"
-                className="w-full bg-[#0a0d15] border border-slate-800 rounded-lg px-3 py-2 text-[11px] text-slate-200 outline-none transition focus:border-white/20"
+                placeholder="Industrial CD Qro"
+                className="w-full bg-zinc-950 border border-white/[0.06] rounded-xl px-3 py-2.5 text-xs text-zinc-200 outline-none transition focus:border-emerald-500/40 focus:ring-1 focus:ring-emerald-500/10 placeholder-zinc-700 font-mono"
               />
             </div>
 
             <button
               type="submit"
               disabled={isLoading || !sucursalEmpresaId || !sucursalNombre.trim()}
-              className="w-full bg-black border border-white/10 hover:bg-white/6 text-white font-bold rounded-lg py-2 text-[10px] uppercase tracking-wider transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+              className="w-full bg-white hover:bg-zinc-200 text-black font-bold rounded-xl py-2.5 text-[10px] uppercase tracking-wider transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-lg shadow-white/5 active:scale-[0.98]"
             >
               Registrar
             </button>
           </form>
 
           <div className="flex-grow overflow-hidden flex flex-col gap-2 min-h-0">
-            <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider shrink-0 mt-2">Sucursales ({sucursales.length})</span>
-            <div className="flex-1 overflow-y-auto no-scrollbar space-y-2 pr-1">
+            <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest shrink-0 mt-2">Sucursales ({sucursales.length})</span>
+            <div className="flex-1 overflow-y-auto pr-1 space-y-2 scrollbar-thin scrollbar-thumb-white/5 scrollbar-track-transparent">
               {sucursales.map((suc) => (
-                <div key={suc.id} className="bg-slate-950/40 border border-white/[0.03] rounded-xl p-3 flex flex-col gap-1 transition hover:border-white/[0.08]">
-                  <div className="flex justify-between items-start gap-1">
-                    <p className="text-[11px] font-bold text-white font-mono">{suc.nombre}</p>
-                    <span className="text-[8px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded border border-white/5 font-mono">{suc.empresa_nombre}</span>
+                <div key={suc.id} className="bg-zinc-950/60 border border-white/[0.03] rounded-xl p-3.5 flex flex-col gap-2 transition duration-200 hover:border-white/10 hover:bg-zinc-900/10">
+                  <div className="flex justify-between items-start gap-2">
+                    <p className="text-[11px] font-bold text-zinc-100 font-mono tracking-tight">{suc.nombre}</p>
+                    <span className="text-[8px] bg-zinc-900/80 text-zinc-400 px-2 py-0.5 rounded-full border border-white/5 font-mono truncate max-w-[100px]">{suc.empresa_nombre}</span>
                   </div>
-                  <p className="text-[9px] text-slate-500 font-mono">GPS: {suc.lat}, {suc.lon}</p>
-                  {suc.direccion && <p className="text-[9px] text-slate-500 italic mt-0.5">{suc.direccion}</p>}
+                  <div className="flex flex-col gap-0.5">
+                    <p className="text-[9px] text-zinc-500 font-mono">GPS: {suc.lat}, {suc.lon}</p>
+                    {suc.direccion && <p className="text-[9px] text-zinc-500/80 italic font-mono mt-0.5 truncate">{suc.direccion}</p>}
+                  </div>
                 </div>
               ))}
               {sucursales.length === 0 && (
-                <p className="text-slate-600 text-[10px] font-mono text-center py-8">Sin sucursales registradas.</p>
+                <p className="text-zinc-700 text-[10px] font-mono text-center py-12">Sin sucursales registradas.</p>
               )}
             </div>
           </div>
         </div>
 
         {/* COLUMN 3: VEHÍCULOS / TRANSPORTE */}
-        <div className="bg-slate-900/30 border border-white/[0.05] hover:border-cyan-500/10 rounded-[1.5rem] p-5 flex flex-col gap-4 overflow-hidden shadow-2xl transition-all">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2 border-b border-white/[0.05] pb-3 shrink-0">
-            <Truck className="w-4 h-4 text-purple-400" />
+        <div className="bg-zinc-950/40 border border-white/[0.06] rounded-2xl p-5 flex flex-col gap-4 overflow-hidden shadow-xl z-10 backdrop-blur-md">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-300 flex items-center gap-2 border-b border-white/[0.04] pb-3 shrink-0">
+            <Truck className="w-4 h-4 text-violet-400" />
             3. Registrar Vehículo
           </h3>
 
           <form onSubmit={handleCreateTransporte} className="flex flex-col gap-3 shrink-0">
             <div className="space-y-1.5">
-              <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">Empresa Propietaria</label>
-              <select
-                required
-                value={transporteEmpresaId}
-                onChange={(e) => setTransporteEmpresaId(e.target.value)}
-                className="w-full bg-[#0a0d15] border border-slate-800 rounded-lg px-3 py-2 text-[11px] text-slate-200 outline-none cursor-pointer transition focus:border-purple-500/50"
-              >
-                <option value="">Selecciona una empresa...</option>
-                {empresas.map((e) => (
-                  <option key={e.id} value={e.id}>{e.nombre}</option>
-                ))}
-              </select>
+              <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">Empresa Propietaria</label>
+              <div className="relative">
+                <select
+                  required
+                  value={transporteEmpresaId}
+                  onChange={(e) => setTransporteEmpresaId(e.target.value)}
+                  className="w-full bg-zinc-950 border border-white/[0.06] rounded-xl pl-3 pr-8 py-2.5 text-xs text-zinc-200 outline-none cursor-pointer transition focus:border-violet-500/40 focus:ring-1 focus:ring-violet-500/10 appearance-none font-mono"
+                >
+                  <option value="" className="bg-zinc-950 text-zinc-400">Selecciona una empresa...</option>
+                  {empresas.map((e) => (
+                    <option key={e.id} value={e.id} className="bg-zinc-950 text-zinc-200">{e.nombre}</option>
+                  ))}
+                </select>
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-500">
+                  <ChevronDown className="w-3.5 h-3.5" />
+                </div>
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1.5">
-                <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">Placa (Patente)</label>
+                <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">Placa (Patente)</label>
                 <input
                   type="text"
                   required
                   value={transportePlaca}
                   onChange={(e) => setTransportePlaca(e.target.value)}
-                  placeholder="Ej. P123-456"
-                  className="w-full bg-[#0a0d15] border border-slate-800 rounded-lg px-3 py-2 text-[11px] text-slate-200 outline-none transition focus:border-purple-500/50 font-mono uppercase"
+                  placeholder="Ej. QRO-772"
+                  className="w-full bg-zinc-950 border border-white/[0.06] rounded-xl px-3 py-2.5 text-xs text-zinc-200 outline-none transition focus:border-violet-500/40 focus:ring-1 focus:ring-violet-500/10 placeholder-zinc-700 font-mono uppercase"
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">Capacidad (Kg)</label>
+                <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">Capacidad (Kg)</label>
                 <input
                   type="number"
                   step="0.1"
                   value={transporteCapacidad}
                   onChange={(e) => setTransporteCapacidad(e.target.value)}
-                  placeholder="Ej. 15000"
-                  className="w-full bg-[#0a0d15] border border-slate-800 rounded-lg px-3 py-2 text-[11px] text-slate-200 outline-none transition focus:border-purple-500/50 font-mono"
+                  placeholder="Ej. 18000"
+                  className="w-full bg-zinc-950 border border-white/[0.06] rounded-xl px-3 py-2.5 text-xs text-zinc-200 outline-none transition focus:border-violet-500/40 focus:ring-1 focus:ring-violet-500/10 placeholder-zinc-700 font-mono"
                 />
               </div>
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">Estado Inicial</label>
-              <select
-                required
-                value={transporteEstado}
-                onChange={(e) => setTransporteEstado(e.target.value as "Activo" | "Mantenimiento")}
-                className="w-full bg-[#0a0d15] border border-slate-800 rounded-lg px-3 py-2 text-[11px] text-slate-200 outline-none cursor-pointer transition focus:border-purple-500/50"
-              >
-                <option value="Activo">Activo</option>
-                <option value="Mantenimiento">Mantenimiento</option>
-              </select>
+              <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">Estado Inicial</label>
+              <div className="relative">
+                <select
+                  required
+                  value={transporteEstado}
+                  onChange={(e) => setTransporteEstado(e.target.value as "Activo" | "Mantenimiento")}
+                  className="w-full bg-zinc-950 border border-white/[0.06] rounded-xl pl-3 pr-8 py-2.5 text-xs text-zinc-200 outline-none cursor-pointer transition focus:border-violet-500/40 focus:ring-1 focus:ring-violet-500/10 appearance-none font-mono"
+                >
+                  <option value="Activo" className="bg-zinc-950 text-zinc-200">Activo</option>
+                  <option value="Mantenimiento" className="bg-zinc-950 text-zinc-200">Mantenimiento</option>
+                </select>
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-500">
+                  <ChevronDown className="w-3.5 h-3.5" />
+                </div>
+              </div>
             </div>
 
             <button
               type="submit"
               disabled={isLoading || !transporteEmpresaId || !transportePlaca.trim()}
-              className="w-full bg-purple-600 hover:bg-purple-500 text-slate-950 font-bold rounded-lg py-2 text-[10px] uppercase tracking-wider transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+              className="w-full bg-white hover:bg-zinc-200 text-black font-bold rounded-xl py-2.5 text-[10px] uppercase tracking-wider transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-lg shadow-white/5 active:scale-[0.98]"
             >
               Registrar
             </button>
           </form>
 
           <div className="flex-grow overflow-hidden flex flex-col gap-2 min-h-0">
-            <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider shrink-0 mt-2">Vehículos & Dispositivos IoT ({transportes.length})</span>
-            <div className="flex-1 overflow-y-auto no-scrollbar space-y-2 pr-1">
+            <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest shrink-0 mt-2">Vehículos & IoT ({transportes.length})</span>
+            <div className="flex-1 overflow-y-auto pr-1 space-y-2 scrollbar-thin scrollbar-thumb-white/5 scrollbar-track-transparent">
               {transportes.map((trans) => {
                 const owner = empresas.find(e => e.id === trans.empresa_id);
                 return (
-                  <div key={trans.id} className="bg-slate-950/40 border border-white/[0.03] rounded-xl p-3 flex flex-col gap-1 transition hover:border-white/[0.08]">
-                    <div className="flex justify-between items-start gap-1">
-                      <p className="text-[11px] font-bold text-white font-mono">{trans.placa}</p>
-                      <span className={`text-[8px] px-1.5 py-0.5 rounded border font-mono ${
-                          trans.estado === "Activo" 
-                            ? "bg-black border border-white/10 text-white"
-                            : "bg-black border border-white/10 text-white"
-                          }`}>{trans.estado}</span>
+                  <div key={trans.id} className="bg-zinc-950/60 border border-white/[0.03] rounded-xl p-3.5 flex flex-col gap-2 transition duration-200 hover:border-white/10 hover:bg-zinc-900/10">
+                    <div className="flex justify-between items-center gap-2">
+                      <p className="text-[11px] font-bold text-zinc-100 font-mono tracking-tight">{trans.placa}</p>
+                      <span className={`inline-flex items-center gap-1.5 text-[8px] px-2 py-0.5 rounded-full border font-mono ${
+                        trans.estado === "Activo" 
+                          ? "bg-emerald-500/5 border-emerald-500/20 text-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.05)]"
+                          : "bg-amber-500/5 border-amber-500/20 text-amber-400 shadow-[0_0_8px_rgba(245,158,11,0.05)]"
+                      }`}>
+                        <span className={`w-1 h-1 rounded-full ${trans.estado === 'Activo' ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
+                        {trans.estado}
+                      </span>
                     </div>
-                    {owner && <p className="text-[9px] text-slate-500 font-mono">Empresa: {owner.nombre}</p>}
-                    <p className="text-[8px] text-slate-600 font-mono truncate">IoT Link: {trans.iot_id}</p>
-                    {trans.capacidad && <p className="text-[9px] text-slate-500 font-mono">Capacidad: {Number(trans.capacidad).toLocaleString()} Kg</p>}
+                    <div className="flex flex-col gap-0.5">
+                      {owner && <p className="text-[9px] text-zinc-500 font-mono">Empresa: {owner.nombre}</p>}
+                      <p className="text-[8px] text-zinc-600 font-mono truncate">IoT Link: <span className="text-zinc-500 bg-zinc-950 px-1 py-0.5 border border-white/[0.02] rounded font-mono text-[7px]">{trans.iot_id}</span></p>
+                      {trans.capacidad && <p className="text-[9px] text-zinc-500 font-mono">Capacidad: {Number(trans.capacidad).toLocaleString()} Kg</p>}
+                    </div>
                   </div>
                 );
               })}
               {transportes.length === 0 && (
-                <p className="text-slate-600 text-[10px] font-mono text-center py-8">Sin vehículos registrados.</p>
+                <p className="text-zinc-700 text-[10px] font-mono text-center py-12">Sin vehículos registrados.</p>
               )}
             </div>
           </div>

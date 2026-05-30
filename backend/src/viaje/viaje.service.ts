@@ -335,15 +335,19 @@ export class ViajeService {
         v.auditoria_ia,
         v.sucursal_origen_id,
         v.sucursal_destino_id,
+        t.placa AS transporte_placa,
         so.nombre AS origen_sucursal_nombre,
+        so.nombre AS origen_nombre,
         so.lat AS origen_lat,
         so.lon AS origen_lon,
         eo.nombre AS origen_empresa_nombre,
         sd.nombre AS destino_sucursal_nombre,
+        sd.nombre AS destino_nombre,
         sd.lat AS destino_lat,
         sd.lon AS destino_lon,
         ed.nombre AS destino_empresa_nombre
       FROM viaje v
+      LEFT JOIN transporte t ON t.id = v.transporte_id
       LEFT JOIN sucursal so ON so.id = v.sucursal_origen_id
       LEFT JOIN empresa eo ON eo.id = so.empresa_id
       LEFT JOIN sucursal sd ON sd.id = v.sucursal_destino_id
@@ -376,15 +380,19 @@ export class ViajeService {
         v.auditoria_ia,
         v.sucursal_origen_id,
         v.sucursal_destino_id,
+        t.placa AS transporte_placa,
         so.nombre AS origen_sucursal_nombre,
+        so.nombre AS origen_nombre,
         so.lat AS origen_lat,
         so.lon AS origen_lon,
         eo.nombre AS origen_empresa_nombre,
         sd.nombre AS destino_sucursal_nombre,
+        sd.nombre AS destino_nombre,
         sd.lat AS destino_lat,
         sd.lon AS destino_lon,
         ed.nombre AS destino_empresa_nombre
       FROM viaje v
+      LEFT JOIN transporte t ON t.id = v.transporte_id
       LEFT JOIN sucursal so ON so.id = v.sucursal_origen_id
       LEFT JOIN empresa eo ON eo.id = so.empresa_id
       LEFT JOIN sucursal sd ON sd.id = v.sucursal_destino_id
@@ -420,15 +428,19 @@ export class ViajeService {
         v.auditoria_ia,
         v.sucursal_origen_id,
         v.sucursal_destino_id,
+        t.placa AS transporte_placa,
         so.nombre AS origen_sucursal_nombre,
+        so.nombre AS origen_nombre,
         so.lat AS origen_lat,
         so.lon AS origen_lon,
         eo.nombre AS origen_empresa_nombre,
         sd.nombre AS destino_sucursal_nombre,
+        sd.nombre AS destino_nombre,
         sd.lat AS destino_lat,
         sd.lon AS destino_lon,
         ed.nombre AS destino_empresa_nombre
       FROM viaje v
+      LEFT JOIN transporte t ON t.id = v.transporte_id
       LEFT JOIN sucursal so ON so.id = v.sucursal_origen_id
       LEFT JOIN empresa eo ON eo.id = so.empresa_id
       LEFT JOIN sucursal sd ON sd.id = v.sucursal_destino_id

@@ -3,8 +3,8 @@
 @import "tailwindcss";
 
 :root {
-  --background: #020408;
-  --foreground: #e2e8f0;
+  --background: #000000;
+  --foreground: #ededed;
 }
 
 @theme inline {
@@ -12,17 +12,36 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --color-black: #09090b;
 }
 
 body {
   background:
-    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(34, 211, 238, 0.06), transparent),
-    radial-gradient(ellipse 60% 40% at 80% 100%, rgba(99, 102, 241, 0.05), transparent),
+    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(255, 255, 255, 0.05), transparent),
+    radial-gradient(ellipse 60% 40% at 80% 100%, rgba(255, 255, 255, 0.01), transparent),
     var(--background);
   color: var(--foreground);
   font-family: var(--font-geist-sans), 'Inter', sans-serif;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
+  position: relative;
+}
+
+body::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 600px;
+  background-image: 
+    linear-gradient(to right, rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+  background-size: 32px 32px;
+  mask-image: radial-gradient(ellipse 50% 50% at 50% 0%, black, transparent);
+  -webkit-mask-image: radial-gradient(ellipse 50% 50% at 50% 0%, black, transparent);
+  pointer-events: none;
+  z-index: 0;
 }
 
 * {
@@ -110,12 +129,12 @@ textarea {
   }
 
   /* Design tokens */
-  .bg-app-main { background-color: #020408; }
-  .bg-app-panel { background-color: rgba(15, 23, 42, 0.4); }
-  .border-app { border-color: rgba(255, 255, 255, 0.05); }
-  .text-app-primary { color: #f1f5f9; }
-  .text-app-secondary { color: #94a3b8; }
-  .text-app-accent { color: #22d3ee; }
+  .bg-app-main { background-color: #08080a; }
+  .bg-app-panel { background-color: rgba(18, 18, 22, 0.75); backdrop-filter: blur(12px); }
+  .border-app { border-color: rgba(255, 255, 255, 0.08); }
+  .text-app-primary { color: #ffffff; }
+  .text-app-secondary { color: #88888f; }
+  .text-app-accent { color: #38bdf8; }
 
   /* Form controls */
   .form-input {
@@ -163,5 +182,33 @@ textarea {
   .form-select option {
     background-color: #0f1923;
     color: #e2e8f0;
+  }
+
+  /* Custom scrollbar Vercel-style */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 9999px;
+    transition: background-color 0.2s ease;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.2);
+  }
+
+  /* Vercel-style card hover glow & border transition */
+  aside, .bg-black.border, .border-white\/\[0\.08\], .border-white\/10 {
+    transition: border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  }
+  
+  aside:hover, .bg-black.border:hover, .border-white\/\[0\.08\]:hover, .border-white\/10:hover {
+    border-color: rgba(255, 255, 255, 0.16) !important;
+    background-color: rgba(14, 14, 17, 0.95) !important;
+    box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.7);
   }
 }
