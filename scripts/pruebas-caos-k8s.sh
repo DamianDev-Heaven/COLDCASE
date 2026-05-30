@@ -12,6 +12,12 @@
 
 set -euo pipefail
 
+# Detectar y priorizar el binario de kubectl en la raíz del proyecto
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+if [ -f "${PROJECT_ROOT}/kubectl" ]; then
+    export PATH="${PROJECT_ROOT}:${PATH}"
+fi
+
 # Configuración del Entorno
 NAMESPACE="coldcase"
 GREEN='\033[0;32m'
@@ -184,4 +190,30 @@ mostrar_menu() {
 
 # --- Flujo de Ejecución ---
 check_connection
-mostrar_menu
+
+if [ $# -gt 0 ]; then
+    case "$1" in
+        --backend|1)
+            prueba_caida_backend
+            ;;
+        --db|2)
+            prueba_apagado_db
+            ;;
+        --buffer|3)
+            prueba_buffer_offline
+            ;;
+        --all|4)
+            log_info "Iniciando prueba masiva de resiliencia de datos..."
+            prueba_caida_backend || true
+            prueba_apagado_db || true
+            prueba_buffer_offline || true
+            log_success "¡Prueba completa de Chaos e inyección de fallos finalizada!"
+            ;;
+        *)
+            echo "Uso: $0 [--backend | --db | --buffer | --all]"
+            exit 1
+            ;;
+    esac
+else
+    mostrar_menu
+fi

@@ -68,7 +68,11 @@ export class TemperatureAnomalyDetector implements AnomalyDetector {
           [newIncident.id, payload.temp],
         );
 
-        return { incidente: newIncident, encolarIa: true, incidenteParaIa: newIncident };
+        return {
+          incidente: newIncident,
+          encolarIa: true,
+          incidenteParaIa: newIncident,
+        };
       } else {
         // Caso Alta + Activa: Registrar nuevo evento de pico si supera el pico actual
         const currentPico = Number(activeIncident.valor_pico);

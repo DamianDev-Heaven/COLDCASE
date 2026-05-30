@@ -95,7 +95,11 @@ export class RouteDeviationDetector implements AnomalyDetector {
             [newIncident.id, desvioMetros],
           );
 
-          return { incidente: newIncident, encolarIa: true, incidenteParaIa: newIncident };
+          return {
+            incidente: newIncident,
+            encolarIa: true,
+            incidenteParaIa: newIncident,
+          };
         } else {
           // Caso Fuera de Ruta + Activo: Registrar nuevo pico si supera el pico actual
           const currentPico = Number(activeIncident.valor_pico);
