@@ -36,3 +36,6 @@ logs/
 # Local temp files
 .tmp/
 .temp/
+
+# Delivery documents
+ENTREGA_PROYECTO.md
