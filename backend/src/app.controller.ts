@@ -58,4 +58,40 @@ export class AppController {
       redis: redisStatus,
     };
   }
+
+  @Get('health/osrm')
+  async getOsrmHealth() {
+    let osrmStatus = 'down';
+    const osrmBaseUrl = process.env.OSRM_BASE_URL || 'http://localhost:5000';
+
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 2000); // 2 seconds timeout
+      const res = await fetch(`${osrmBaseUrl}/route/v1/driving/-89.2182,13.6929;-89.2045,13.7001?overview=false`, {
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+
+      if (res.ok) {
+        const body = await res.json() as any;
+        if (body.code === 'Ok') {
+          osrmStatus = 'ok';
+        }
+      }
+    } catch (err) {
+      this.logger.error('OSRM health check failed', err);
+    }
+
+    if (osrmStatus !== 'ok') {
+      throw new ServiceUnavailableException({
+        status: 'down',
+        osrm: osrmStatus,
+      });
+    }
+
+    return {
+      status: 'ok',
+      osrm: osrmStatus,
+    };
+  }
 }
