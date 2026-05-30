@@ -248,7 +248,7 @@ export default function RouteMap({
         }
 
         const isBatteryCritical = lastTele.bateria != null && lastTele.bateria <= 5;
-        const iconColor = "bg-black border-white/10 shadow-none";
+        const iconColor = isBatteryCritical ? "bg-rose-600 border-white/10 shadow-none" : "bg-black border-white/10 shadow-none";
         
         const truckIcon = leaflet.divIcon({
           html: `<div class="relative flex h-6 w-6 items-center justify-center rounded-full ${iconColor} animate-pulse">
