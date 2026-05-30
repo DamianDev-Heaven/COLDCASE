@@ -81,6 +81,7 @@ function saveState() {
 				gateOpenTicks: state.gateOpenTicks,
 				history: state.history,
 				offlineBuffer: state.offlineBuffer || [],
+				deviceDead: !!state.deviceDead,
 			}))
 		};
 		const dir = path.dirname(STATE_FILE_PATH);
@@ -135,6 +136,7 @@ function loadState() {
 						history: sim.history || [],
 						routePoints: [],
 						offlineBuffer: sim.offlineBuffer || [],
+						deviceDead: !!sim.deviceDead,
 					});
 				}
 			}
@@ -178,6 +180,7 @@ function serializeState() {
 		routeDeviated: !!state.routeDeviated,
 		gateOpenTicks: state.gateOpenTicks || 0,
 		offlineBufferLength: (state.offlineBuffer || []).length,
+		deviceDead: !!state.deviceDead,
 	}));
 
 	return {
@@ -258,6 +261,38 @@ async function tickSimulation() {
 	const trips = await syncActiveTrips({ log: false });
 	const ticks = trips.map(async (viaje) => {
 		const state = ensureTripState(viaje, simulationMap);
+
+		// Si el dispositivo está sin batería (apagado permanente), avanzar ruta en modo "sin señal"
+		if (state.deviceDead) {
+			state.status = 'alerta';
+			state.lastError = 'Dispositivo apagado: batería agotada (0%).';
+			runtimeState.lastError = state.lastError;
+			logEvent('warn', `Simulador: Sensor apagado permanentemente (Batería 0%) en viaje ${viaje.id}. Sin señal.`, viaje.id);
+
+			const reachedEnd = advanceRouteState(state, runtimeState);
+			if (reachedEnd) {
+				logEvent('info', `Simulador: Viaje ${viaje.id} completó su ruta (sin señal por batería 0%).`, viaje.id);
+				try {
+					const finalizeRes = await fetch(`${API_URL}/viaje/${viaje.id}/finalizar`, {
+						method: 'PATCH',
+						headers: { 'Content-Type': 'application/json' }
+					});
+					if (finalizeRes.ok) {
+						logEvent('success', `Simulador: Viaje ${viaje.id} finalizado exitosamente en el backend (destinatario).`, viaje.id);
+					} else {
+						logEvent('error', `Simulador: Error al finalizar viaje ${viaje.id} (${finalizeRes.status}).`, viaje.id);
+					}
+				} catch (finalizeErr) {
+					logEvent('error', `Simulador: Error de red al finalizar viaje ${viaje.id}: ${finalizeErr.message}`, viaje.id);
+				}
+				simulationMap.delete(viaje.id);
+				if (runtimeState.selectedTripId === viaje.id) {
+					runtimeState.selectedTripId = null;
+				}
+			}
+			return;
+		}
+
 		const sample = buildSample(viaje, state, runtimeState, logEvent);
 
 		// Si el enlace de sensores IoT está caído (pérdida de señal), guardar en buffer local

@@ -1343,13 +1343,27 @@ function renderDashboardPage() {
 				fillOpacity: 1,
 			}).bindTooltip('Destino', { sticky: true }).addTo(leafletLayer);
 
+			const isDeviated = !!simulation?.routeDeviated;
 			window.L.circleMarker([progressPoint.lat, progressPoint.lon], {
 				radius: currentStatus === 'alerta' ? 12 : 9,
-				color: currentStatus === 'alerta' ? '#ef4444' : '#4cc9f0',
+				color: currentStatus === 'alerta' ? '#ef4444' : isDeviated ? '#f59e0b' : '#4cc9f0',
 				weight: 4,
 				fillColor: '#020617',
 				fillOpacity: 1,
-			}).bindTooltip(currentStatus === 'alerta' ? 'Alerta térmica' : 'Posición actual', { sticky: true }).addTo(leafletLayer);
+			}).bindTooltip(
+				currentStatus === 'alerta' ? 'Alerta térmica' : isDeviated ? '⚠ Desvío GPS activo' : 'Posición actual',
+				{ sticky: true }
+			).addTo(leafletLayer);
+
+			if (isDeviated) {
+				window.L.circleMarker([progressPoint.lat, progressPoint.lon], {
+					radius: 22,
+					color: '#f59e0b',
+					weight: 2,
+					fillColor: '#f59e0b',
+					fillOpacity: 0.12,
+				}).addTo(leafletLayer);
+			}
 
 			alerts.forEach((alert) => {
 				const isTempAlert = alert.kind === 'temp';
@@ -1707,6 +1721,9 @@ function renderDashboardPage() {
 			if (state.iotFailure) {
 				selectedSubtitle.textContent += ' · ENLACE IoT SIN SEÑAL';
 			}
+			if (simulation?.routeDeviated) {
+				selectedSubtitle.textContent += ' · ⚠ DESVÍO GPS ACTIVO';
+			}
 			tempNow.textContent = formatNumber(simulation?.lastPayload?.temp ?? interp.latestTelemetry?.temp);
 			humidityNow.textContent = formatNumber(simulation?.lastPayload?.humedad ?? interp.latestTelemetry?.humedad);
 			batteryNow.textContent = formatNumber(simulation?.lastPayload?.bateria ?? interp.latestTelemetry?.bateria, 0);
@@ -1731,7 +1748,8 @@ function renderDashboardPage() {
 			}
 
 
-			if (renderedMapTripId !== viaje.id) {
+			const mapAlreadyHasShell = !!mapWrap.querySelector('.map-shell');
+			if (renderedMapTripId !== viaje.id || (!mapAlreadyHasShell && getRoutePoints(detail).length >= 2)) {
 				mapWrap.innerHTML = renderMap(detail, simulation);
 				renderedMapTripId = viaje.id;
 			}

@@ -2168,6 +2168,28 @@ function GraphExplorer({
   const [hasSearched, setHasSearched] = useState(false);
   const [filterByTrip, setFilterByTrip] = useState(!!selectedTripId);
 
+  // Restaurar estado del grafo desde localStorage al montar el componente (sólo lado del cliente)
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const savedQuery = localStorage.getItem("zep_query");
+      const savedSintesis = localStorage.getItem("zep_sintesis");
+      const savedNodes = localStorage.getItem("zep_nodes");
+      const savedEdges = localStorage.getItem("zep_edges");
+
+      if (savedQuery) setQuery(savedQuery);
+      if (savedSintesis) setSintesis(savedSintesis);
+      if (savedNodes) {
+        try { setNodes(JSON.parse(savedNodes)); } catch (e) {}
+      }
+      if (savedEdges) {
+        try { setEdges(JSON.parse(savedEdges)); } catch (e) {}
+      }
+      if (savedQuery || savedSintesis) {
+        setHasSearched(true);
+      }
+    }
+  }, []);
+
   useEffect(() => {
     const timer = setTimeout(() => {
       setFilterByTrip(!!selectedTripId);
@@ -2176,11 +2198,15 @@ function GraphExplorer({
   }, [selectedTripId]);
 
   const handleSearch = async (searchTerm: string) => {
+    // Salvaguarda crítica: Evitar búsquedas vacías o con espacios en blanco
+    if (!searchTerm || !searchTerm.trim()) {
+      return;
+    }
     setIsLoading(true);
     setHasSearched(true);
     setSintesis("");
     try {
-      const bodyPayload: { query: string; viajeId?: string } = { query: searchTerm };
+      const bodyPayload: { query: string; viajeId?: string } = { query: searchTerm.trim() };
       if (filterByTrip && selectedTripId) {
         bodyPayload.viajeId = selectedTripId;
       }
@@ -2194,6 +2220,14 @@ function GraphExplorer({
         setNodes(data.nodes || []);
         setEdges(data.edges || []);
         setSintesis(data.sintesis || "");
+
+        // Persistir en localStorage para resiliencia frente a recargas (F5)
+        if (typeof window !== "undefined") {
+          localStorage.setItem("zep_query", searchTerm.trim());
+          localStorage.setItem("zep_sintesis", data.sintesis || "");
+          localStorage.setItem("zep_nodes", JSON.stringify(data.nodes || []));
+          localStorage.setItem("zep_edges", JSON.stringify(data.edges || []));
+        }
       }
     } catch (err) {
       console.error("Error al buscar en el grafo de Zep:", err);
@@ -2203,6 +2237,7 @@ function GraphExplorer({
   };
 
   const quickSearch = (term: string) => {
+    if (!term || !term.trim()) return;
     setQuery(term);
     handleSearch(term);
   };

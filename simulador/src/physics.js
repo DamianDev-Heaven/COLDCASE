@@ -63,6 +63,7 @@ function createTripState(viaje) {
 		routeDeviated: false,
 		gateOpenTicks: 0,
 		offlineBuffer: [],
+		deviceDead: false,
 	};
 }
 
@@ -80,6 +81,9 @@ function ensureTripState(viaje, simulationMap) {
 	existingState.backendEstado = viaje.estado || existingState.backendEstado || 'pendiente';
 	if (!existingState.status) {
 		existingState.status = 'activo';
+	}
+	if (existingState.deviceDead === undefined) {
+		existingState.deviceDead = false;
 	}
 	return existingState;
 }
@@ -212,6 +216,9 @@ function buildSample(viaje, state, runtimeState, logEvent) {
 	}
 
 	state.battery = battery;
+	if (battery === 0) {
+		state.deviceDead = true;
+	}
 	state.telemetryCount += 1;
 	state.lastTelemetryAt = new Date().toISOString();
 	state.lastPayload = {
