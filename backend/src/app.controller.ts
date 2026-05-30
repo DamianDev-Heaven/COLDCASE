@@ -98,11 +98,12 @@ export class AppController {
     };
   }
 
-  
   @Get('monitoring/coldchain')
   async getColdChainMonitoring() {
     let database = false;
     let redis = false;
+    let osrm = false;
+    const osrmBaseUrl = process.env.OSRM_BASE_URL || 'http://localhost:5000';
 
     try {
       await this.db.query('SELECT 1');
@@ -114,19 +115,53 @@ export class AppController {
     try {
       await this.iaQueue.isPaused();
       redis = true;
-    } catch {
-      //
+    } catch (err) {
+      this.logger.error('Redis monitoring check failed', err);
+    }
+
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 2000);
+      const res = await fetch(
+        `${osrmBaseUrl}/route/v1/driving/-89.2182,13.6929;-89.2045,13.7001?overview=false`,
+        {
+          signal: controller.signal,
+        },
+      );
+      clearTimeout(timeoutId);
+
+      if (res.ok) {
+        const body = (await res.json()) as { code?: string };
+        if (body.code === 'Ok') {
+          osrm = true;
+        }
+      }
+    } catch (err) {
+      this.logger.error('OSRM monitoring check failed', err);
+    }
+
+    if (!database || !redis || !osrm) {
+      throw new ServiceUnavailableException({
+        status: 'degraded',
+        infrastructure: {
+          backend: true,
+          database,
+          redis,
+          osrm,
+        },
+        timestamp: new Date(),
+      });
     }
 
     return {
-      status: database && redis ? 'ok' : 'degraded',
+      status: 'ok',
       infrastructure: {
         backend: true,
         database,
         redis,
+        osrm,
       },
       timestamp: new Date(),
     };
   }
-
 }
