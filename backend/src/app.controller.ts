@@ -107,8 +107,8 @@ export class AppController {
     try {
       await this.db.query('SELECT 1');
       database = true;
-    } catch {
-      //
+    } catch (err) {
+      this.logger.error('Database monitoring check failed', err);
     }
 
     try {
