@@ -799,8 +799,12 @@ export class IaAnalysisService {
     ];
 
     if (telemetry.incidente_id) {
-      const isTemp = telemetry.tipo_alerta === 'TEMP_ALTA' || telemetry.tipo_alerta === 'TEMP_BAJA';
-      const label = telemetry.tipo_alerta ? `[ALERTA DETECTADA: ${telemetry.tipo_alerta}]` : `[DETALLES DEL INCIDENTE]`;
+      const isTemp =
+        telemetry.tipo_alerta === 'TEMP_ALTA' ||
+        telemetry.tipo_alerta === 'TEMP_BAJA';
+      const label = telemetry.tipo_alerta
+        ? `[ALERTA DETECTADA: ${telemetry.tipo_alerta}]`
+        : `[DETALLES DEL INCIDENTE]`;
       partes.push(
         label,
         `Incidente ID: ${this.formatUuidForSemantic(telemetry.incidente_id)}`,
@@ -808,7 +812,7 @@ export class IaAnalysisService {
       if (isTemp || !telemetry.tipo_alerta) {
         partes.push(
           `Temperatura Pico: ${telemetry.valor_pico ?? temp}°C`,
-          `Umbral Permitido: ${telemetry.umbral_permitido ?? limiteMax}°C`
+          `Umbral Permitido: ${telemetry.umbral_permitido ?? limiteMax}°C`,
         );
       } else {
         partes.push(`Valor Registrado: ${telemetry.valor_pico ?? 'N/A'}`);
@@ -816,7 +820,9 @@ export class IaAnalysisService {
           partes.push(`Referencia/Límite: ${telemetry.umbral_permitido}`);
         }
       }
-      partes.push(`Duración del evento: ${telemetry.duracion_segundos ?? 'N/A'} segundos`);
+      partes.push(
+        `Duración del evento: ${telemetry.duracion_segundos ?? 'N/A'} segundos`,
+      );
     }
 
     return partes.join('\n');
@@ -1145,7 +1151,8 @@ export class IaAnalysisService {
       (r) => r.tipo_alerta === 'APERTURA_NO_AUTORIZADA',
     );
     const incidentesDeBateria = incidentRows.rows.filter(
-      (r) => r.tipo_alerta === 'BATERIA_BAJA' || r.tipo_alerta === 'BATERIA_AGOTADA',
+      (r) =>
+        r.tipo_alerta === 'BATERIA_BAJA' || r.tipo_alerta === 'BATERIA_AGOTADA',
     );
 
     const alertasPartes: string[] = [];
@@ -1172,7 +1179,8 @@ export class IaAnalysisService {
     if (alertasPartes.length > 0) {
       desgloseAlertas = `Se registraron ${incidentRows.rows.length} anomalías durante el trayecto (${alertasPartes.join(', ')}).`;
     } else {
-      desgloseAlertas = 'No se registraron alertas ni anomalías operativas durante el recorrido.';
+      desgloseAlertas =
+        'No se registraron alertas ni anomalías operativas durante el recorrido.';
     }
 
     let maxRiesgo = 'bajo';
@@ -1387,16 +1395,19 @@ Tu respuesta debe:
       this.logger.error(`Error al sintetizar hechos de grafo: ${message}`);
 
       let fallbackNodes: any[] = [];
-      let fallbackEdges: any[] = [];
+      let fallbackEdges: { fact?: string; type?: string; name?: string }[] = [];
       try {
         const results = await this.buscarEnGrafoGlobal(query, viajeId);
         fallbackNodes = results.nodes || [];
         fallbackEdges = results.edges || [];
       } catch (e) {
-        this.logger.warn(`Fallo secundario obteniendo fallback de Zep: ${e instanceof Error ? e.message : String(e)}`);
+        this.logger.warn(
+          `Fallo secundario obteniendo fallback de Zep: ${e instanceof Error ? e.message : String(e)}`,
+        );
       }
 
-      const isRateLimit = message.includes('429') || message.toLowerCase().includes('rate limit');
+      const isRateLimit =
+        message.includes('429') || message.toLowerCase().includes('rate limit');
       const errorMsg = isRateLimit
         ? '⚠️ Se ha excedido la cuota diaria (Rate Limit 429) de la API de Groq. La síntesis narrativa de IA no está disponible temporalmente, pero puedes explorar los nodos y relaciones recuperados de Zep en el panel de la derecha.'
         : `⚠️ Error de síntesis de IA (${message}). Mostrando relaciones en bruto de Zep a continuación.`;
@@ -1404,7 +1415,9 @@ Tu respuesta debe:
       const fallbackSintesis =
         `${errorMsg}\n\n=== HECHOS EN BRUTO DEL GRAFO DE ZEP ===\n` +
         (fallbackEdges.length > 0
-          ? fallbackEdges.map((e) => `- ${e.fact || e.type || 'Relación'}`).join('\n')
+          ? fallbackEdges
+              .map((e) => `- ${e.fact || e.type || 'Relación'}`)
+              .join('\n')
           : 'No se encontraron hechos semánticos.');
 
       return {

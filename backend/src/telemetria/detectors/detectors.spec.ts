@@ -242,7 +242,11 @@ describe('Detectors de Anomalías de Telemetría', () => {
         client,
       );
 
-      expect(result).toEqual({ incidente: mockIncident });
+      expect(result).toEqual({
+        incidente: mockIncident,
+        encolarIa: true,
+        incidenteParaIa: mockIncident,
+      });
       expect(mockIncidenteService.create).toHaveBeenCalledWith(
         expect.objectContaining({
           viaje_id: 'v-1',

@@ -2176,17 +2176,27 @@ function GraphExplorer({
       const savedNodes = localStorage.getItem("zep_nodes");
       const savedEdges = localStorage.getItem("zep_edges");
 
-      if (savedQuery) setQuery(savedQuery);
-      if (savedSintesis) setSintesis(savedSintesis);
-      if (savedNodes) {
-        try { setNodes(JSON.parse(savedNodes)); } catch (e) {}
-      }
-      if (savedEdges) {
-        try { setEdges(JSON.parse(savedEdges)); } catch (e) {}
-      }
-      if (savedQuery || savedSintesis) {
-        setHasSearched(true);
-      }
+      setTimeout(() => {
+        if (savedQuery) setQuery(savedQuery);
+        if (savedSintesis) setSintesis(savedSintesis);
+        if (savedNodes) {
+          try {
+            setNodes(JSON.parse(savedNodes));
+          } catch {
+            // Fallback silencioso
+          }
+        }
+        if (savedEdges) {
+          try {
+            setEdges(JSON.parse(savedEdges));
+          } catch {
+            // Fallback silencioso
+          }
+        }
+        if (savedQuery || savedSintesis) {
+          setHasSearched(true);
+        }
+      }, 0);
     }
   }, []);
 
