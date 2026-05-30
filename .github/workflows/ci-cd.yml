@@ -173,8 +173,8 @@ jobs:
         run: |
           kubectl rollout restart deployment/backend deployment/frontend deployment/simulador deployment/osrm -n coldcase
           
-          # Esperar con un timeout de 90 segundos para el backend
-          if ! kubectl rollout status deployment/backend -n coldcase --timeout=90s; then
+          # Esperar con un timeout de 180 segundos para el backend
+          if ! kubectl rollout status deployment/backend -n coldcase --timeout=180s; then
             echo "=== DIAGNÓSTICOS DEL CLÚSTER (BACKEND FALLIDO) ==="
             echo "--- PODS ---"
             kubectl get pods -n coldcase
@@ -189,8 +189,8 @@ jobs:
             exit 1
           fi
           
-          # Esperar con un timeout de 90 segundos para el frontend
-          if ! kubectl rollout status deployment/frontend -n coldcase --timeout=90s; then
+          # Esperar con un timeout de 180 segundos para el frontend
+          if ! kubectl rollout status deployment/frontend -n coldcase --timeout=180s; then
             echo "=== DIAGNÓSTICOS DEL CLÚSTER (FRONTEND FALLIDO) ==="
             kubectl get pods -n coldcase
             kubectl describe pods -l app=frontend -n coldcase
