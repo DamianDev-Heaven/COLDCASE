@@ -28,6 +28,8 @@ metadata:
   name: simulador
   namespace: coldcase
 spec:
+  strategy:
+    type: Recreate
   replicas: 1
   selector:
     matchLabels:
