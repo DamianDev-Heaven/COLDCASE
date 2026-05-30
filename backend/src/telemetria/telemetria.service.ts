@@ -239,7 +239,7 @@ export class TelemetriaService {
       let encolarIa = false;
       let incidenteParaIa: IncidenteRow | null = null;
 
-      // 3. Evaluar anomalías usando detectores en cadena de responsabilidad
+      // 3. Evaluar anomalías usando detectores en cadena
       const detectors = [
         this.tempDetector,
         this.batteryDetector,
@@ -256,14 +256,15 @@ export class TelemetriaService {
           client,
         );
         if (result && result.incidente) {
-          incidente = result.incidente as IncidenteRow;
+          if (!incidente) {
+            incidente = result.incidente as IncidenteRow;
+          }
           if (result.encolarIa) {
             encolarIa = true;
           }
           if (result.incidenteParaIa) {
             incidenteParaIa = result.incidenteParaIa as IncidenteRow;
           }
-          break;
         }
       }
 

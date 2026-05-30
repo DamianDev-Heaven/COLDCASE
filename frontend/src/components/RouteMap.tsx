@@ -147,9 +147,9 @@ export default function RouteMap({
       const marker = leaflet
         .circleMarker([point.lat, point.lon], {
           radius: 7,
-          color: "#67e8f9",
-          weight: 3,
-          fillColor: "#0f172a",
+          color: "#9ca3af",
+          weight: 2,
+          fillColor: "#000000",
           fillOpacity: 1,
         })
         .addTo(layerRef.current!);
@@ -157,19 +157,14 @@ export default function RouteMap({
     });
 
     (incidentMarkers ?? []).forEach((incidentMarker) => {
-      const accentColor =
-        incidentMarker.accent === "amber"
-          ? "#f59e0b"
-          : incidentMarker.accent === "cyan"
-            ? "#22d3ee"
-            : "#f43f5e";
+      const accentColor = "#ffffff";
 
       const marker = leaflet
         .circleMarker([incidentMarker.lat, incidentMarker.lon], {
           radius: 9,
           color: accentColor,
-          weight: 3,
-          fillColor: "#020617",
+          weight: 2,
+          fillColor: "#000000",
           fillOpacity: 1,
         })
         .addTo(layerRef.current!);
@@ -187,8 +182,8 @@ export default function RouteMap({
         .polyline(
           routeToDraw!.map((point) => [point.lat, point.lon]),
           {
-            color: previewStatus === "osrm" ? "#22d3ee" : "#7dd3fc",
-            weight: previewStatus === "osrm" ? 6 : 4,
+            color: "#9ca3af",
+            weight: 4,
             opacity: 0.95,
             lineCap: "round",
             lineJoin: "round",
@@ -211,7 +206,7 @@ export default function RouteMap({
       if (pathPoints.length > 1) {
         const poly = leaflet
           .polyline(pathPoints, {
-            color: "#a78bfa",
+            color: "#9ca3af",
             weight: 3,
             dashArray: "4, 6",
             opacity: 0.8,
@@ -243,7 +238,7 @@ export default function RouteMap({
         if (isDeviated && nearestWp) {
           const devLine = leaflet
             .polyline([[nearestWp.lat, nearestWp.lon], lastPoint], {
-              color: "#f43f5e",
+              color: "#9ca3af",
               weight: 2,
               dashArray: "3, 5",
               opacity: 0.95,
@@ -253,10 +248,10 @@ export default function RouteMap({
         }
 
         const isBatteryCritical = lastTele.bateria != null && lastTele.bateria <= 5;
-        const iconColor = isDeviated ? "bg-rose-500 shadow-rose-500/30" : (isBatteryCritical ? "bg-amber-500 shadow-amber-500/30" : "bg-cyan-500 shadow-cyan-500/30");
+        const iconColor = "bg-black border-white/10 shadow-none";
         
         const truckIcon = leaflet.divIcon({
-          html: `<div class="relative flex h-6 w-6 items-center justify-center rounded-full ${iconColor} border border-slate-900 shadow-xl animate-pulse">
+          html: `<div class="relative flex h-6 w-6 items-center justify-center rounded-full ${iconColor} animate-pulse">
             <svg class="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
               <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 18.75a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 0 1-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124l-.318-5.085a2.25 2.25 0 0 0-2.247-2.115H16.5V9.75A2.25 2.25 0 0 0 14.25 7.5H5.25A2.25 2.25 0 0 0 3 9.75v5.625c0 .621.504 1.125 1.125 1.125H5.25m14-5.25L16.5 7.5h-3m3 4.5h2" />
             </svg>
@@ -273,7 +268,7 @@ export default function RouteMap({
             direction: "top", 
             permanent: true,
             offset: [0, -10],
-            className: "bg-slate-950 border-slate-800 text-[10px] text-white font-mono rounded px-2 py-1 shadow"
+            className: "bg-black border border-white/8 text-[10px] text-white font-mono rounded px-2 py-1"
           });
         
         bounds.extend(marker.getLatLng());

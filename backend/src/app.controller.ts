@@ -97,4 +97,36 @@ export class AppController {
       osrm: osrmStatus,
     };
   }
+
+  
+  @Get('monitoring/coldchain')
+  async getColdChainMonitoring() {
+    let database = false;
+    let redis = false;
+
+    try {
+      await this.db.query('SELECT 1');
+      database = true;
+    } catch (err) {
+      this.logger.error('Database monitoring check failed', err);
+    }
+
+    try {
+      await this.iaQueue.isPaused();
+      redis = true;
+    } catch {
+      //
+    }
+
+    return {
+      status: database && redis ? 'ok' : 'degraded',
+      infrastructure: {
+        backend: true,
+        database,
+        redis,
+      },
+      timestamp: new Date(),
+    };
+  }
+
 }

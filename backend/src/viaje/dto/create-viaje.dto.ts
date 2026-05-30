@@ -6,13 +6,12 @@ import {
   IsObject,
   IsOptional,
   IsString,
-  IsUUID,
   Max,
   Min,
 } from 'class-validator';
 
 export class CreateViajeDto {
-  @IsUUID()
+  @IsString()
   transporte_id: string;
 
   @IsNumber()
@@ -55,11 +54,11 @@ export class CreateViajeDto {
   perfil_producto_id?: string;
 
   @IsOptional()
-  @IsUUID()
+  @IsString()
   sucursal_origen_id?: string;
 
   @IsOptional()
-  @IsUUID()
+  @IsString()
   sucursal_destino_id?: string;
 
   @IsOptional()

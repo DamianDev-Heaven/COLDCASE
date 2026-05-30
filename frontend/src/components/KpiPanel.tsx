@@ -51,46 +51,46 @@ export const KpiPanel: React.FC<KpiPanelProps> = ({ viajes, incidentes }) => {
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
       {/* Tarjeta 1: Exposición Financiera */}
-      <div className="bg-slate-900 border border-slate-800 p-5 rounded-xl shadow-lg">
+      <div className="bg-black border border-white/8 p-5 rounded-xl shadow-none">
         <p className="text-sm font-medium text-slate-400 uppercase tracking-wider">
           Exposición Financiera Total
         </p>
         <p className="text-2xl font-bold text-white mt-2">
           ${exposicionTotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}
         </p>
-        <span className="text-xs text-emerald-400 font-medium block mt-1">
-          🟢 Carga activa en tránsito
+        <span className="text-xs text-white/60 font-medium block mt-1">
+          Carga activa en tránsito
         </span>
       </div>
 
       {/* Tarjeta 2: Capital en Riesgo */}
-      <div className={`border p-5 rounded-xl shadow-lg transition-all ${
+      <div className={`border p-5 rounded-xl shadow-none transition-all ${
         capitalEnRiesgo > 0 
-          ? 'bg-red-950/40 border-red-800/60 animate-pulse' 
-          : 'bg-slate-900 border-slate-800'
+          ? 'bg-black border-white/12' 
+          : 'bg-black border-white/8'
       }`}>
         <p className="text-sm font-medium text-slate-400 uppercase tracking-wider">
           Capital Crítico en Riesgo
         </p>
-        <p className={`text-2xl font-bold mt-2 ${capitalEnRiesgo > 0 ? 'text-red-400' : 'text-white'}`}>
+        <p className={`text-2xl font-bold mt-2 ${capitalEnRiesgo > 0 ? 'text-white' : 'text-white'}`}>
           ${capitalEnRiesgo.toLocaleString('en-US', { minimumFractionDigits: 2 })}
         </p>
-        <span className="text-xs font-medium block mt-1">
-          {capitalEnRiesgo > 0 ? '⚠️ Requiere mitigación inmediata' : '✅ Sin alertas críticas críticas'}
+        <span className="text-xs font-medium block mt-1 text-white/60">
+          {capitalEnRiesgo > 0 ? 'Requiere mitigación inmediata' : 'Sin alertas críticas'}
         </span>
       </div>
 
       {/* Tarjeta 3: Eficiencia Volumétrica */}
-      <div className="bg-slate-900 border border-slate-800 p-5 rounded-xl shadow-lg">
+      <div className="bg-black border border-white/8 p-5 rounded-xl shadow-none">
         <p className="text-sm font-medium text-slate-400 uppercase tracking-wider">
           Eficiencia de Capacidad Ocupada
         </p>
-        <p className="text-2xl font-bold text-sky-400 mt-2">
+        <p className="text-2xl font-bold text-white mt-2">
           {eficienciaPromedio.toFixed(1)}%
         </p>
-        <div className="w-full bg-slate-800 h-2 rounded-full mt-3 overflow-hidden">
+        <div className="w-full bg-white/6 h-2 rounded-full mt-3 overflow-hidden">
           <div 
-            className="bg-sky-500 h-full rounded-full transition-all duration-500" 
+            className="bg-white/30 h-full rounded-full transition-all duration-500" 
             style={{ width: `${Math.min(eficienciaPromedio, 100)}%` }}
           />
         </div>

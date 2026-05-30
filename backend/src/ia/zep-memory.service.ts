@@ -172,30 +172,88 @@ export class ZepMemoryService {
       // 1. Asegurar que el grafo Standalone existe
       await this.ensureGraph(graphId);
 
-      let searchFilters: Zep.SearchFilters | undefined;
+      let response: Zep.GraphSearchResults | undefined;
+
+      // Fase 1: Intentar buscar con PropertyFilters (para hechos creados con AddData)
       if (viajeId) {
-        searchFilters = {
-          episodeMetadataFilters: {
-            type: 'and',
-            filters: [
-              {
-                propertyName: 'viajeId',
-                propertyValue: viajeId,
-                comparisonOperator: '=',
+        try {
+          response = await this.withTimeout(
+            this.zepClient.graph.search({
+              graphId,
+              query,
+              searchFilters: {
+                propertyFilters: [
+                  {
+                    propertyName: 'viajeId',
+                    propertyValue: viajeId,
+                    comparisonOperator: '=',
+                  },
+                ],
               },
-            ],
-          },
-        };
+            }),
+          );
+        } catch (err) {
+          this.logger.warn(
+            `Zep: Búsqueda con propertyFilters falló en recuperarContextoGlobal: ${err instanceof Error ? err.message : String(err)}`,
+          );
+        }
       }
 
-      // 2. Buscar en el Grafo
-      const response = await this.withTimeout(
-        this.zepClient.graph.search({
-          graphId,
-          query,
-          searchFilters,
-        }),
-      );
+      // Fase 2: Si no hay viajeId o la Fase 1 retornó vacío, intentar con EpisodeMetadataFilters
+      if (viajeId && !response?.nodes?.length && !response?.edges?.length) {
+        try {
+          response = await this.withTimeout(
+            this.zepClient.graph.search({
+              graphId,
+              query,
+              searchFilters: {
+                episodeMetadataFilters: {
+                  type: 'or',
+                  filters: [
+                    {
+                      propertyName: 'viajeId',
+                      propertyValue: viajeId,
+                      comparisonOperator: '=',
+                    },
+                    {
+                      propertyName: 'viaje_id',
+                      propertyValue: viajeId,
+                      comparisonOperator: '=',
+                    },
+                  ],
+                },
+              },
+            }),
+          );
+        } catch (err) {
+          this.logger.warn(
+            `Zep: Búsqueda con episodeMetadataFilters falló en recuperarContextoGlobal: ${err instanceof Error ? err.message : String(err)}`,
+          );
+        }
+      }
+
+      // Fase 3: Búsqueda global con filtrado en memoria ultra-resiliente
+      if (!response?.nodes?.length && !response?.edges?.length) {
+        response = await this.withTimeout(
+          this.zepClient.graph.search({
+            graphId,
+            query,
+          }),
+        );
+
+        if (viajeId && response) {
+          const filteredEdges = (response.edges || []).filter((edge) => {
+            const edgeObj = edge as unknown as Record<string, unknown>;
+            const attrs = (edgeObj['attributes'] ||
+              edgeObj['properties'] ||
+              {}) as Record<string, unknown>;
+            return (
+              attrs['viajeId'] === viajeId || attrs['viaje_id'] === viajeId
+            );
+          });
+          response = { ...response, edges: filteredEdges };
+        }
+      }
 
       // Zep GraphSearchResults devuelve edges y nodes
       const edges = response?.edges ?? [];
@@ -204,7 +262,6 @@ export class ZepMemoryService {
       }
 
       // Formatear las relaciones encontradas (ej. Nodo1 -> Relación -> Nodo2)
-      // Como ya filtramos por viajeId a nivel de consulta en Zep, solo conservamos y formateamos
       const formatted = edges
         .map((edge) => {
           return `- [Conocimiento Previo]: ${edge.fact || edge.name || 'Sin detalle'}`;
@@ -259,32 +316,107 @@ export class ZepMemoryService {
     try {
       await this.ensureGraph(graphId);
 
-      let searchFilters: Zep.SearchFilters | undefined;
+      let response: Zep.GraphSearchResults | undefined;
+
+      // Fase 1: Intentar buscar con PropertyFilters (para hechos creados con AddData)
       if (viajeId) {
-        searchFilters = {
-          episodeMetadataFilters: {
-            type: 'and',
-            filters: [
-              {
-                propertyName: 'viajeId',
-                propertyValue: viajeId,
-                comparisonOperator: '=',
+        try {
+          response = await this.withTimeout(
+            this.zepClient.graph.search({
+              graphId,
+              query: query || 'anomalía',
+              searchFilters: {
+                propertyFilters: [
+                  {
+                    propertyName: 'viajeId',
+                    propertyValue: viajeId,
+                    comparisonOperator: '=',
+                  },
+                ],
               },
-            ],
-          },
-        };
+            }),
+          );
+        } catch (err) {
+          this.logger.warn(
+            `Zep: Búsqueda con propertyFilters falló en buscarEnGrafoDirecto: ${err instanceof Error ? err.message : String(err)}`,
+          );
+        }
       }
 
-      const response = (await this.withTimeout(
-        this.zepClient.graph.search({
-          graphId,
-          query: query || 'anomalía',
-          searchFilters,
-        }),
-      )) as unknown as ZepGraphSearchResult;
+      // Fase 2: Si no hay viajeId o la Fase 1 retornó vacío, intentar con EpisodeMetadataFilters
+      if (viajeId && !response?.nodes?.length && !response?.edges?.length) {
+        try {
+          response = await this.withTimeout(
+            this.zepClient.graph.search({
+              graphId,
+              query: query || 'anomalía',
+              searchFilters: {
+                episodeMetadataFilters: {
+                  type: 'or',
+                  filters: [
+                    {
+                      propertyName: 'viajeId',
+                      propertyValue: viajeId,
+                      comparisonOperator: '=',
+                    },
+                    {
+                      propertyName: 'viaje_id',
+                      propertyValue: viajeId,
+                      comparisonOperator: '=',
+                    },
+                  ],
+                },
+              },
+            }),
+          );
+        } catch (err) {
+          this.logger.warn(
+            `Zep: Búsqueda con episodeMetadataFilters falló en buscarEnGrafoDirecto: ${err instanceof Error ? err.message : String(err)}`,
+          );
+        }
+      }
+
+      // Fase 3: Búsqueda global con filtrado en memoria ultra-resiliente
+      if (!response?.nodes?.length && !response?.edges?.length) {
+        response = await this.withTimeout(
+          this.zepClient.graph.search({
+            graphId,
+            query: query || 'anomalía',
+          }),
+        );
+
+        if (viajeId && response) {
+          // Filtrado en memoria ultra-resiliente (busca tanto en attributes como en properties)
+          const filteredNodes = (response.nodes || []).filter((node) => {
+            const nodeObj = node as unknown as Record<string, unknown>;
+            const attrs = (nodeObj['attributes'] ||
+              nodeObj['properties'] ||
+              {}) as Record<string, unknown>;
+            return (
+              attrs['viajeId'] === viajeId || attrs['viaje_id'] === viajeId
+            );
+          });
+
+          const filteredEdges = (response.edges || []).filter((edge) => {
+            const edgeObj = edge as unknown as Record<string, unknown>;
+            const attrs = (edgeObj['attributes'] ||
+              edgeObj['properties'] ||
+              {}) as Record<string, unknown>;
+            return (
+              attrs['viajeId'] === viajeId || attrs['viaje_id'] === viajeId
+            );
+          });
+
+          return {
+            nodes: filteredNodes as unknown as ZepGraphNode[],
+            edges: filteredEdges as unknown as ZepGraphEdge[],
+          };
+        }
+      }
+
       return {
-        nodes: response?.nodes || [],
-        edges: response?.edges || [],
+        nodes: (response?.nodes || []) as unknown as ZepGraphNode[],
+        edges: (response?.edges || []) as unknown as ZepGraphEdge[],
       };
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : String(error);

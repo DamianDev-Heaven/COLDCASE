@@ -90,4 +90,13 @@ export class IaController {
   ) {
     return this.iaService.buscarEnGrafoGlobal(query, viajeId);
   }
+
+  /**
+   * POST /ia/grafo/sintetizar
+   * Realiza una búsqueda en el Grafo de Zep y sintetiza un reporte en español usando el LLM.
+   */
+  @Post('grafo/sintetizar')
+  sintetizarGrafo(@Body() payload: { query: string; viajeId?: string }) {
+    return this.iaService.sintetizarGrafo(payload.query, payload.viajeId);
+  }
 }
