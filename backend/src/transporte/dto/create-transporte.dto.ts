@@ -3,7 +3,6 @@ import {
   IsNumber,
   IsOptional,
   IsString,
-  IsUUID,
   MinLength,
 } from 'class-validator';
 
@@ -12,10 +11,10 @@ export class CreateTransporteDto {
   @MinLength(4)
   placa: string;
 
-  @IsUUID()
+  @IsString()
   iot_id: string;
 
-  @IsUUID()
+  @IsString()
   empresa_id: string;
 
   @IsString()

@@ -28,6 +28,8 @@ metadata:
   name: simulador
   namespace: coldcase
 spec:
+  strategy:
+    type: Recreate
   replicas: 1
   selector:
     matchLabels:
@@ -37,6 +39,8 @@ spec:
       labels:
         app: simulador
     spec:
+      securityContext:
+        fsGroup: 1000
       containers:
         - name: simulador
           image: devdamian/coldcase-simulador:latest

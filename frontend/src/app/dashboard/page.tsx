@@ -25,6 +25,8 @@ import {
   PanelRight,
   Building,
   MapPin,
+  Bot,
+  Sparkles,
 } from "lucide-react";
 
 import { API_URL, SIMULATOR_URL } from "@/lib/config";
@@ -312,7 +314,7 @@ export default function Dashboard() {
   }, [viajes, searchQuery]);
 
   const viajesActivos = useMemo(() => {
-    return viajes.filter((v) => v.estado === "pendiente" || v.estado === "en_curso");
+    return viajes.filter((v) => v.estado === "pendiente" || v.estado === "en_curso" || v.estado === "pausado");
   }, [viajes]);
 
 
@@ -1915,6 +1917,59 @@ interface ZepEdge {
   type: string;
 }
 
+function formatMarkdown(text: string) {
+  if (!text) return null;
+  return text.split("\n").map((line, idx) => {
+    let cleanLine = line.trim();
+    if (!cleanLine) return <div key={idx} className="h-2" />;
+
+    // Check for headings
+    if (cleanLine.startsWith("###")) {
+      const headingText = cleanLine.replace(/^###\s*/, "");
+      return (
+        <h4 key={idx} className="text-[10px] font-bold text-cyan-400 uppercase tracking-widest mt-3 mb-2 flex items-center gap-1.5 border-b border-white/[0.04] pb-1">
+          <Sparkles className="w-3 h-3 text-cyan-400 animate-pulse" />
+          {headingText}
+        </h4>
+      );
+    }
+
+    // Check for bullet points
+    const isBullet = cleanLine.startsWith("-") || cleanLine.startsWith("*");
+    if (isBullet) {
+      cleanLine = cleanLine.replace(/^[-*]\s*/, "");
+    }
+
+    // Parse bold text **word**
+    const parts = cleanLine.split(/\*\*([\s\S]*?)\*\*/g);
+    const content = parts.map((part, pIdx) => {
+      if (pIdx % 2 === 1) {
+        return (
+          <span key={pIdx} className="text-cyan-300 font-bold font-mono bg-cyan-950/45 px-1.5 py-0.5 rounded border border-cyan-800/30 shadow-[0_0_8px_rgba(34,211,238,0.06)] mx-0.5">
+            {part}
+          </span>
+        );
+      }
+      return part;
+    });
+
+    if (isBullet) {
+      return (
+        <div key={idx} className="flex items-start gap-2 text-[10px] text-slate-300 font-mono leading-relaxed pl-2 mb-1.5">
+          <span className="text-cyan-400 mt-1 shrink-0">•</span>
+          <span>{content}</span>
+        </div>
+      );
+    }
+
+    return (
+      <p key={idx} className="text-[10px] text-slate-300 font-mono leading-relaxed mb-2 pl-2">
+        {content}
+      </p>
+    );
+  });
+}
+
 function GraphExplorer({
   apiUrl,
   viajes,
@@ -1929,6 +1984,7 @@ function GraphExplorer({
   const [query, setQuery] = useState("");
   const [nodes, setNodes] = useState<ZepNode[]>([]);
   const [edges, setEdges] = useState<ZepEdge[]>([]);
+  const [sintesis, setSintesis] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
   const [filterByTrip, setFilterByTrip] = useState(!!selectedTripId);
@@ -1943,16 +1999,24 @@ function GraphExplorer({
   const handleSearch = async (searchTerm: string) => {
     setIsLoading(true);
     setHasSearched(true);
+    setSintesis("");
     try {
-      let url = `${apiUrl}/ia/grafo/buscar?query=${encodeURIComponent(searchTerm)}`;
+      const bodyPayload: { query: string; viajeId?: string } = { query: searchTerm };
       if (filterByTrip && selectedTripId) {
-        url += `&viajeId=${encodeURIComponent(selectedTripId)}`;
+        bodyPayload.viajeId = selectedTripId;
       }
-      const res = await apiFetch(url);
+      
+      const res = await apiFetch(`${apiUrl}/ia/grafo/sintetizar`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(bodyPayload),
+      });
+
       if (res.ok) {
         const data = await res.json();
         setNodes(data.nodes || []);
         setEdges(data.edges || []);
+        setSintesis(data.sintesis || "");
       }
     } catch (err) {
       console.error("Error al buscar en el grafo de Zep:", err);
@@ -2091,73 +2155,99 @@ function GraphExplorer({
             </div>
           </div>
         ) : (
-          <>
-            {/* EDGES / SEMANTIC FACTS COLUMN */}
-            <div className="flex-grow flex flex-col min-w-0 h-full border border-white/[0.05] bg-slate-950/20 rounded-2xl overflow-hidden p-4">
-              <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider mb-4 shrink-0 flex justify-between items-center">
-                <span>Relaciones Semánticas Detectadas ({edges.length})</span>
-                <span className="text-[9px] text-slate-500 font-mono normal-case">Hechos de Grafo</span>
-              </h3>
-              <div className="flex-grow overflow-y-auto pr-1 space-y-3.5 no-scrollbar">
-                {edges.map((edge, index) => (
-                  <div
-                    key={index}
-                    className="bg-[#111319]/80 border border-slate-800/80 rounded-xl p-4 flex flex-col gap-3 shadow-md hover:border-white/6 transition-all duration-200"
-                  >
-                    <div className="flex items-center gap-2 text-[9px] font-mono uppercase tracking-wider flex-wrap">
-                      <span className="text-sky-400 font-bold px-2 py-0.5 rounded bg-sky-500/5 border border-sky-500/10 truncate max-w-[150px]">
-                        {edge.source}
-                      </span>
-                      <span className="text-slate-500 font-bold">
-                        → [{edge.type || "RELACIÓN"}] →
-                      </span>
-                      <span className="text-indigo-400 font-bold px-2 py-0.5 rounded bg-indigo-500/5 border border-indigo-500/10 truncate max-w-[150px]">
-                        {edge.target}
-                      </span>
+          <div className="flex-grow flex flex-col gap-6 overflow-hidden min-h-0">
+            {sintesis && (
+              <div className="bg-[#0b0e14]/90 border border-cyan-500/25 backdrop-blur-md p-4 rounded-2xl shadow-[0_0_25px_rgba(6,182,212,0.06)] flex flex-col gap-3 shrink-0 max-h-[300px] overflow-y-auto border-t-2 border-t-cyan-500/40">
+                <div className="flex items-center justify-between border-b border-white/[0.04] pb-2">
+                  <div className="flex items-center gap-2">
+                    <div className="bg-cyan-500/10 p-1.5 rounded-lg border border-cyan-500/20">
+                      <Bot className="w-4 h-4 text-cyan-400 animate-bounce" style={{ animationDuration: '3s' }} />
                     </div>
-                    <div className="bg-slate-950/60 border border-slate-800/40 rounded-lg p-3 text-[11px] text-slate-300 font-mono leading-relaxed">
-                      <div className="text-[8px] font-bold text-white/70 uppercase tracking-wider mb-1 font-sans">Hecho Semántico Extraído por Zep:</div>
-                      {edge.fact}
+                    <div>
+                      <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+                        Informe de Trazabilidad IA
+                      </h3>
+                      <p className="text-[8px] text-cyan-400/80 font-mono tracking-widest uppercase">GRAPHSYNC BRIEFING — SÍNTESIS DE INCIDENTES</p>
                     </div>
                   </div>
-                ))}
+                  <span className="text-[8px] font-mono font-bold uppercase px-2 py-0.5 rounded bg-cyan-950/70 text-cyan-400 border border-cyan-800/30 tracking-widest animate-pulse">
+                    LIVE REPORT
+                  </span>
+                </div>
+                <div className="space-y-1 overflow-y-auto max-h-[220px] pr-1 scrollbar-thin scrollbar-thumb-cyan-500/20 scrollbar-track-transparent">
+                  {formatMarkdown(sintesis)}
+                </div>
               </div>
-            </div>
+            )}
 
-            {/* NODES / ENTITIES COLUMN */}
-            <div className="w-[340px] shrink-0 h-full border border-white/[0.05] bg-slate-950/20 rounded-2xl overflow-hidden p-4 flex flex-col">
-              <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider mb-4 shrink-0">
-                Entidades del Grafo ({nodes.length})
-              </h3>
-              <div className="flex-1 overflow-y-auto pr-1 space-y-2.5 no-scrollbar">
-                {nodes.map((node, index) => (
-                  <div
-                    key={index}
-                    className="bg-slate-900/40 border border-white/[0.04] rounded-xl p-3 flex flex-col gap-2 shadow-sm hover:bg-slate-900/60 transition-colors"
-                  >
-                    <div className="flex justify-between items-center">
-                      <span className="text-[11px] font-bold text-slate-200 truncate pr-2 font-mono">
-                        {node.name}
-                      </span>
-                      <span className="text-[8px] font-bold uppercase font-sans px-1.5 py-0.5 rounded bg-white/6 text-white/70 border border-white/10">
-                        {node.type}
-                      </span>
-                    </div>
-                    {node.properties && Object.keys(node.properties).length > 0 && (
-                      <div className="text-[9px] font-mono text-slate-500 bg-slate-950/30 p-2 rounded border border-white/[0.02] space-y-1">
-                        {Object.entries(node.properties).map(([key, val]) => (
-                          <div key={key} className="flex justify-between gap-2">
-                            <span className="text-slate-600 uppercase tracking-wider">{key}:</span>
-                            <span className="text-slate-400 truncate max-w-[180px]">{String(val)}</span>
-                          </div>
-                        ))}
+            <div className="flex-1 flex gap-6 overflow-hidden min-h-0">
+              {/* EDGES / SEMANTIC FACTS COLUMN */}
+              <div className="flex-grow flex flex-col min-w-0 h-full border border-white/[0.05] bg-slate-950/20 rounded-2xl overflow-hidden p-4">
+                <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider mb-4 shrink-0 flex justify-between items-center">
+                  <span>Relaciones Semánticas Detectadas ({edges.length})</span>
+                  <span className="text-[9px] text-slate-500 font-mono normal-case">Hechos de Grafo</span>
+                </h3>
+                <div className="flex-grow overflow-y-auto pr-1 space-y-3.5 no-scrollbar">
+                  {edges.map((edge, index) => (
+                    <div
+                      key={index}
+                      className="bg-[#111319]/80 border border-slate-800/80 rounded-xl p-4 flex flex-col gap-3 shadow-md hover:border-cyan-500/20 transition-all duration-200"
+                    >
+                      <div className="flex items-center gap-2 text-[9px] font-mono uppercase tracking-wider flex-wrap">
+                        <span className="text-sky-400 font-bold px-2 py-0.5 rounded bg-sky-500/5 border border-sky-500/10 truncate max-w-[150px]">
+                          {edge.source}
+                        </span>
+                        <span className="text-slate-500 font-bold">
+                          → [{edge.type || "RELACIÓN"}] →
+                        </span>
+                        <span className="text-indigo-400 font-bold px-2 py-0.5 rounded bg-indigo-500/5 border border-indigo-500/10 truncate max-w-[150px]">
+                          {edge.target}
+                        </span>
                       </div>
-                    )}
-                  </div>
-                ))}
+                      <div className="bg-slate-950/60 border border-slate-800/40 rounded-lg p-3 text-[11px] text-slate-300 font-mono leading-relaxed">
+                        <div className="text-[8px] font-bold text-cyan-400 uppercase tracking-wider mb-1 font-sans">Hecho Semántico Extraído por Zep:</div>
+                        {edge.fact}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* NODES / ENTITIES COLUMN */}
+              <div className="w-[340px] shrink-0 h-full border border-white/[0.05] bg-slate-950/20 rounded-2xl overflow-hidden p-4 flex flex-col">
+                <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider mb-4 shrink-0">
+                  Entidades del Grafo ({nodes.length})
+                </h3>
+                <div className="flex-1 overflow-y-auto pr-1 space-y-2.5 no-scrollbar">
+                  {nodes.map((node, index) => (
+                    <div
+                      key={index}
+                      className="bg-slate-900/40 border border-white/[0.04] rounded-xl p-3 flex flex-col gap-2 shadow-sm hover:bg-slate-900/60 transition-colors"
+                    >
+                      <div className="flex justify-between items-center">
+                        <span className="text-[11px] font-bold text-slate-200 truncate pr-2 font-mono">
+                          {node.name}
+                        </span>
+                        <span className="text-[8px] font-bold uppercase font-sans px-1.5 py-0.5 rounded bg-cyan-950/70 text-cyan-400 border border-cyan-800/30">
+                          {node.type}
+                        </span>
+                      </div>
+                      {node.properties && Object.keys(node.properties).length > 0 && (
+                        <div className="text-[9px] font-mono text-slate-500 bg-slate-950/30 p-2 rounded border border-white/[0.02] space-y-1">
+                          {Object.entries(node.properties).map(([key, val]) => (
+                            <div key={key} className="flex justify-between gap-2">
+                              <span className="text-slate-600 uppercase tracking-wider">{key}:</span>
+                              <span className="text-slate-400 truncate max-w-[180px]">{String(val)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
-          </>
+          </div>
         )}
       </div>
     </div>

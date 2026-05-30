@@ -112,7 +112,7 @@ run_validation() {
     npm run lint || { echo -e "${RED}Error de Lint en $name.${NC}"; exit 1; }
     
     echo -e "${CYAN}Verificando tipos de TypeScript...${NC}"
-    npx tsc --noEmit || { echo -e "${RED}Error de compilación TypeScript en $name.${NC}"; exit 1; }
+    npx tsc --noEmit --incremental false || { echo -e "${RED}Error de compilación TypeScript en $name.${NC}"; exit 1; }
     
     # Check if test script exists in package.json
     if grep -q '"test"' package.json; then

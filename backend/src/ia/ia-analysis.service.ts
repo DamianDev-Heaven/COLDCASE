@@ -1234,4 +1234,80 @@ Por favor, genera la auditoría del viaje en el JSON.`;
       return { nodes: [], edges: [] };
     }
   }
+
+  /**
+   * Realiza una búsqueda en el Grafo y sintetiza un reporte en español usando el LLM.
+   */
+  async sintetizarGrafo(
+    query: string,
+    viajeId?: string,
+  ): Promise<{ sintesis: string; nodes: any[]; edges: any[] }> {
+    try {
+      const results = await this.buscarEnGrafoGlobal(query, viajeId);
+
+      if (!results.edges.length && !results.nodes.length) {
+        return {
+          sintesis:
+            'No se encontraron hechos semánticos ni nodos coincidentes con la consulta en el Grafo de Zep.',
+          nodes: [],
+          edges: [],
+        };
+      }
+
+      if (!this.groqClient) {
+        return {
+          sintesis:
+            'Auditoría en Español (Reglas de Respaldo):\nSe encontraron hechos en el Grafo de Zep Memory, pero el servicio de IA (Groq) no está configurado. Hechos recuperados:\n' +
+            results.edges
+              .map((e) => `- ${e.fact || e.type || 'Relación'}`)
+              .join('\n'),
+          nodes: results.nodes,
+          edges: results.edges,
+        };
+      }
+
+      const hechosFormateados = results.edges
+        .map((e) => `- ${e.fact || e.type || 'Hecho sin descripción'}`)
+        .slice(0, 15)
+        .join('\n');
+
+      const prompt = `Eres un Auditor de Cadena de Frío e Ingeniero SRE experto en COLDCASE. 
+Un operador ha realizado la siguiente consulta en el Explorador de Grafo:
+"${query}"
+
+Hemos interrogado el Grafo de Conocimiento de Zep Memory y hemos recuperado las siguientes relaciones y hechos semánticos en bruto:
+${hechosFormateados}
+
+Por favor, analiza estos hechos y genera una respuesta sintética profesional, directa y explicativa en ESPAÑOL.
+Tu respuesta debe:
+1. Responder directamente la pregunta del usuario basándote únicamente en la información real provista en los hechos.
+2. Traducir y explicar los términos técnicos en inglés de forma amigable (por ejemplo, si menciona "thermal excursion reached peak temperature of 10.1°C", explica que es una excursión de temperatura pico de 10.1°C).
+3. Ser sumamente profesional, clara y estructurada. Evita introducciones artificiales como "Como auditor experto...". Escribe directamente el reporte con títulos y listas en formato Markdown.
+4. Si el operador pregunta sobre un problema con compresores o baterías y los hechos lo descartan o lo confirman, sé muy explícito con los números y IDs de telemetría/incidentes.`;
+
+      const completion = await this.groqClient.chat.completions.create({
+        model: this.defaultModelName,
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.2,
+      });
+
+      const sintesis =
+        completion.choices[0]?.message?.content ||
+        'No se pudo sintetizar el reporte a partir de los hechos del Grafo.';
+
+      return {
+        sintesis,
+        nodes: results.nodes,
+        edges: results.edges,
+      };
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Error al sintetizar hechos de grafo: ${message}`);
+      return {
+        sintesis: `Error de síntesis IA: ${message}`,
+        nodes: [],
+        edges: [],
+      };
+    }
+  }
 }

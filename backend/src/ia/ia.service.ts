@@ -105,4 +105,11 @@ export class IaService {
   ): Promise<ZepGraphSearchResult> {
     return this.iaAnalysisService.buscarEnGrafoGlobal(query, viajeId);
   }
+
+  sintetizarGrafo(
+    query: string,
+    viajeId?: string,
+  ): Promise<{ sintesis: string; nodes: any[]; edges: any[] }> {
+    return this.iaAnalysisService.sintetizarGrafo(query, viajeId);
+  }
 }
