@@ -80,7 +80,7 @@ export default function TelemetryChart({ telemetryData, limiteMin, limiteMax, is
 
   return (
     <div className="w-full h-full min-h-[170px]">
-      <ResponsiveContainer width="100%" height="100%">
+      <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={170}>
         <ComposedChart data={telemetryData} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
           <XAxis 
             dataKey="timestamp_sensor" 

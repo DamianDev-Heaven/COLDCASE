@@ -37,9 +37,11 @@ export class TelemetriaIngestProcessor extends WorkerHost {
         `[Ingestión Asíncrona] Telemetría registrada en DB (ID: ${result.id}) para viaje ${payload.viaje_id}`,
       );
 
-      // 2. Si se disparó el flag de encolar IA (ej. resolución de excursión térmica), delegar al worker de IA
-      if (result.encolarIa && result.incidenteParaIa) {
-        await this.telemetriaService.enqueueIaAnalysis(result, payload);
+      // 2. Si se disparó el flag de encolar IA (ej. creación o resolución de excursión), delegar al worker de IA
+      if (result.incidentesParaIa && result.incidentesParaIa.length > 0) {
+        for (const incidenteParaIa of result.incidentesParaIa) {
+          await this.telemetriaService.enqueueIaAnalysis({ ...result, incidenteParaIa }, payload);
+        }
       }
 
       return result;

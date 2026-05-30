@@ -27,6 +27,8 @@ const runtimeState = {
 	lastSyncAt: null,
 	lastTickAt: null,
 	lastError: null,
+	iotFailureSince: null,
+	lastSignalEvent: null,
 	totalSent: 0,
 	totalIncidents: 0,
 	activeTrips: 0,
@@ -52,6 +54,14 @@ function saveState() {
 			gateOpeningEnabled: runtimeState.gateOpeningEnabled,
 			turboMode: runtimeState.turboMode,
 			iotFailure: runtimeState.iotFailure,
+			lastError: runtimeState.lastError,
+			iotFailureSince: runtimeState.iotFailureSince,
+			lastSignalEvent: runtimeState.lastSignalEvent,
+			totalSent: runtimeState.totalSent,
+			totalIncidents: runtimeState.totalIncidents,
+			activeTrips: runtimeState.activeTrips,
+			lastSyncAt: runtimeState.lastSyncAt,
+			lastTickAt: runtimeState.lastTickAt,
 			simulations: [...simulationMap.entries()].map(([viajeId, state]) => ({
 				viajeId,
 				progressIndex: state.progressIndex,
@@ -65,11 +75,13 @@ function saveState() {
 				battery: state.battery,
 				status: state.status,
 				backendEstado: state.backendEstado,
+				lastError: state.lastError || null,
 				compressorFailed: state.compressorFailed,
 				routeDeviated: state.routeDeviated,
 				gateOpenTicks: state.gateOpenTicks,
 				history: state.history,
 				offlineBuffer: state.offlineBuffer || [],
+				deviceDead: !!state.deviceDead,
 			}))
 		};
 		const dir = path.dirname(STATE_FILE_PATH);
@@ -93,6 +105,14 @@ function loadState() {
 			runtimeState.gateOpeningEnabled = parsed.gateOpeningEnabled !== false;
 			runtimeState.turboMode = !!parsed.turboMode;
 			runtimeState.iotFailure = !!parsed.iotFailure;
+			runtimeState.lastError = parsed.lastError || null;
+			runtimeState.iotFailureSince = parsed.iotFailureSince || null;
+			runtimeState.lastSignalEvent = parsed.lastSignalEvent || null;
+			runtimeState.totalSent = Number(parsed.totalSent || 0);
+			runtimeState.totalIncidents = Number(parsed.totalIncidents || 0);
+			runtimeState.activeTrips = Number(parsed.activeTrips || 0);
+			runtimeState.lastSyncAt = parsed.lastSyncAt || null;
+			runtimeState.lastTickAt = parsed.lastTickAt || null;
 
 			if (Array.isArray(parsed.simulations)) {
 				for (const sim of parsed.simulations) {
@@ -108,6 +128,7 @@ function loadState() {
 						lastPayload: sim.lastPayload || null,
 						battery: sim.battery || 100,
 						status: sim.status || 'activo',
+						lastError: sim.lastError || null,
 						backendEstado: sim.backendEstado || 'pendiente',
 						compressorFailed: !!sim.compressorFailed,
 						routeDeviated: !!sim.routeDeviated,
@@ -115,6 +136,7 @@ function loadState() {
 						history: sim.history || [],
 						routePoints: [],
 						offlineBuffer: sim.offlineBuffer || [],
+						deviceDead: !!sim.deviceDead,
 					});
 				}
 			}
@@ -151,12 +173,14 @@ function serializeState() {
 		lastPayload: state.lastPayload,
 		battery: state.battery,
 		status: state.status,
+		lastError: state.lastError || null,
 		backendEstado: state.backendEstado || 'pendiente',
 		history: state.history.slice(0, 12),
 		compressorFailed: !!state.compressorFailed,
 		routeDeviated: !!state.routeDeviated,
 		gateOpenTicks: state.gateOpenTicks || 0,
 		offlineBufferLength: (state.offlineBuffer || []).length,
+		deviceDead: !!state.deviceDead,
 	}));
 
 	return {
@@ -182,6 +206,24 @@ async function syncActiveTrips({ log = true } = {}) {
 
 		for (const [viajeId, state] of simulationMap.entries()) {
 			if (!activeIds.has(viajeId)) {
+				try {
+					const res = await fetch(`${API_URL}/viaje/${viajeId}`);
+					if (res.ok) {
+						const v = await res.json();
+						if (v.estado === 'finalizado' || v.estado === 'cancelado') {
+							simulationMap.delete(viajeId);
+							if (runtimeState.selectedTripId === viajeId) {
+								runtimeState.selectedTripId = null;
+							}
+							if (log) {
+								logEvent('info', `Simulador: Viaje ${viajeId} marcado como ${v.estado}. Eliminado de simulación.`);
+							}
+							continue;
+						}
+					}
+				} catch (e) {
+					// Ignorar error de red al consultar estado
+				}
 				state.status = 'pausado';
 				state.lastInactiveAt = new Date().toISOString();
 			}
@@ -189,7 +231,6 @@ async function syncActiveTrips({ log = true } = {}) {
 
 		runtimeState.activeTrips = activeTrips.length;
 		runtimeState.lastSyncAt = new Date().toISOString();
-		runtimeState.lastError = null;
 		if (log) {
 			logEvent('info', `Sincronizados ${activeTrips.length} viajes en curso.`);
 		}
@@ -220,14 +261,56 @@ async function tickSimulation() {
 	const trips = await syncActiveTrips({ log: false });
 	const ticks = trips.map(async (viaje) => {
 		const state = ensureTripState(viaje, simulationMap);
+
+		// Si el dispositivo está sin batería (apagado permanente), avanzar ruta en modo "sin señal"
+		if (state.deviceDead) {
+			state.status = 'alerta';
+			state.lastError = 'Dispositivo apagado: batería agotada (0%).';
+			runtimeState.lastError = state.lastError;
+			logEvent('warn', `Simulador: Sensor apagado permanentemente (Batería 0%) en viaje ${viaje.id}. Sin señal.`, viaje.id);
+
+			const reachedEnd = advanceRouteState(state, runtimeState);
+			if (reachedEnd) {
+				logEvent('info', `Simulador: Viaje ${viaje.id} completó su ruta (sin señal por batería 0%).`, viaje.id);
+				try {
+					const finalizeRes = await fetch(`${API_URL}/viaje/${viaje.id}/finalizar`, {
+						method: 'PATCH',
+						headers: { 'Content-Type': 'application/json' }
+					});
+					if (finalizeRes.ok) {
+						logEvent('success', `Simulador: Viaje ${viaje.id} finalizado exitosamente en el backend (destinatario).`, viaje.id);
+					} else {
+						logEvent('error', `Simulador: Error al finalizar viaje ${viaje.id} (${finalizeRes.status}).`, viaje.id);
+					}
+				} catch (finalizeErr) {
+					logEvent('error', `Simulador: Error de red al finalizar viaje ${viaje.id}: ${finalizeErr.message}`, viaje.id);
+				}
+				simulationMap.delete(viaje.id);
+				if (runtimeState.selectedTripId === viaje.id) {
+					runtimeState.selectedTripId = null;
+				}
+			}
+			return;
+		}
+
 		const sample = buildSample(viaje, state, runtimeState, logEvent);
 
 		// Si el enlace de sensores IoT está caído (pérdida de señal), guardar en buffer local
 		if (runtimeState.iotFailure) {
 			state.offlineBuffer = state.offlineBuffer || [];
 			state.offlineBuffer.push(sample.payload);
+			state.status = 'alerta';
+			state.lastError = 'Pérdida de señal IoT: telemetría retenida en búfer local.';
+			runtimeState.lastError = state.lastError;
+			runtimeState.lastSignalEvent = {
+				type: 'iot-loss',
+				viajeId: viaje.id,
+				message: state.lastError,
+				bufferLength: state.offlineBuffer.length,
+				createdAt: new Date().toISOString(),
+			};
 			logEvent('warn', `Simulador: Pérdida de señal. Almacenando telemetría en búfer local (${state.offlineBuffer.length} lecturas).`, viaje.id);
-			
+
 			// Avanzar físicamente de todos modos
 			const reachedEnd = advanceRouteState(state, runtimeState);
 			if (reachedEnd) {
@@ -241,7 +324,7 @@ async function tickSimulation() {
 			logEvent('info', `Simulador: Conectividad recuperada. Transmitiendo ${state.offlineBuffer.length} lecturas retenidas en búfer...`, viaje.id);
 			const pending = [...state.offlineBuffer];
 			state.offlineBuffer = []; // Limpiar para evitar duplicaciones si falla en el medio
-			
+
 			let sentCount = 0;
 			for (const payload of pending) {
 				try {
@@ -261,6 +344,16 @@ async function tickSimulation() {
 					state.lastPayload = payload;
 					state.lastIncident = response.incidente_id || null;
 					state.incidentCount += response.incidente_id ? 1 : 0;
+					state.status = 'activo';
+					state.lastError = null;
+					runtimeState.lastError = null;
+					runtimeState.lastSignalEvent = {
+						type: 'iot-recovered',
+						viajeId: viaje.id,
+						message: 'Conectividad IoT restaurada. Búfer transmitido correctamente.',
+						bufferLength: 0,
+						createdAt: new Date().toISOString(),
+					};
 					runtimeState.totalSent += 1;
 					runtimeState.totalIncidents += response.incidente_id ? 1 : 0;
 					sentCount++;
@@ -294,9 +387,12 @@ async function tickSimulation() {
 			state.lastPayload = sample.payload;
 			state.lastIncident = response.incidente_id || null;
 			state.incidentCount += response.incidente_id ? 1 : 0;
+			state.status = 'activo';
+			state.lastError = null;
+			runtimeState.lastError = null;
 			runtimeState.totalSent += 1;
 			runtimeState.totalIncidents += response.incidente_id ? 1 : 0;
-			
+
 			const reachedEnd = advanceRouteState(state, runtimeState);
 			if (reachedEnd) {
 				logEvent('info', `Simulador: Destino alcanzado para viaje ${viaje.id}. Finalizando...`, viaje.id);
@@ -330,6 +426,13 @@ async function tickSimulation() {
 			const message = error instanceof Error ? error.message : 'No se pudo enviar la telemetría.';
 			state.status = 'error';
 			state.lastError = message;
+			runtimeState.lastError = message;
+			runtimeState.lastSignalEvent = {
+				type: 'telemetry-error',
+				viajeId: viaje.id,
+				message,
+				createdAt: new Date().toISOString(),
+			};
 			logEvent('error', `${viaje.id}: ${message}`, viaje.id);
 		}
 	});
@@ -418,7 +521,7 @@ async function handleApiRequest(req, res, pathname) {
 		runtimeState.turboMode = payload.enabled !== undefined ? !!payload.enabled : !runtimeState.turboMode;
 		logEvent('info', runtimeState.turboMode ? 'Simulador: Modo Turbo ACTIVADO (Ticks rápidos cada 2s + avance acelerado).' : 'Simulador: Modo Turbo DESACTIVADO (Ticks normales).');
 		saveState();
-		
+
 		scheduleNextTick();
 
 		res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
@@ -429,8 +532,24 @@ async function handleApiRequest(req, res, pathname) {
 	if (req.method === 'POST' && pathname === '/api/simulation/toggle-iot-link') {
 		const payload = await readBody(req);
 		runtimeState.iotFailure = payload.enabled !== undefined ? !!payload.enabled : !runtimeState.iotFailure;
-		logEvent('info', runtimeState.iotFailure 
-			? 'Simulador: Enlace de sensores IoT APAGADO (Pérdida de señal celular activa).' 
+		if (runtimeState.iotFailure) {
+			runtimeState.iotFailureSince = new Date().toISOString();
+			runtimeState.lastSignalEvent = {
+				type: 'iot-toggle-on',
+				message: 'Enlace de sensores IoT apagado.',
+				createdAt: runtimeState.iotFailureSince,
+			};
+		} else {
+			runtimeState.lastSignalEvent = {
+				type: 'iot-toggle-off',
+				message: 'Enlace de sensores IoT encendido.',
+				createdAt: new Date().toISOString(),
+			};
+			runtimeState.iotFailureSince = null;
+			runtimeState.lastError = null;
+		}
+		logEvent('info', runtimeState.iotFailure
+			? 'Simulador: Enlace de sensores IoT APAGADO (Pérdida de señal celular activa).'
 			: 'Simulador: Enlace de sensores IoT ENCENDIDO (Señal celular normal).'
 		);
 		saveState();
@@ -445,19 +564,19 @@ async function handleApiRequest(req, res, pathname) {
 			const statusRes = await fetch(`${API_URL}/ia/queue/status`);
 			const status = await statusRes.json();
 			const action = status.isPaused ? 'resume' : 'pause';
-			
+
 			const toggleRes = await fetch(`${API_URL}/ia/queue/${action}`, { method: 'POST' });
 			const toggle = await toggleRes.json();
 			isPaused = toggle.isPaused;
-			
-			logEvent('info', isPaused 
-				? 'Simulador: Worker IA fuera de línea (Cola de Redis BullMQ PAUSADA).' 
+
+			logEvent('info', isPaused
+				? 'Simulador: Worker IA fuera de línea (Cola de Redis BullMQ PAUSADA).'
 				: 'Simulador: Worker IA en línea (Cola de Redis BullMQ REANUDADA).'
 			);
 		} catch (err) {
 			logEvent('error', `Error al comunicar con la cola de Redis: ${err.message}`);
 		}
-		
+
 		res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
 		res.end(JSON.stringify({ queuePaused: isPaused }));
 		return true;

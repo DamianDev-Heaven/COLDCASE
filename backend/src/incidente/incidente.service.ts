@@ -10,6 +10,7 @@ type IncidenteRow = {
     | 'TEMP_ALTA'
     | 'FUERA_RUTA'
     | 'BATERIA_BAJA'
+    | 'BATERIA_AGOTADA'
     | 'HUMEDAD_FUERA_RANGO'
     | 'MKT_EXCEDIDO'
     | 'APERTURA_NO_AUTORIZADA';
@@ -33,6 +34,7 @@ export class IncidenteService {
       | 'TEMP_ALTA'
       | 'FUERA_RUTA'
       | 'BATERIA_BAJA'
+      | 'BATERIA_AGOTADA'
       | 'HUMEDAD_FUERA_RANGO'
       | 'MKT_EXCEDIDO'
       | 'APERTURA_NO_AUTORIZADA';

@@ -98,6 +98,29 @@ interface TelemetryPoint {
   ia_diagnosis?: string | null;
 }
 
+type SimulatorState = {
+  iotFailure: boolean;
+  paused: boolean;
+  turboMode: boolean;
+  lastError?: string | null;
+  iotFailureSince?: string | null;
+  lastSignalEvent?: {
+    type: string;
+    message?: string;
+    viajeId?: string;
+    bufferLength?: number;
+    createdAt?: string;
+  } | null;
+  trip: {
+    viajeId: string;
+    compressorFailed: boolean;
+    routeDeviated: boolean;
+    gateOpenTicks: number;
+    offlineBufferLength: number;
+    status: string;
+  } | null;
+} | null;
+
 interface UserSession {
   id: string;
   email: string;
@@ -123,6 +146,7 @@ export default function Dashboard() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isZepModalOpen, setIsZepModalOpen] = useState(false);
   const [telemetryList, setTelemetryList] = useState<TelemetryPoint[]>([]);
+  const [simState, setSimState] = useState<SimulatorState>(null);
   const [isLeftCollapsed, setIsLeftCollapsed] = useState(false);
   const [isRightCollapsed, setIsRightCollapsed] = useState(false);
 
@@ -198,6 +222,16 @@ export default function Dashboard() {
   const [vehicleDropOpen, setVehicleDropOpen] = useState(false);
   const vehicleDropRef = useRef<HTMLDivElement>(null);
   const [mapMounted, setMapMounted] = useState(false);
+
+  const handleToggleVehicleDrop = () => {
+    if (vehicleDropOpen) {
+      setVehicleDropOpen(false);
+      return;
+    }
+
+    setVehicleSearch("");
+    setVehicleDropOpen(true);
+  };
 
   const resetModalForm = () => {
     setSelectedEmpresa("");
@@ -620,12 +654,16 @@ export default function Dashboard() {
         setSucursales(Array.isArray(sucursalesData) ? sucursalesData : []);
         setPerfiles(Array.isArray(perfilesData) ? perfilesData : []);
         if (data.length > 0) {
+          const activePreferred = data.find((v: Viaje) =>
+            v.estado === "en_curso" || v.estado === "pendiente" || v.estado === "pausado",
+          );
+
           setViajeSeleccionado((current) => {
             if (current) {
               const updated = data.find((v: Viaje) => v.id === current.id);
               return updated || current;
             }
-            return hasSelectedManually.current ? current : data[0];
+            return hasSelectedManually.current ? current : (activePreferred || null);
           });
         }
       } catch (error) {
@@ -667,6 +705,30 @@ export default function Dashboard() {
     cargarTelemetria();
     const interval = setInterval(cargarTelemetria, 5000);
     return () => { clearTimeout(timerLoading); clearInterval(interval); };
+  }, [viajeSeleccionado?.id]);
+
+  useEffect(() => {
+    if (!viajeSeleccionado?.id) {
+      const timer = setTimeout(() => setSimState(null), 0);
+      return () => clearTimeout(timer);
+    }
+
+    const viajeId = viajeSeleccionado.id;
+
+    async function cargarSimulador() {
+      try {
+        const res = await apiFetch(`${API_URL}/viaje/${viajeId}/simulador-estado`);
+        if (res.ok) {
+          setSimState(await res.json());
+        }
+      } catch (error) {
+        console.error("Error cargando estado del simulador:", error);
+      }
+    }
+
+    cargarSimulador();
+    const interval = setInterval(cargarSimulador, 4000);
+    return () => clearInterval(interval);
   }, [viajeSeleccionado?.id]);
 
   // ─── LOADING SKELETON ────────────────────────────────────────────────────────
@@ -904,6 +966,37 @@ export default function Dashboard() {
 
             {/* Centro: mapa + tabs */}
             <div className="flex-1 flex flex-col gap-3 h-full min-w-0">
+              {viajeSeleccionado && (
+                <div className="rounded-2xl border border-white/[0.08] bg-black/80 px-4 py-3 flex items-center justify-between gap-4">
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">Estado del simulador</p>
+                    <p className="mt-1 text-xs text-slate-300 truncate">
+                      {simState?.iotFailure
+                        ? "Pérdida de señal IoT activa"
+                        : "Señal IoT normal"}
+                    </p>
+                  </div>
+                  <div className={`rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-[0.14em] ${simState?.iotFailure ? "border-rose-500/30 bg-rose-500/10 text-rose-300" : "border-emerald-500/20 bg-emerald-500/10 text-emerald-300"}`}>
+                    {simState?.iotFailure ? "Sin señal" : "En línea"}
+                  </div>
+                  <div className="rounded-full border border-white/10 bg-black px-3 py-1 text-[10px] font-mono text-slate-400">
+                    Buffer: {simState?.trip?.offlineBufferLength ?? 0}
+                  </div>
+                </div>
+              )}
+              {simState?.iotFailure && (
+                <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-xs text-rose-200 flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-rose-300">Diagnóstico interno</p>
+                    <p className="mt-1 truncate">
+                      {simState.lastSignalEvent?.message || simState.lastError || "Pérdida de señal IoT activa"}
+                    </p>
+                  </div>
+                  <div className="font-mono text-[10px] text-rose-200/80">
+                    {simState.iotFailureSince ? new Date(simState.iotFailureSince).toLocaleTimeString() : "-"}
+                  </div>
+                </div>
+              )}
               <div className="flex-1 bg-black border border-white/[0.08] rounded-2xl relative overflow-hidden z-10 transition-colors duration-500">
                 {viajeSeleccionado ? (
                   <>
@@ -1117,7 +1210,13 @@ export default function Dashboard() {
             <aside className={`h-full shrink-0 transition-all duration-300 ${
               isRightCollapsed ? "w-0 opacity-0 pointer-events-none border-none p-0 m-0" : "w-[330px]"
             }`}>
-              <AiInsightsPanel viaje={viajeSeleccionado} telemetryList={telemetryList} apiUrl={API_URL} onOpenZepModal={() => setIsZepModalOpen(true)} />
+              <AiInsightsPanel
+                viaje={viajeSeleccionado}
+                telemetryList={telemetryList}
+                apiUrl={API_URL}
+                simulatorState={simState}
+                onOpenZepModal={() => setIsZepModalOpen(true)}
+              />
             </aside>
           </main>
 
@@ -1228,7 +1327,13 @@ export default function Dashboard() {
             <aside className={`h-full shrink-0 transition-all duration-300 ${
               isRightCollapsed ? "w-0 opacity-0 pointer-events-none border-none p-0 m-0" : "w-[330px]"
             }`}>
-              <AiInsightsPanel viaje={viajeSeleccionado} telemetryList={telemetryList} apiUrl={API_URL} onOpenZepModal={() => setIsZepModalOpen(true)} />
+              <AiInsightsPanel
+                viaje={viajeSeleccionado}
+                telemetryList={telemetryList}
+                apiUrl={API_URL}
+                simulatorState={simState}
+                onOpenZepModal={() => setIsZepModalOpen(true)}
+              />
             </aside>
           </main>
         ) : currentView === "admin" ? (
@@ -1504,7 +1609,7 @@ export default function Dashboard() {
                         <div ref={vehicleDropRef} className="relative mt-1">
                           <button
                             type="button"
-                            onClick={() => setVehicleDropOpen((o) => !o)}
+                            onClick={handleToggleVehicleDrop}
                             className={`w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg border text-[11px] transition-all duration-150 cursor-pointer ${
                               vehicleDropOpen
                                 ? "border-white/20 bg-black ring-2 ring-white/6"
@@ -2063,6 +2168,38 @@ function GraphExplorer({
   const [hasSearched, setHasSearched] = useState(false);
   const [filterByTrip, setFilterByTrip] = useState(!!selectedTripId);
 
+  // Restaurar estado del grafo desde localStorage al montar el componente (sólo lado del cliente)
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const savedQuery = localStorage.getItem("zep_query");
+      const savedSintesis = localStorage.getItem("zep_sintesis");
+      const savedNodes = localStorage.getItem("zep_nodes");
+      const savedEdges = localStorage.getItem("zep_edges");
+
+      setTimeout(() => {
+        if (savedQuery) setQuery(savedQuery);
+        if (savedSintesis) setSintesis(savedSintesis);
+        if (savedNodes) {
+          try {
+            setNodes(JSON.parse(savedNodes));
+          } catch {
+            // Fallback silencioso
+          }
+        }
+        if (savedEdges) {
+          try {
+            setEdges(JSON.parse(savedEdges));
+          } catch {
+            // Fallback silencioso
+          }
+        }
+        if (savedQuery || savedSintesis) {
+          setHasSearched(true);
+        }
+      }, 0);
+    }
+  }, []);
+
   useEffect(() => {
     const timer = setTimeout(() => {
       setFilterByTrip(!!selectedTripId);
@@ -2071,11 +2208,15 @@ function GraphExplorer({
   }, [selectedTripId]);
 
   const handleSearch = async (searchTerm: string) => {
+    // Salvaguarda crítica: Evitar búsquedas vacías o con espacios en blanco
+    if (!searchTerm || !searchTerm.trim()) {
+      return;
+    }
     setIsLoading(true);
     setHasSearched(true);
     setSintesis("");
     try {
-      const bodyPayload: { query: string; viajeId?: string } = { query: searchTerm };
+      const bodyPayload: { query: string; viajeId?: string } = { query: searchTerm.trim() };
       if (filterByTrip && selectedTripId) {
         bodyPayload.viajeId = selectedTripId;
       }
@@ -2089,6 +2230,14 @@ function GraphExplorer({
         setNodes(data.nodes || []);
         setEdges(data.edges || []);
         setSintesis(data.sintesis || "");
+
+        // Persistir en localStorage para resiliencia frente a recargas (F5)
+        if (typeof window !== "undefined") {
+          localStorage.setItem("zep_query", searchTerm.trim());
+          localStorage.setItem("zep_sintesis", data.sintesis || "");
+          localStorage.setItem("zep_nodes", JSON.stringify(data.nodes || []));
+          localStorage.setItem("zep_edges", JSON.stringify(data.edges || []));
+        }
       }
     } catch (err) {
       console.error("Error al buscar en el grafo de Zep:", err);
@@ -2098,6 +2247,7 @@ function GraphExplorer({
   };
 
   const quickSearch = (term: string) => {
+    if (!term || !term.trim()) return;
     setQuery(term);
     handleSearch(term);
   };

@@ -23,6 +23,7 @@ export interface TelemetriaInput {
   bateria?: number | null;
   timestamp_sensor: string;
   incidente_id?: string | null;
+  tipo_alerta?: string | null;
   valor_pico?: number | null;
   duracion_segundos?: number | null;
   umbral_permitido?: number | null;

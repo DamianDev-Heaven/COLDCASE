@@ -7,7 +7,6 @@ import { apiFetch } from "@/lib/api";
 import { 
   ArrowLeft, 
   UserPlus, 
-  Shield, 
   Trash2, 
   Edit3, 
   Mail, 

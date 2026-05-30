@@ -8,7 +8,7 @@ export class CreateIncidenteDto {
   telemetria_id: number;
 
   @IsString()
-  tipo_alerta: 'TEMP_ALTA' | 'FUERA_RUTA' | 'BATERIA_BAJA';
+  tipo_alerta: 'TEMP_ALTA' | 'FUERA_RUTA' | 'BATERIA_BAJA' | 'BATERIA_AGOTADA';
 
   @IsNumber()
   valor_detectado: number;

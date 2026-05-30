@@ -23,6 +23,7 @@ type IncidenteRow = {
     | 'TEMP_ALTA'
     | 'FUERA_RUTA'
     | 'BATERIA_BAJA'
+    | 'BATERIA_AGOTADA'
     | 'HUMEDAD_FUERA_RANGO'
     | 'MKT_EXCEDIDO'
     | 'APERTURA_NO_AUTORIZADA';
@@ -139,6 +140,7 @@ export class TelemetriaService {
             bateria: result.bateria,
             timestamp_sensor: result.timestamp_sensor,
             incidente_id: inc.id,
+            tipo_alerta: inc.tipo_alerta,
             valor_pico: Number(inc.valor_pico ?? inc.valor_detectado),
             duracion_segundos: duracionSegundos,
             umbral_permitido: Number(inc.umbral_permitido),
@@ -236,8 +238,7 @@ export class TelemetriaService {
       }
 
       let incidente: IncidenteRow | null = null;
-      let encolarIa = false;
-      let incidenteParaIa: IncidenteRow | null = null;
+      const incidentesParaIa: IncidenteRow[] = [];
 
       // 3. Evaluar anomalías usando detectores en cadena
       const detectors = [
@@ -259,11 +260,8 @@ export class TelemetriaService {
           if (!incidente) {
             incidente = result.incidente as IncidenteRow;
           }
-          if (result.encolarIa) {
-            encolarIa = true;
-          }
-          if (result.incidenteParaIa) {
-            incidenteParaIa = result.incidenteParaIa as IncidenteRow;
+          if (result.encolarIa && result.incidenteParaIa) {
+            incidentesParaIa.push(result.incidenteParaIa as IncidenteRow);
           }
         }
       }
@@ -275,8 +273,7 @@ export class TelemetriaService {
         valor_detectado: incidente?.valor_detectado ?? null,
         umbral_permitido: incidente?.umbral_permitido ?? null,
         timestamp_bd: incidente?.timestamp_bd ?? null,
-        encolarIa,
-        incidenteParaIa,
+        incidentesParaIa,
       };
     });
   }

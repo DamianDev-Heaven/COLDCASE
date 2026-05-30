@@ -17,10 +17,30 @@ interface TelemetryPoint {
   ia_diagnosis?: string | null;
 }
 
+interface SimulatorState {
+  iotFailure: boolean;
+  paused: boolean;
+  turboMode: boolean;
+  lastError?: string | null;
+  iotFailureSince?: string | null;
+  lastSignalEvent?: {
+    type: string;
+    message?: string;
+    viajeId?: string;
+    bufferLength?: number;
+    createdAt?: string;
+  } | null;
+  trip?: {
+    offlineBufferLength?: number;
+    status?: string;
+  } | null;
+}
+
 interface AiInsightsPanelProps {
   viaje: ZepAuditViaje | null;
   telemetryList: TelemetryPoint[];
   apiUrl: string;
+  simulatorState?: SimulatorState | null;
   onOpenZepModal?: () => void;
 }
 
@@ -28,9 +48,16 @@ export default function AiInsightsPanel({
   viaje,
   telemetryList,
   apiUrl,
+  simulatorState,
   onOpenZepModal,
 }: AiInsightsPanelProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const simulatorDiagnosisText =
+    simulatorState?.lastSignalEvent?.message || simulatorState?.lastError || null;
+  const hasSimulatorDiagnosis = Boolean(
+    simulatorState?.iotFailure || simulatorDiagnosisText,
+  );
 
   // Encontrar el último diagnóstico de IA en vivo disponible
   const latestLiveDiagnosis = useMemo(() => {
@@ -140,21 +167,53 @@ export default function AiInsightsPanel({
                     </div>
                     {latestLiveDiagnosis.ia_diagnosis}
                   </div>
+
+                  {hasSimulatorDiagnosis && (
+                    <div className="bg-rose-950/25 border border-rose-500/30 p-4 rounded-lg text-left">
+                      <div className="text-[9px] font-bold text-rose-300 uppercase tracking-wider mb-1">
+                        Diagnóstico de Resiliencia IoT
+                      </div>
+                      <p className="text-[11px] text-rose-100 leading-relaxed">
+                        {simulatorDiagnosisText || "Pérdida de señal IoT activa"}
+                      </p>
+                      <p className="text-[10px] text-rose-200/80 font-mono mt-2">
+                        Buffer local: {simulatorState?.trip?.offlineBufferLength ?? 0} · Estado: {simulatorState?.trip?.status || "-"}
+                      </p>
+                    </div>
+                  )}
                 </div>
               ) : (
-                <div className="bg-[#050505] border border-white/8 p-5 rounded-lg flex items-center justify-center min-h-[140px] text-center">
-                  <div>
-                    <span className="text-white text-xs font-bold flex items-center justify-center gap-1.5 uppercase tracking-wider">
-                      <span className="relative flex h-1.5 w-1.5 shrink-0">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-60"></span>
-                        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-white"></span>
-                      </span>
-                      [ Canal Seguro ]
-                    </span>
-                    <p className="text-[10px] text-slate-500 font-mono mt-2 leading-relaxed max-w-xs">
-                      No se han detectado anomalías térmicas ni fallos en la cadena de frío. Estatus operativo estable.
-                    </p>
-                  </div>
+                <div className="space-y-3">
+                  {hasSimulatorDiagnosis && (
+                    <div className="bg-rose-950/25 border border-rose-500/30 p-4 rounded-lg text-left">
+                      <div className="text-[9px] font-bold text-rose-300 uppercase tracking-wider mb-1">
+                        Diagnóstico de Resiliencia IoT
+                      </div>
+                      <p className="text-[11px] text-rose-100 leading-relaxed">
+                        {simulatorDiagnosisText || "Pérdida de señal IoT activa"}
+                      </p>
+                      <p className="text-[10px] text-rose-200/80 font-mono mt-2">
+                        Buffer local: {simulatorState?.trip?.offlineBufferLength ?? 0} · Estado: {simulatorState?.trip?.status || "-"}
+                      </p>
+                    </div>
+                  )}
+
+                  {!hasSimulatorDiagnosis && (
+                    <div className="bg-[#050505] border border-white/8 p-5 rounded-lg flex items-center justify-center min-h-[140px] text-center">
+                      <div>
+                        <span className="text-white text-xs font-bold flex items-center justify-center gap-1.5 uppercase tracking-wider">
+                          <span className="relative flex h-1.5 w-1.5 shrink-0">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-60"></span>
+                            <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-white"></span>
+                          </span>
+                          [ Canal Seguro ]
+                        </span>
+                        <p className="text-[10px] text-slate-500 font-mono mt-2 leading-relaxed max-w-xs">
+                          No se han detectado anomalías térmicas ni fallos en la cadena de frío. Estatus operativo estable.
+                        </p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

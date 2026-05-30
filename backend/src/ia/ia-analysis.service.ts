@@ -83,6 +83,7 @@ interface SemanticTelemetryInput {
   timestamp_sensor?: string | number;
   received_at?: string | number;
   incidente_id?: string | null;
+  tipo_alerta?: string | null;
   valor_pico?: number | string | null;
   duracion_segundos?: number | string | null;
   umbral_permitido?: number | string | null;
@@ -787,8 +788,8 @@ export class IaAnalysisService {
 
     // Construir narrativa profesional estructurada para el grafo de Zep
     const partes: string[] = [
-      `[EVENTO DE TELEMETRÍA — Viaje: ${viajeId}]`,
-      `Telemetría ID: ${telemetriaId}`,
+      `[EVENTO DE TELEMETRÍA — Viaje: ${this.formatUuidForSemantic(viajeId)}]`,
+      `Telemetría ID: ${this.formatUuidForSemantic(telemetriaId)}`,
       `Timestamp: ${timestamp}`,
       `Temperatura registrada: ${temp}°C${limiteMax !== 'N/A' ? ` (límite máx. ${limiteMax}°C)` : ''}`,
       `Humedad: ${hum}%`,
@@ -798,12 +799,29 @@ export class IaAnalysisService {
     ];
 
     if (telemetry.incidente_id) {
+      const isTemp =
+        telemetry.tipo_alerta === 'TEMP_ALTA' ||
+        telemetry.tipo_alerta === 'TEMP_BAJA';
+      const label = telemetry.tipo_alerta
+        ? `[ALERTA DETECTADA: ${telemetry.tipo_alerta}]`
+        : `[DETALLES DEL INCIDENTE]`;
       partes.push(
-        `[DETALLES DE LA EXCURSIÓN TÉRMICA]`,
-        `Incidente ID: ${telemetry.incidente_id}`,
-        `Temperatura Pico: ${telemetry.valor_pico ?? temp}°C`,
-        `Umbral Permitido: ${telemetry.umbral_permitido ?? limiteMax}°C`,
-        `Duración de la Excursión: ${telemetry.duracion_segundos ?? 'N/A'} segundos`,
+        label,
+        `Incidente ID: ${this.formatUuidForSemantic(telemetry.incidente_id)}`,
+      );
+      if (isTemp || !telemetry.tipo_alerta) {
+        partes.push(
+          `Temperatura Pico: ${telemetry.valor_pico ?? temp}°C`,
+          `Umbral Permitido: ${telemetry.umbral_permitido ?? limiteMax}°C`,
+        );
+      } else {
+        partes.push(`Valor Registrado: ${telemetry.valor_pico ?? 'N/A'}`);
+        if (telemetry.umbral_permitido) {
+          partes.push(`Referencia/Límite: ${telemetry.umbral_permitido}`);
+        }
+      }
+      partes.push(
+        `Duración del evento: ${telemetry.duracion_segundos ?? 'N/A'} segundos`,
       );
     }
 
@@ -1046,6 +1064,22 @@ export class IaAnalysisService {
       [viajeId],
     );
 
+    const tempStatsResult = await this.db.query<{
+      temp_promedio: string | null;
+      total_lecturas: string;
+    }>(
+      `SELECT ROUND(AVG(temp::numeric), 2) AS temp_promedio,
+              COUNT(*) AS total_lecturas
+         FROM telemetria WHERE viaje_id = $1`,
+      [viajeId],
+    );
+    const tempPromedioRaw = tempStatsResult.rows[0]?.temp_promedio;
+    const tempPromedio = tempPromedioRaw ? parseFloat(tempPromedioRaw) : null;
+    const totalLecturas = parseInt(
+      tempStatsResult.rows[0]?.total_lecturas ?? '0',
+      10,
+    );
+
     const diagnoses = incidentRows.rows.map((row) => {
       let nivel_riesgo = row.nivel_riesgo;
       if (!nivel_riesgo) {
@@ -1101,26 +1135,81 @@ export class IaAnalysisService {
       })
       .join('\n');
 
+    const incidentesDeTemperatura = incidentRows.rows.filter(
+      (r) => r.tipo_alerta === 'TEMP_ALTA' || r.tipo_alerta === 'TEMP_BAJA',
+    );
+    const incidentesDeHumedad = incidentRows.rows.filter(
+      (r) => r.tipo_alerta === 'HUMEDAD_FUERA_RANGO',
+    );
+    const incidentesDeRuta = incidentRows.rows.filter(
+      (r) => r.tipo_alerta === 'FUERA_RUTA',
+    );
+    const incidentesDeMkt = incidentRows.rows.filter(
+      (r) => r.tipo_alerta === 'MKT_EXCEDIDO',
+    );
+    const incidentesDeCompuerta = incidentRows.rows.filter(
+      (r) => r.tipo_alerta === 'APERTURA_NO_AUTORIZADA',
+    );
+    const incidentesDeBateria = incidentRows.rows.filter(
+      (r) =>
+        r.tipo_alerta === 'BATERIA_BAJA' || r.tipo_alerta === 'BATERIA_AGOTADA',
+    );
+
+    const alertasPartes: string[] = [];
+    if (incidentesDeTemperatura.length > 0) {
+      alertasPartes.push(`${incidentesDeTemperatura.length} térmica(s)`);
+    }
+    if (incidentesDeHumedad.length > 0) {
+      alertasPartes.push(`${incidentesDeHumedad.length} de humedad`);
+    }
+    if (incidentesDeRuta.length > 0) {
+      alertasPartes.push(`${incidentesDeRuta.length} desvío(s) de ruta`);
+    }
+    if (incidentesDeMkt.length > 0) {
+      alertasPartes.push(`${incidentesDeMkt.length} de MKT`);
+    }
+    if (incidentesDeCompuerta.length > 0) {
+      alertasPartes.push(`${incidentesDeCompuerta.length} de compuerta`);
+    }
+    if (incidentesDeBateria.length > 0) {
+      alertasPartes.push(`${incidentesDeBateria.length} de batería`);
+    }
+
+    let desgloseAlertas = '';
+    if (alertasPartes.length > 0) {
+      desgloseAlertas = `Se registraron ${incidentRows.rows.length} anomalías durante el trayecto (${alertasPartes.join(', ')}).`;
+    } else {
+      desgloseAlertas =
+        'No se registraron alertas ni anomalías operativas durante el recorrido.';
+    }
+
     let maxRiesgo = 'bajo';
-    if (diagnoses.some((d) => d.nivel_riesgo.toLowerCase() === 'critico')) {
+    const tieneTempCritica = incidentesDeTemperatura.some(
+      (r) =>
+        r.valor_detectado > viaje.limite_max_temp + 3 ||
+        r.valor_detectado < (viaje.limite_min_temp || 0) - 3,
+    );
+    const tieneTempModerada = incidentesDeTemperatura.length > 0;
+    const tieneOtrosFallos = incidentRows.rows.length > 0;
+
+    if (tieneTempCritica) {
       maxRiesgo = 'crítico';
-    } else if (diagnoses.some((d) => d.nivel_riesgo.toLowerCase() === 'alto')) {
+    } else if (tieneTempModerada) {
       maxRiesgo = 'alto';
-    } else if (
-      diagnoses.some(
-        (d) =>
-          d.nivel_riesgo.toLowerCase() === 'medio' ||
-          d.nivel_riesgo.toLowerCase() === 'moderado',
-      )
-    ) {
+    } else if (tieneOtrosFallos) {
       maxRiesgo = 'moderado';
     }
 
+    const tempResumen =
+      tempPromedio !== null
+        ? ` Temperatura promedio registrada: ${tempPromedio.toFixed(2)}°C en ${totalLecturas} lecturas.`
+        : '';
+
     const fallbackAudit =
-      `Auditoría Final: El viaje del transporte de ${viaje.tipo_producto || 'Carga Sensible'} concluyó. ` +
-      (diagnoses.length > 0
-        ? `Se registraron ${diagnoses.length} anomalías térmicas durante el trayecto, principalmente debidas a fluctuaciones de temperatura fuera del rango de tolerancia (${viaje.limite_min_temp}°C a ${viaje.limite_max_temp}°C). Los incidentes fueron mitigados a tiempo y la temperatura final se estabilizó. Carga entregada con nivel de riesgo final ${maxRiesgo}.`
-        : `No se registraron alertas ni anomalías térmicas durante el recorrido. La temperatura se mantuvo estable dentro de los límites requeridos de ${viaje.limite_min_temp}°C a ${viaje.limite_max_temp}°C, garantizando la perfecta integridad de la cadena de frío. Carga entregada exitosamente con riesgo bajo.`);
+      `Auditoría Final: El viaje del transporte de ${viaje.tipo_producto || 'Carga Sensible'} concluyó.${tempResumen} ` +
+      (incidentRows.rows.length > 0
+        ? `${desgloseAlertas} Los incidentes fueron mitigados a tiempo y la temperatura final se estabilizó. Carga entregada con nivel de riesgo final ${maxRiesgo}.`
+        : `La temperatura se mantuvo estable dentro de los límites requeridos de ${viaje.limite_min_temp || 0}°C a ${viaje.limite_max_temp}°C, garantizando la perfecta integridad de la cadena de frío. Carga entregada exitosamente con riesgo bajo.`);
 
     if (!this.groqClient) {
       this.logger.warn(
@@ -1151,6 +1240,7 @@ REGLAS CRÍTICAS PARA EL PÁRRAFO DE AUDITORÍA:
       const userPrompt = `Datos del Viaje:
 - Tipo de producto: ${viaje.tipo_producto || 'Carga general'}
 - Límites de temperatura permitidos: ${viaje.limite_min_temp}°C a ${viaje.limite_max_temp}°C
+- Temperatura promedio registrada: ${tempPromedio !== null ? tempPromedio.toFixed(2) + '°C' : 'No disponible'} (${totalLecturas} lecturas de telemetría)
 
 Historial de incidentes térmicos y diagnósticos de IA:
 ${incidentSummary || 'No se registraron incidentes térmicos ni desviaciones en este viaje.'}
@@ -1303,11 +1393,46 @@ Tu respuesta debe:
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);
       this.logger.error(`Error al sintetizar hechos de grafo: ${message}`);
+
+      let fallbackNodes: any[] = [];
+      let fallbackEdges: { fact?: string; type?: string; name?: string }[] = [];
+      try {
+        const results = await this.buscarEnGrafoGlobal(query, viajeId);
+        fallbackNodes = results.nodes || [];
+        fallbackEdges = results.edges || [];
+      } catch (e) {
+        this.logger.warn(
+          `Fallo secundario obteniendo fallback de Zep: ${e instanceof Error ? e.message : String(e)}`,
+        );
+      }
+
+      const isRateLimit =
+        message.includes('429') || message.toLowerCase().includes('rate limit');
+      const errorMsg = isRateLimit
+        ? '⚠️ Se ha excedido la cuota diaria (Rate Limit 429) de la API de Groq. La síntesis narrativa de IA no está disponible temporalmente, pero puedes explorar los nodos y relaciones recuperados de Zep en el panel de la derecha.'
+        : `⚠️ Error de síntesis de IA (${message}). Mostrando relaciones en bruto de Zep a continuación.`;
+
+      const fallbackSintesis =
+        `${errorMsg}\n\n=== HECHOS EN BRUTO DEL GRAFO DE ZEP ===\n` +
+        (fallbackEdges.length > 0
+          ? fallbackEdges
+              .map((e) => `- ${e.fact || e.type || 'Relación'}`)
+              .join('\n')
+          : 'No se encontraron hechos semánticos.');
+
       return {
-        sintesis: `Error de síntesis IA: ${message}`,
-        nodes: [],
-        edges: [],
+        sintesis: fallbackSintesis,
+        nodes: fallbackNodes,
+        edges: fallbackEdges,
       };
     }
+  }
+
+  private formatUuidForSemantic(uuid: any): string {
+    if (uuid == null) return 'N/A';
+    const str = String(uuid);
+    if (str.length < 8) return str;
+    const short = str.split('-')[0] || str.substring(0, 8);
+    return short.toUpperCase().split('').join(' ');
   }
 }
