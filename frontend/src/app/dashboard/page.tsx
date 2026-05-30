@@ -110,8 +110,9 @@ export default function Dashboard() {
   const [sucursales, setSucursales] = useState<Sucursal[]>([]);
   const [transportes, setTransportes] = useState<Transporte[]>([]);
   const [perfiles, setPerfiles] = useState<PerfilProducto[]>([]);
+  const isFirstLoad = useRef(true);
   const [viajeSeleccionado, setViajeSeleccionado] = useState<Viaje | null>(null);
-  const [viajeFinalizadoDismissed, setViajeFinalizadoDismissed] = useState<string | null>(null);
+  const [viajeFinalizadoDismissed, setViajeFinalizadoDismissed] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -533,6 +534,67 @@ export default function Dashboard() {
     }
   }
 
+  async function handlePausarViaje(viajeId: string) {
+    setIsSubmitting(true);
+    try {
+      const res = await apiFetch(`${API_URL}/viaje/${viajeId}/pausar`, { method: "PATCH" });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error((err as { message?: string })?.message || `Error ${res.status}`);
+      }
+      const actualizado = await res.json();
+      setViajes((cur) => cur.map((v) => (v.id === actualizado.id ? actualizado : v)));
+      hasSelectedManually.current = true;
+      setViajeSeleccionado(actualizado);
+    } catch (error) {
+      console.error("Error al pausar viaje:", error);
+      alert(error instanceof Error ? error.message : "No se pudo pausar el viaje.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handleReanudarViaje(viajeId: string) {
+    setIsSubmitting(true);
+    try {
+      const res = await apiFetch(`${API_URL}/viaje/${viajeId}/reanudar`, { method: "PATCH" });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error((err as { message?: string })?.message || `Error ${res.status}`);
+      }
+      const actualizado = await res.json();
+      setViajes((cur) => cur.map((v) => (v.id === actualizado.id ? actualizado : v)));
+      hasSelectedManually.current = true;
+      setViajeSeleccionado(actualizado);
+    } catch (error) {
+      console.error("Error al reanudar viaje:", error);
+      alert(error instanceof Error ? error.message : "No se pudo reanudar el viaje.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handleCancelarViaje(viajeId: string) {
+    if (!confirm("¿Está seguro de que desea cancelar este viaje? Se cerrarán todos los incidentes activos.")) return;
+    setIsSubmitting(true);
+    try {
+      const res = await apiFetch(`${API_URL}/viaje/${viajeId}/cancelar`, { method: "PATCH" });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error((err as { message?: string })?.message || `Error ${res.status}`);
+      }
+      const actualizado = await res.json();
+      setViajes((cur) => cur.map((v) => (v.id === actualizado.id ? actualizado : v)));
+      hasSelectedManually.current = true;
+      setViajeSeleccionado(actualizado);
+    } catch (error) {
+      console.error("Error al cancelar viaje:", error);
+      alert(error instanceof Error ? error.message : "No se pudo cancelar el viaje.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
   useEffect(() => {
     async function cargarViajes() {
       try {
@@ -547,6 +609,11 @@ export default function Dashboard() {
         const sucursalesData = await sucursalesRes.json();
         const perfilesData = await perfilesRes.json();
         setViajes(data);
+        if (isFirstLoad.current && Array.isArray(data)) {
+          const alreadyFinished = data.filter((v: Viaje) => v.estado === "finalizado").map((v: Viaje) => v.id);
+          setViajeFinalizadoDismissed(alreadyFinished);
+          isFirstLoad.current = false;
+        }
         setTransportes(transportesData);
         setSucursales(Array.isArray(sucursalesData) ? sucursalesData : []);
         setPerfiles(Array.isArray(perfilesData) ? perfilesData : []);
@@ -813,7 +880,17 @@ export default function Dashboard() {
               </div>
               <div className="flex-1 overflow-y-auto p-2.5 space-y-2 no-scrollbar">
                 {viajesActivos.map((viaje) => (
-                  <ViajeCard key={viaje.id} viaje={viaje} isSelected={viajeSeleccionado?.id === viaje.id} isSubmitting={isSubmitting} onSelect={(v) => { hasSelectedManually.current = true; setViajeSeleccionado(v); }} onIniciar={handleIniciarViaje} />
+                  <ViajeCard
+                    key={viaje.id}
+                    viaje={viaje}
+                    isSelected={viajeSeleccionado?.id === viaje.id}
+                    isSubmitting={isSubmitting}
+                    onSelect={(v) => { hasSelectedManually.current = true; setViajeSeleccionado(v); }}
+                    onIniciar={handleIniciarViaje}
+                    onPausar={handlePausarViaje}
+                    onReanudar={handleReanudarViaje}
+                    onCancelar={handleCancelarViaje}
+                  />
                 ))}
                 {viajesActivos.length === 0 && (
                   <div className="text-center p-8 text-slate-600 text-[11px] font-mono leading-relaxed">
@@ -837,7 +914,7 @@ export default function Dashboard() {
                       </div>
                     )}
                     
-                     {viajeSeleccionado.estado === "finalizado" && viajeFinalizadoDismissed !== viajeSeleccionado.id && (
+                     {viajeSeleccionado.estado === "finalizado" && !viajeFinalizadoDismissed.includes(viajeSeleccionado.id) && (
                        <div className="absolute inset-0 z-[1001] flex flex-col items-center justify-center p-6 bg-[#020408]/75 backdrop-blur-md text-center">
                          <div className="max-w-md w-full bg-slate-900/95 border border-white/10 p-8 rounded-3xl shadow-2xl flex flex-col items-center gap-5 relative overflow-hidden">
                            {/* Decorative gradient overlay */}
@@ -846,7 +923,7 @@ export default function Dashboard() {
                            
                            {/* Close Button */}
                            <button
-                             onClick={() => setViajeFinalizadoDismissed(viajeSeleccionado.id)}
+                             onClick={() => setViajeFinalizadoDismissed((prev) => prev.includes(viajeSeleccionado.id) ? prev : [...prev, viajeSeleccionado.id])}
                              className="absolute top-4 right-4 text-slate-400 hover:text-white transition-colors cursor-pointer z-10"
                            >
                              <X className="w-5 h-5" />
@@ -929,7 +1006,7 @@ export default function Dashboard() {
                            </div>
 
                            <button
-                             onClick={() => setViajeFinalizadoDismissed(viajeSeleccionado.id)}
+                             onClick={() => setViajeFinalizadoDismissed((prev) => prev.includes(viajeSeleccionado.id) ? prev : [...prev, viajeSeleccionado.id])}
                              className="w-full py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-white/5 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer flex items-center justify-center gap-2"
                            >
                              Cerrar Ventana
@@ -1181,7 +1258,7 @@ export default function Dashboard() {
             apiUrl={API_URL}
           />
 
-           {viajeSeleccionado.estado === "finalizado" && currentView === "overview" && viajeFinalizadoDismissed !== viajeSeleccionado.id && (
+           {viajeSeleccionado.estado === "finalizado" && currentView === "overview" && !viajeFinalizadoDismissed.includes(viajeSeleccionado.id) && (
              <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-[#020408]/85 backdrop-blur-md p-4 animate-in fade-in duration-300">
                <div className="max-w-md w-full bg-slate-900/95 border border-white/10 p-8 rounded-3xl shadow-2xl flex flex-col items-center gap-5 relative overflow-hidden">
                  {/* Decorative gradient overlay */}
@@ -1190,7 +1267,7 @@ export default function Dashboard() {
                  
                  {/* Close Button */}
                  <button
-                   onClick={() => setViajeFinalizadoDismissed(viajeSeleccionado.id)}
+                   onClick={() => setViajeFinalizadoDismissed((prev) => prev.includes(viajeSeleccionado.id) ? prev : [...prev, viajeSeleccionado.id])}
                    className="absolute top-4 right-4 text-slate-400 hover:text-white transition-colors cursor-pointer z-10"
                  >
                    <X className="w-5 h-5" />
@@ -1273,7 +1350,7 @@ export default function Dashboard() {
                  </div>
 
                  <button
-                   onClick={() => setViajeFinalizadoDismissed(viajeSeleccionado.id)}
+                   onClick={() => setViajeFinalizadoDismissed((prev) => prev.includes(viajeSeleccionado.id) ? prev : [...prev, viajeSeleccionado.id])}
                    className="w-full py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-white/5 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer flex items-center justify-center gap-2"
                  >
                    Cerrar Ventana
@@ -2191,10 +2268,24 @@ interface ViajeCardProps {
   isSubmitting: boolean;
   onSelect: (v: Viaje) => void;
   onIniciar: (id: string) => void;
+  onPausar?: (id: string) => void;
+  onReanudar?: (id: string) => void;
+  onCancelar?: (id: string) => void;
 }
 
-function ViajeCard({ viaje, isHistorico = false, isSelected, isSubmitting, onSelect, onIniciar }: ViajeCardProps) {
+function ViajeCard({
+  viaje,
+  isHistorico = false,
+  isSelected,
+  isSubmitting,
+  onSelect,
+  onIniciar,
+  onPausar,
+  onReanudar,
+  onCancelar,
+}: ViajeCardProps) {
   const isEnCurso = viaje.estado === "en_curso";
+  const isPausado = viaje.estado === "pausado";
   return (
     <div
       onClick={() => onSelect(viaje)}
@@ -2217,7 +2308,9 @@ function ViajeCard({ viaje, isHistorico = false, isSelected, isSubmitting, onSel
             className={`text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1.5 ${
               isEnCurso
                 ? "bg-cyan-950/70 text-cyan-400 border border-cyan-800/25"
-                : "bg-amber-950/60 text-amber-400 border border-amber-800/20"
+                : isPausado
+                  ? "bg-sky-950/70 text-sky-400 border border-sky-800/25"
+                  : "bg-amber-950/60 text-amber-400 border border-amber-800/20"
             }`}
           >
             {isEnCurso && (
@@ -2258,6 +2351,37 @@ function ViajeCard({ viaje, isHistorico = false, isSelected, isSubmitting, onSel
           >
             {isSubmitting ? "Iniciando..." : "▶  Iniciar Viaje"}
           </button>
+        </div>
+      )}
+      {!isHistorico && (isEnCurso || isPausado) && (
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          {isEnCurso && onPausar && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onPausar(viaje.id); }}
+              disabled={isSubmitting}
+              className="text-[8px] font-bold tracking-widest uppercase px-2 py-1.5 rounded-lg bg-sky-500/10 border border-sky-500/25 hover:bg-sky-500/20 hover:border-sky-500/50 text-sky-400 transition-all duration-300 cursor-pointer disabled:opacity-40"
+            >
+              Pausar
+            </button>
+          )}
+          {isPausado && onReanudar && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onReanudar(viaje.id); }}
+              disabled={isSubmitting}
+              className="text-[8px] font-bold tracking-widest uppercase px-2 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/25 hover:bg-emerald-500/20 hover:border-emerald-500/50 text-emerald-400 transition-all duration-300 cursor-pointer disabled:opacity-40"
+            >
+              Reanudar
+            </button>
+          )}
+          {onCancelar && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onCancelar(viaje.id); }}
+              disabled={isSubmitting}
+              className="text-[8px] font-bold tracking-widest uppercase px-2 py-1.5 rounded-lg bg-rose-500/10 border border-rose-500/25 hover:bg-rose-500/20 hover:border-rose-500/50 text-rose-400 transition-all duration-300 cursor-pointer disabled:opacity-40"
+            >
+              Cancelar
+            </button>
+          )}
         </div>
       )}
     </div>

@@ -46,6 +46,21 @@ export class ViajeController {
     return this.viajeService.finalizar(id);
   }
 
+  @Patch(':id/pausar')
+  pausar(@Param('id') id: string) {
+    return this.viajeService.pausar(id);
+  }
+
+  @Patch(':id/reanudar')
+  reanudar(@Param('id') id: string) {
+    return this.viajeService.reanudar(id);
+  }
+
+  @Patch(':id/cancelar')
+  cancelar(@Param('id') id: string) {
+    return this.viajeService.cancelar(id);
+  }
+
   @Post(':id/comando-simulador')
   enviarComandoSimulador(
     @Param('id') id: string,

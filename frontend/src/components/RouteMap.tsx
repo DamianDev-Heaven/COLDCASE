@@ -29,6 +29,7 @@ type RouteMapProps = {
 type PreviewStatus = "idle" | "loading" | "osrm" | "fallback";
 
 export default function RouteMap({
+  viajeId,
   waypoints = [],
   onAddWaypoint,
   onMapClick,
@@ -47,6 +48,8 @@ export default function RouteMap({
   const addRef = useRef(onAddWaypoint);
   const mapClickRef = useRef(onMapClick);
   const resizeTimeoutRef = useRef<number | null>(null);
+  const lastFittedViajeId = useRef<string | number | null>(null);
+  const lastFittedWaypointsKey = useRef<string>("");
 
   useEffect(() => {
     addRef.current = onAddWaypoint;
@@ -178,10 +181,11 @@ export default function RouteMap({
       bounds.extend(marker.getLatLng());
     });
 
-    if (routeToDraw && routeToDraw.length > 1) {
+    const shouldDrawRoute = routeToDraw && routeToDraw.length > 1 && (previewStatus !== "fallback" || !viajeId);
+    if (shouldDrawRoute) {
       const routeLine = leaflet
         .polyline(
-          routeToDraw.map((point) => [point.lat, point.lon]),
+          routeToDraw!.map((point) => [point.lat, point.lon]),
           {
             color: previewStatus === "osrm" ? "#22d3ee" : "#7dd3fc",
             weight: previewStatus === "osrm" ? 6 : 4,
@@ -190,7 +194,7 @@ export default function RouteMap({
             lineJoin: "round",
           },
         )
-        .addTo(layerRef.current);
+        .addTo(layerRef.current!);
 
       bounds.extend(routeLine.getBounds());
     }
@@ -298,17 +302,36 @@ export default function RouteMap({
         map.invalidateSize();
 
         if (bounds.isValid()) {
-          if (routeToDraw && routeToDraw.length > 1) {
-            map.fitBounds(bounds.pad(0.15), { animate: false });
-          } else if (waypoints.length === 1) {
-            map.setView([waypoints[0].lat, waypoints[0].lon], 16, { animate: false });
+          const isNewViaje = viajeId && (viajeId !== lastFittedViajeId.current);
+          
+          // Serialize waypoints and whether route is loaded to prevent refitting on zoom/pan or async route loads
+          const waypointsKey = waypoints.map(w => `${w.lat.toFixed(5)},${w.lon.toFixed(5)}`).join(';') + `|route:${!!routeToDraw}`;
+          const isSetupMode = !viajeId && (waypointsKey !== lastFittedWaypointsKey.current);
+          
+          if (isNewViaje || isSetupMode) {
+            let fitted = false;
+            if (routeToDraw && routeToDraw.length > 1) {
+              map.fitBounds(bounds.pad(0.15), { animate: false });
+              fitted = true;
+            } else if (waypoints.length === 1) {
+              map.setView([waypoints[0].lat, waypoints[0].lon], 16, { animate: false });
+              fitted = true;
+            }
+
+            if (fitted) {
+              if (viajeId) {
+                lastFittedViajeId.current = viajeId;
+              } else {
+                lastFittedWaypointsKey.current = waypointsKey;
+              }
+            }
           }
         }
       } catch (error) {
         console.error("Leaflet map update skipped:", error);
       }
     });
-  }, [leaflet, waypoints, previewRoute, previewStatus, routePreviewApiUrl, incidentMarkers, telemetryPoints]);
+  }, [leaflet, waypoints, previewRoute, previewStatus, routePreviewApiUrl, incidentMarkers, telemetryPoints, viajeId]);
 
   useEffect(() => {
     let active = true;
