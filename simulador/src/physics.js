@@ -78,7 +78,9 @@ function ensureTripState(viaje, simulationMap) {
 
 	existingState.routePoints = routePoints;
 	existingState.backendEstado = viaje.estado || existingState.backendEstado || 'pendiente';
-	existingState.status = 'activo';
+	if (!existingState.status) {
+		existingState.status = 'activo';
+	}
 	return existingState;
 }
 

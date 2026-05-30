@@ -20,6 +20,15 @@ interface SimulatorState {
   iotFailure?: boolean;
   paused?: boolean;
   turboMode?: boolean;
+  lastError?: string | null;
+  iotFailureSince?: string | null;
+  lastSignalEvent?: {
+    type: string;
+    message?: string;
+    viajeId?: string;
+    bufferLength?: number;
+    createdAt?: string;
+  } | null;
   simulations?: Array<{
     viajeId: string;
     compressorFailed?: boolean;
@@ -557,6 +566,9 @@ export class ViajeService {
         iotFailure: !!data.iotFailure,
         paused: !!data.paused,
         turboMode: !!data.turboMode,
+        lastError: data.lastError ?? null,
+        iotFailureSince: data.iotFailureSince ?? null,
+        lastSignalEvent: data.lastSignalEvent ?? null,
         trip: tripSim
           ? {
               viajeId: tripSim.viajeId,

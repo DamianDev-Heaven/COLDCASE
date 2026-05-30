@@ -83,6 +83,7 @@ interface SemanticTelemetryInput {
   timestamp_sensor?: string | number;
   received_at?: string | number;
   incidente_id?: string | null;
+  tipo_alerta?: string | null;
   valor_pico?: number | string | null;
   duracion_segundos?: number | string | null;
   umbral_permitido?: number | string | null;
@@ -798,13 +799,24 @@ export class IaAnalysisService {
     ];
 
     if (telemetry.incidente_id) {
+      const isTemp = telemetry.tipo_alerta === 'TEMP_ALTA' || telemetry.tipo_alerta === 'TEMP_BAJA';
+      const label = telemetry.tipo_alerta ? `[ALERTA DETECTADA: ${telemetry.tipo_alerta}]` : `[DETALLES DEL INCIDENTE]`;
       partes.push(
-        `[DETALLES DE LA EXCURSIÓN TÉRMICA]`,
+        label,
         `Incidente ID: ${telemetry.incidente_id}`,
-        `Temperatura Pico: ${telemetry.valor_pico ?? temp}°C`,
-        `Umbral Permitido: ${telemetry.umbral_permitido ?? limiteMax}°C`,
-        `Duración de la Excursión: ${telemetry.duracion_segundos ?? 'N/A'} segundos`,
       );
+      if (isTemp || !telemetry.tipo_alerta) {
+        partes.push(
+          `Temperatura Pico: ${telemetry.valor_pico ?? temp}°C`,
+          `Umbral Permitido: ${telemetry.umbral_permitido ?? limiteMax}°C`
+        );
+      } else {
+        partes.push(`Valor Registrado: ${telemetry.valor_pico ?? 'N/A'}`);
+        if (telemetry.umbral_permitido) {
+          partes.push(`Referencia/Límite: ${telemetry.umbral_permitido}`);
+        }
+      }
+      partes.push(`Duración del evento: ${telemetry.duracion_segundos ?? 'N/A'} segundos`);
     }
 
     return partes.join('\n');

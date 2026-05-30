@@ -848,6 +848,7 @@ function renderDashboardPage() {
 						<div>
 							<div style="font-size: 11px; font-weight: 700; color: #e2e8f0;">Falla de Señal IoT</div>
 							<div style="font-size: 9px; color: var(--muted); margin-top: 1px;">Simula desconexión celular del camión</div>
+							<div id="iotFailureStatusText" style="font-size: 9px; color: var(--muted); margin-top: 4px; font-family: monospace;">Estado: normal</div>
 						</div>
 						<label class="switch danger">
 							<input type="checkbox" id="iotFailureToggle">
@@ -863,6 +864,7 @@ function renderDashboardPage() {
 								<span class="led-indicator" id="workerLed" style="width:6px; height:6px; margin-right:4px;"></span>
 								<span id="workerStatusText">Cargando...</span>
 							</div>
+							<div id="workerQueueDetail" style="font-size: 9px; color: var(--muted); margin-top: 4px; font-family: monospace;">Cola: -</div>
 						</div>
 						<label class="switch warning">
 							<input type="checkbox" id="queueToggle" checked>
@@ -1088,6 +1090,7 @@ function renderDashboardPage() {
 		const queueToggle = document.getElementById('queueToggle');
 		const workerLed = document.getElementById('workerLed');
 		const workerStatusText = document.getElementById('workerStatusText');
+		const workerQueueDetail = document.getElementById('workerQueueDetail');
 		const redisConnTag = document.getElementById('redisConnTag');
 		const queueWaiting = document.getElementById('queueWaiting');
 		const queueActive = document.getElementById('queueActive');
@@ -1115,6 +1118,7 @@ function renderDashboardPage() {
 		const previewTag = document.getElementById('previewTag');
 		const stateTag = document.getElementById('stateTag');
 		const rangeTag = document.getElementById('rangeTag');
+		const iotFailureStatusText = document.getElementById('iotFailureStatusText');
 		const mapWrap = document.getElementById('mapWrap');
 		const chartWrap = document.getElementById('chartWrap');
 		const feedList = document.getElementById('feedList');
@@ -1512,6 +1516,14 @@ function renderDashboardPage() {
 				const status = trip.status || 'activo';
 				const lastPayload = trip.lastPayload || {};
 				const isPendiente = trip.backendEstado === 'pendiente';
+				const diagnostic = trip.lastError || state.lastError || null;
+				const signalLost = !!state?.iotFailure || Number(trip.offlineBufferLength || 0) > 0;
+				const signalTag = signalLost
+					? '<span class="tag error" style="margin-left:8px;background:rgba(239,68,68,0.12);color:var(--rose);border:1px solid rgba(239,68,68,0.3);">SIN SEÑAL IoT</span>'
+					: '';
+				const bufferTag = Number(trip.offlineBufferLength || 0) > 0
+					? '<span class="tag" style="margin-left:8px;background:rgba(245,158,11,0.12);color:#fbbf24;border:1px solid rgba(245,158,11,0.3);">BÚFER ' + escapeHtml(trip.offlineBufferLength) + '</span>'
+					: '';
 
 				const iniciarBtn = isPendiente
 					? '<button class="btn-iniciar-viaje" data-viaje-id="' + escapeHtml(trip.viajeId) + '" style="margin-top:8px;width:100%;padding:6px 10px;background:rgba(245,158,11,0.15);border:1px solid rgba(245,158,11,0.4);border-radius:6px;color:#fbbf24;font-size:11px;font-weight:700;cursor:pointer;letter-spacing:0.04em;">▶ INICIAR VIAJE</button>'
@@ -1525,6 +1537,8 @@ function renderDashboardPage() {
 					+ '<div class="muted" style="margin-top:4px;font-size:12px;">'
 					+ (isPendiente ? 'Pendiente de inicio' : 'Temp ' + formatNumber(lastPayload.temp) + '°C · Bat ' + formatNumber(lastPayload.bateria, 0) + '%')
 					+ '</div>'
+					+ (diagnostic ? '<div style="margin-top:6px;font-size:10px;color:#fca5a5;font-family:monospace;">' + escapeHtml(diagnostic) + '</div>' : '')
+					+ ((signalLost || bufferTag) ? '<div style="margin-top:6px; font-size:11px; color: var(--rose);">' + signalTag + bufferTag + '</div>' : '')
 					+ iniciarBtn
 					+ '</div>'
 					+ '<span class="' + (isPendiente ? 'tag' : badgeClass(status)) + '" style="' + (isPendiente ? 'background:rgba(245,158,11,0.12);color:#fbbf24;border:1px solid rgba(245,158,11,0.3);' : '') + '">' + escapeHtml(isPendiente ? 'pendiente' : status) + '</span>'
@@ -1554,6 +1568,18 @@ function renderDashboardPage() {
 		}
 
 		function updatePage(state) {
+			const simulations = Array.isArray(state?.simulations) ? state.simulations : [];
+			const runningOrPaused = simulations.filter((trip) => ['activo', 'alerta', 'pausado'].includes(trip.status)).length;
+			const derivedTelemetry = simulations.reduce((sum, trip) => sum + Number(trip.telemetryCount || 0), 0);
+			const derivedIncidents = simulations.reduce((sum, trip) => sum + Number(trip.incidentCount || 0), 0);
+			const queue = {
+				isPaused: !!state.queueMetrics?.isPaused,
+				waiting: Number(state.queueMetrics?.waiting ?? 0),
+				active: Number(state.queueMetrics?.active ?? 0),
+				completed: Number(state.queueMetrics?.completed ?? 0),
+				failed: Number(state.queueMetrics?.failed ?? 0),
+				redisConnected: !!state.queueMetrics?.redisConnected,
+			};
 
 			if (turboToggle) {
 				turboToggle.checked = !!state.turboMode;
@@ -1562,25 +1588,52 @@ function renderDashboardPage() {
 				iotFailureToggle.checked = !!state.iotFailure;
 			}
 			if (queueToggle) {
-				queueToggle.checked = !state.queueMetrics?.isPaused;
+				queueToggle.checked = !queue.isPaused;
 			}
 			if (workerLed && workerStatusText) {
-				if (state.queueMetrics?.isPaused) {
+				if (queue.isPaused) {
 					workerLed.style.backgroundColor = 'var(--amber)';
 					workerLed.style.boxShadow = '0 0 8px var(--amber)';
 					workerStatusText.textContent = 'Worker: OFFLINE (Cola Pausada)';
+				} else if (!queue.redisConnected) {
+					workerLed.style.backgroundColor = 'var(--rose)';
+					workerLed.style.boxShadow = '0 0 8px var(--rose)';
+					workerStatusText.textContent = 'Worker: SIN DATOS (Redis desconectado)';
 				} else {
 					workerLed.style.backgroundColor = 'var(--emerald)';
 					workerLed.style.boxShadow = '0 0 8px var(--emerald)';
 					workerStatusText.textContent = 'Worker: ONLINE';
 				}
 			}
-			if (queueWaiting) queueWaiting.textContent = state.queueMetrics?.waiting ?? 0;
-			if (queueActive) queueActive.textContent = state.queueMetrics?.active ?? 0;
-			if (queueCompleted) queueCompleted.textContent = state.queueMetrics?.completed ?? 0;
-			if (queueFailed) queueFailed.textContent = state.queueMetrics?.failed ?? 0;
+			if (workerQueueDetail) {
+				workerQueueDetail.textContent = queue.isPaused
+					? 'Cola IA: pausada · waiting=' + queue.waiting + ' · failed=' + queue.failed
+					: 'Cola IA: activa · waiting=' + queue.waiting + ' · failed=' + queue.failed;
+			}
+			if (iotFailureStatusText) {
+				iotFailureStatusText.textContent = state.iotFailure
+					? 'Estado: sin señal · buffer global activo'
+					: 'Estado: normal';
+			}
+			if (state.lastSignalEvent) {
+				const eventText = state.lastSignalEvent.message || state.lastSignalEvent.type || 'Sin evento';
+				if (iotFailureStatusText) {
+					iotFailureStatusText.textContent = state.iotFailure
+						? 'Estado: sin señal · buffer global activo'
+						: 'Estado: normal';
+				}
+				if (workerQueueDetail) {
+					workerQueueDetail.textContent = (queue.isPaused
+						? 'Cola IA: pausada · waiting=' + queue.waiting + ' · failed=' + queue.failed
+						: 'Cola IA: activa · waiting=' + queue.waiting + ' · failed=' + queue.failed) + ' · diag=' + eventText;
+				}
+			}
+			if (queueWaiting) queueWaiting.textContent = String(queue.waiting);
+			if (queueActive) queueActive.textContent = String(queue.active);
+			if (queueCompleted) queueCompleted.textContent = String(queue.completed);
+			if (queueFailed) queueFailed.textContent = String(queue.failed);
 			if (redisConnTag) {
-				if (state.queueMetrics?.redisConnected) {
+				if (queue.redisConnected) {
 					redisConnTag.textContent = 'REDIS OK';
 					redisConnTag.style.background = 'rgba(16, 185, 129, 0.08)';
 					redisConnTag.style.color = 'var(--emerald)';
@@ -1592,9 +1645,9 @@ function renderDashboardPage() {
 					redisConnTag.style.borderColor = 'rgba(239, 68, 68, 0.15)';
 				}
 			}
-			activeTrips.textContent = state.activeTrips ?? 0;
-			sentTrips.textContent = state.totalSent ?? 0;
-			incidentTrips.textContent = state.totalIncidents ?? 0;
+			if (activeTrips) activeTrips.textContent = String(Number(state.activeTrips ?? runningOrPaused));
+			if (sentTrips) sentTrips.textContent = String(Math.max(Number(state.totalSent ?? 0), derivedTelemetry));
+			if (incidentTrips) incidentTrips.textContent = String(Math.max(Number(state.totalIncidents ?? 0), derivedIncidents));
 			lastSync.textContent = formatDate(state.lastSyncAt);
 			lastTick.textContent = state.lastTickAt ? 'Último tick: ' + formatDate(state.lastTickAt) : 'Sin tick aún.';
 			if (statusText) statusText.textContent = state.paused ? 'Simulación pausada' : 'Simulación activa';
@@ -1651,6 +1704,9 @@ function renderDashboardPage() {
 			const interp = detail.interpretation || {};
 			selectedTitle.textContent = viaje.id;
 			selectedSubtitle.textContent = (viaje.tipo_producto || 'Carga') + ' · ' + (viaje.estado || 'en_curso') + ' · ' + (viaje.origen_sucursal_nombre || 'Origen') + ' -> ' + (viaje.destino_sucursal_nombre || 'Destino');
+			if (state.iotFailure) {
+				selectedSubtitle.textContent += ' · ENLACE IoT SIN SEÑAL';
+			}
 			tempNow.textContent = formatNumber(simulation?.lastPayload?.temp ?? interp.latestTelemetry?.temp);
 			humidityNow.textContent = formatNumber(simulation?.lastPayload?.humedad ?? interp.latestTelemetry?.humedad);
 			batteryNow.textContent = formatNumber(simulation?.lastPayload?.bateria ?? interp.latestTelemetry?.bateria, 0);
