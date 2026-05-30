@@ -65,15 +65,15 @@ export default function TelemetryChart({ telemetryData, limiteMin, limiteMax, is
     return (
       <div className="w-full h-full min-h-[170px] flex flex-col justify-between p-2">
         <div className="flex justify-between items-end h-[130px] gap-2">
-          <div className="w-[10%] bg-slate-800/40 h-[30%] rounded animate-pulse"></div>
-          <div className="w-[15%] bg-slate-800/40 h-[50%] rounded animate-pulse delay-75"></div>
-          <div className="w-[12%] bg-slate-800/40 h-[70%] rounded animate-pulse delay-100"></div>
-          <div className="w-[18%] bg-slate-800/40 h-[40%] rounded animate-pulse delay-150"></div>
-          <div className="w-[14%] bg-slate-800/40 h-[60%] rounded animate-pulse delay-200"></div>
-          <div className="w-[16%] bg-slate-800/40 h-[85%] rounded animate-pulse delay-300"></div>
-          <div className="w-[15%] bg-slate-800/40 h-[45%] rounded animate-pulse delay-500"></div>
+          <div className="w-[10%] bg-white/8 h-[30%] rounded animate-pulse"></div>
+          <div className="w-[15%] bg-white/8 h-[50%] rounded animate-pulse delay-75"></div>
+          <div className="w-[12%] bg-white/8 h-[70%] rounded animate-pulse delay-100"></div>
+          <div className="w-[18%] bg-white/8 h-[40%] rounded animate-pulse delay-150"></div>
+          <div className="w-[14%] bg-white/8 h-[60%] rounded animate-pulse delay-200"></div>
+          <div className="w-[16%] bg-white/8 h-[85%] rounded animate-pulse delay-300"></div>
+          <div className="w-[15%] bg-white/8 h-[45%] rounded animate-pulse delay-500"></div>
         </div>
-        <div className="h-2 bg-slate-800/40 rounded w-full mt-3 animate-pulse"></div>
+        <div className="h-2 bg-white/8 rounded w-full mt-3 animate-pulse"></div>
       </div>
     );
   }
@@ -85,14 +85,14 @@ export default function TelemetryChart({ telemetryData, limiteMin, limiteMax, is
           <XAxis 
             dataKey="timestamp_sensor" 
             tickFormatter={(t: string) => new Date(t).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-            stroke="#475569"
+            stroke="#6b7280"
             fontSize={10}
           />
-          <YAxis stroke="#475569" fontSize={10} domain={[limiteMin - 2, limiteMax + 2]} />
+          <YAxis stroke="#6b7280" fontSize={10} domain={[limiteMin - 2, limiteMax + 2]} />
           <Tooltip 
             contentStyle={{ 
-               backgroundColor: "#0a0f1d", 
-               borderColor: "rgba(255, 255, 255, 0.08)", 
+               backgroundColor: "#050505", 
+               borderColor: "rgba(255, 255, 255, 0.12)", 
                borderRadius: "6px", 
                fontSize: "11px", 
                color: "#fff" 
@@ -101,16 +101,16 @@ export default function TelemetryChart({ telemetryData, limiteMin, limiteMax, is
           <ReferenceArea 
             y1={limiteMin} 
             y2={limiteMax} 
-            fill="#10b981" 
-            fillOpacity={0.03} 
-            stroke="#10b981" 
-            strokeOpacity={0.15} 
+            fill="#ffffff" 
+            fillOpacity={0.02} 
+            stroke="#ffffff" 
+            strokeOpacity={0.08} 
             strokeDasharray="3 3" 
           />
           <Line 
             type="monotone" 
             dataKey="temp" 
-            stroke="#0ea5e9" 
+            stroke="#ffffff" 
             strokeWidth={2} 
             dot={<CustomDot limiteMin={limiteMin} limiteMax={limiteMax} />} 
             activeDot={{ r: 4 }} 

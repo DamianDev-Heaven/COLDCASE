@@ -687,11 +687,11 @@ export default function Dashboard() {
 
   // ─── MAIN RENDER ─────────────────────────────────────────────────────────────
   return (
-    <div className="bg-[#020408] text-slate-100 h-screen w-full overflow-hidden flex flex-col font-sans antialiased">
+    <div className="bg-black text-slate-100 h-screen w-full overflow-hidden flex flex-col font-sans antialiased">
 
       {/* ── TOPBAR ─────────────────────────────────────────────────────────── */}
       <header
-        className={`bg-[#0d0f14] border-b border-white/[0.05] fixed top-0 right-0 z-20 flex justify-between items-center px-5 h-14 transition-[left] duration-300 ease-in-out ${
+        className={`bg-black border-b border-white/[0.08] fixed top-0 right-0 z-20 flex justify-between items-center px-5 h-14 transition-[left] duration-300 ease-in-out ${
           sidebarExpanded ? "left-[240px]" : "left-[64px]"
         }`}
       >
@@ -705,7 +705,7 @@ export default function Dashboard() {
             <StatusPill label="Backend" status={contingencyStats.backendStatus} />
             <StatusPill label="Base de Datos" status={contingencyStats.size > 0 ? "degraded" : (contingencyStats.dbStatus === "up" ? "up" : "down")} />
             {contingencyStats.size > 0 && (
-              <div className="flex items-center gap-2 bg-amber-500/10 border border-amber-500/20 px-3 py-1 rounded-lg text-amber-300 text-[10px] font-mono animate-pulse">
+              <div className="flex items-center gap-2 bg-black/80 border border-white/10 px-3 py-1 rounded-lg text-white/70 text-[10px] font-mono">
                 <span>⚠️ {contingencyStats.size} en cola Redis</span>
                 {contingencyStats.dbStatus === "up" && (
                   <button
@@ -726,7 +726,7 @@ export default function Dashboard() {
                         console.error(err);
                       }
                     }}
-                    className="bg-amber-500 hover:bg-amber-400 text-slate-950 px-2 py-0.5 rounded text-[8px] font-bold uppercase transition-colors cursor-pointer ml-1"
+                    className="bg-black border border-white/10 text-white px-2 py-0.5 rounded text-[8px] font-bold uppercase transition-colors cursor-pointer ml-1"
                   >
                     Reintentar
                   </button>
@@ -738,7 +738,7 @@ export default function Dashboard() {
         <div className="flex items-center gap-2.5">
           <button
             onClick={() => { resetModalForm(); setIsModalOpen(true); setMapMounted(true); }}
-            className="group bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/25 hover:border-cyan-400/50 text-cyan-300 px-4 py-2 rounded-xl text-[11px] font-bold flex items-center gap-2 transition-all duration-300 shadow-lg shadow-cyan-500/5 hover:shadow-cyan-500/15 cursor-pointer"
+            className="group bg-black hover:bg-white/6 border border-white/16 hover:border-white/28 text-white px-4 py-2 rounded-xl text-[11px] font-bold flex items-center gap-2 transition-all duration-300 cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5 transition-transform duration-200 group-hover:rotate-90" />
             Nuevo Envío
@@ -747,16 +747,16 @@ export default function Dashboard() {
             href={accessToken ? `${SIMULATOR_URL}?token=${accessToken}` : SIMULATOR_URL}
             target="_blank"
             rel="noreferrer"
-            className="bg-slate-900/80 hover:bg-slate-900 border border-white/[0.08] hover:border-white/20 px-4 py-2 rounded-xl text-[11px] font-bold flex items-center gap-2 transition-all duration-300"
+            className="bg-black hover:bg-white/6 border border-white/[0.14] hover:border-white/28 px-4 py-2 rounded-xl text-[11px] font-bold flex items-center gap-2 transition-all duration-300"
           >
             <Truck className="w-3.5 h-3.5 opacity-60" />
             Simulador
           </a>
-          <div className="flex items-center gap-1 bg-slate-950/40 border border-white/5 p-1 rounded-xl">
+          <div className="flex items-center gap-1 bg-black border border-white/10 p-1 rounded-xl">
             <button
               onClick={() => setIsLeftCollapsed((c) => !c)}
               className={`p-1.5 rounded-lg transition-all duration-200 cursor-pointer ${
-                !isLeftCollapsed ? "text-cyan-400 bg-cyan-500/10" : "text-slate-500 hover:text-slate-300"
+                !isLeftCollapsed ? "text-white bg-white/6" : "text-slate-500 hover:text-slate-300"
               }`}
               title={isLeftCollapsed ? "Mostrar lista de viajes" : "Ocultar lista de viajes"}
             >
@@ -765,7 +765,7 @@ export default function Dashboard() {
             <button
               onClick={() => setIsRightCollapsed((c) => !c)}
               className={`p-1.5 rounded-lg transition-all duration-200 cursor-pointer ${
-                !isRightCollapsed ? "text-cyan-400 bg-cyan-500/10" : "text-slate-500 hover:text-slate-300"
+                !isRightCollapsed ? "text-white bg-white/6" : "text-slate-500 hover:text-slate-300"
               }`}
               title={isRightCollapsed ? "Mostrar panel de IA" : "Ocultar panel de IA"}
             >
@@ -782,19 +782,19 @@ export default function Dashboard() {
         <nav
           onMouseEnter={() => setSidebarExpanded(true)}
           onMouseLeave={() => setSidebarExpanded(false)}
-          className={`bg-[#0d0f14] border-r border-white/[0.05] fixed left-0 top-0 h-full z-30 flex flex-col pt-14 pb-4 transition-[width,padding] duration-300 ease-in-out ${
+          className={`bg-black border-r border-white/[0.08] fixed left-0 top-0 h-full z-30 flex flex-col pt-14 pb-4 transition-[width,padding] duration-300 ease-in-out ${
             sidebarExpanded ? "w-[240px] px-3" : "w-[64px] px-2.5 items-center"
           }`}
         >
           {/* Logo area */}
-          <div className={`flex items-center gap-3 py-4 border-b border-white/[0.05] mb-4 w-full ${sidebarExpanded ? "px-1" : "justify-center"}`}>
-            <div className="w-9 h-9 bg-gradient-to-br from-cyan-500/20 to-indigo-500/20 border border-cyan-500/20 rounded-xl flex items-center justify-center shrink-0 shadow-lg shadow-cyan-500/5">
-              <ShieldCheck className="w-4.5 h-4.5 text-cyan-400" />
+          <div className={`flex items-center gap-3 py-4 border-b border-white/[0.08] mb-4 w-full ${sidebarExpanded ? "px-1" : "justify-center"}`}>
+            <div className="w-9 h-9 bg-black border border-white/12 rounded-xl flex items-center justify-center shrink-0">
+              <ShieldCheck className="w-4.5 h-4.5 text-white" />
             </div>
             {sidebarExpanded && (
               <div className="overflow-hidden">
                 <span className="text-[13px] font-extrabold tracking-widest text-white whitespace-nowrap">
-                  COLD<span className="text-cyan-400">CASE</span>
+                  COLD<span className="text-white/70">CASE</span>
                 </span>
                 <p className="text-[8px] text-slate-500 tracking-[0.12em] uppercase mt-0.5 whitespace-nowrap">Cold Chain Monitor</p>
               </div>
@@ -828,10 +828,10 @@ export default function Dashboard() {
           </div>
 
           {/* Session profile */}
-          <div className="w-full mt-auto border-t border-white/[0.05] pt-3">
+          <div className="w-full mt-auto border-t border-white/[0.08] pt-3">
             {sidebarExpanded ? (
-              <div className="flex items-center gap-3 p-2.5 rounded-xl bg-slate-900/50 border border-white/[0.06] w-full">
-                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-cyan-500/20 to-indigo-500/20 border border-cyan-500/20 flex items-center justify-center font-bold text-cyan-300 text-[11px] shrink-0 shadow-md">
+              <div className="flex items-center gap-3 p-2.5 rounded-xl bg-black border border-white/[0.08] w-full">
+                <div className="w-9 h-9 rounded-xl bg-black border border-white/12 flex items-center justify-center font-bold text-white text-[11px] shrink-0">
                   {sessionUserInitials}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -841,7 +841,7 @@ export default function Dashboard() {
                 <button
                   onClick={handleLogout}
                   title="Cerrar sesión"
-                  className="text-slate-600 hover:text-rose-400 transition-colors shrink-0 cursor-pointer p-1 rounded-lg hover:bg-rose-500/10"
+                  className="text-slate-600 hover:text-white/70 transition-colors shrink-0 cursor-pointer p-1 rounded-lg hover:bg-white/6"
                 >
                   <LogOut className="w-3.5 h-3.5" />
                 </button>
@@ -851,11 +851,11 @@ export default function Dashboard() {
                 <div
                   onClick={handleLogout}
                   title="Cerrar sesión"
-                  className="w-9 h-9 rounded-xl bg-slate-900/70 border border-white/[0.08] flex items-center justify-center font-bold text-cyan-300 text-[11px] cursor-pointer hover:border-rose-400/40 hover:text-rose-400 hover:bg-rose-500/5 transition-all duration-200"
+                  className="w-9 h-9 rounded-xl bg-black border border-white/[0.12] flex items-center justify-center font-bold text-white text-[11px] cursor-pointer hover:border-white/20 hover:text-white/70 hover:bg-white/6 transition-all duration-200"
                 >
                   {sessionUserInitials}
                 </div>
-                <div className="pointer-events-none absolute left-[52px] bottom-0 rounded-lg bg-slate-900/95 border border-white/10 px-3 py-2 opacity-0 transition-all duration-200 group-hover:translate-x-1 group-hover:opacity-100 z-[100] backdrop-blur-md whitespace-nowrap shadow-2xl shadow-black/40">
+                <div className="pointer-events-none absolute left-[52px] bottom-0 rounded-lg bg-black border border-white/10 px-3 py-2 opacity-0 transition-all duration-200 group-hover:translate-x-1 group-hover:opacity-100 z-[100] whitespace-nowrap shadow-2xl shadow-black/40">
                   <p className="text-[10px] font-bold text-white">{sessionUserName}</p>
                   <p className="text-[9px] text-slate-500 font-mono mt-0.5">{sessionUserRole}</p>
                 </div>
@@ -869,13 +869,13 @@ export default function Dashboard() {
           <main className={`flex-1 flex p-3 gap-3 overflow-hidden h-full transition-[margin-left] duration-300 ease-in-out ${sidebarExpanded ? "ml-[240px]" : "ml-[64px]"}`}>
 
             {/* Lista lateral activos */}
-            <aside className={`h-full flex flex-col bg-slate-900/30 backdrop-blur-xl border border-white/[0.05] hover:border-cyan-500/10 rounded-2xl overflow-hidden shrink-0 shadow-2xl transition-all duration-300 ${
+            <aside className={`h-full flex flex-col bg-black border border-white/[0.08] rounded-2xl overflow-hidden shrink-0 transition-all duration-300 ${
               isLeftCollapsed ? "w-0 opacity-0 pointer-events-none border-none p-0 m-0" : "w-[290px]"
             }`}>
-              <div className="p-4 border-b border-white/[0.05]">
+              <div className="p-4 border-b border-white/[0.08]">
                 <div className="flex justify-between items-center">
                   <h2 className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">Activos</h2>
-                  <span className="text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded-full border border-cyan-500/15 text-[10px] font-bold">{viajesActivos.length}</span>
+                  <span className="text-white bg-white/6 px-2 py-0.5 rounded-full border border-white/10 text-[10px] font-bold">{viajesActivos.length}</span>
                 </div>
               </div>
               <div className="flex-1 overflow-y-auto p-2.5 space-y-2 no-scrollbar">
@@ -902,24 +902,24 @@ export default function Dashboard() {
 
             {/* Centro: mapa + tabs */}
             <div className="flex-1 flex flex-col gap-3 h-full min-w-0">
-              <div className="flex-1 bg-slate-900/30 backdrop-blur-xl border border-white/[0.05] hover:border-cyan-500/10 rounded-2xl relative overflow-hidden shadow-2xl z-10 transition-colors duration-500">
+              <div className="flex-1 bg-black border border-white/[0.08] rounded-2xl relative overflow-hidden z-10 transition-colors duration-500">
                 {viajeSeleccionado ? (
                   <>
                     {waypointsViajeActivo.length === 2 ? (
                       <RouteMap viajeId={viajeSeleccionado.id} waypoints={waypointsViajeActivo} telemetryPoints={telemetryList} routePreviewApiUrl={API_URL} />
                     ) : (
                       <div className="w-full h-full flex flex-col items-center justify-center text-slate-650 gap-3">
-                        <div className="w-10 h-10 border-2 border-slate-700 border-t-cyan-500 rounded-full animate-spin" />
+                        <div className="w-10 h-10 border-2 border-slate-700 border-t-white/20 rounded-full animate-spin" />
                         <p className="text-xs font-mono">Geolocalizando trayecto OSRM...</p>
                       </div>
                     )}
                     
                      {viajeSeleccionado.estado === "finalizado" && !viajeFinalizadoDismissed.includes(viajeSeleccionado.id) && (
-                       <div className="absolute inset-0 z-[1001] flex flex-col items-center justify-center p-6 bg-[#020408]/75 backdrop-blur-md text-center">
-                         <div className="max-w-md w-full bg-slate-900/95 border border-white/10 p-8 rounded-3xl shadow-2xl flex flex-col items-center gap-5 relative overflow-hidden">
+                       <div className="absolute inset-0 z-[1001] flex flex-col items-center justify-center p-6 bg-black/90 text-center">
+                         <div className="max-w-md w-full bg-black border border-white/10 p-8 rounded-3xl flex flex-col items-center gap-5 relative overflow-hidden">
                            {/* Decorative gradient overlay */}
-                           <div className="absolute -top-12 -right-12 w-32 h-32 bg-cyan-500/10 rounded-full blur-2xl" />
-                           <div className="absolute -bottom-12 -left-12 w-32 h-32 bg-purple-500/10 rounded-full blur-2xl" />
+                           <div className="absolute -top-12 -right-12 w-32 h-32 bg-white/6 rounded-full" />
+                           <div className="absolute -bottom-12 -left-12 w-32 h-32 bg-white/4 rounded-full" />
                            
                            {/* Close Button */}
                            <button
@@ -929,7 +929,7 @@ export default function Dashboard() {
                              <X className="w-5 h-5" />
                            </button>
 
-                           <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center shadow-lg shadow-emerald-500/20 animate-bounce">
+                           <div className="w-16 h-16 rounded-full bg-black border border-white/12 flex items-center justify-center animate-bounce">
                              <ShieldCheck className="w-9 h-9 text-white" />
                            </div>
                            
@@ -940,25 +940,25 @@ export default function Dashboard() {
                              </p>
                            </div>
 
-                           <div className="w-full bg-slate-950/50 rounded-2xl p-4 border border-white/5 space-y-3">
+                           <div className="w-full bg-[#050505] rounded-2xl p-4 border border-white/8 space-y-3">
                              <div className="flex justify-between items-center text-xs font-mono">
                                <span className="text-slate-500">Cadena de Frío:</span>
                                {telemetryList.some((p) => p.temp > (viajeSeleccionado.limite_max_temp || 5) || p.temp < (viajeSeleccionado.limite_min_temp || 1)) ? (
-                                 <span className="px-2 py-0.5 rounded bg-rose-500/15 border border-rose-500/20 text-rose-400 font-bold text-[10px]">
+                                 <span className="px-2 py-0.5 rounded bg-black border border-white/10 text-white font-bold text-[10px]">
                                    DESVIADA
                                  </span>
                                ) : (
-                                 <span className="px-2 py-0.5 rounded bg-emerald-500/15 border border-emerald-500/20 text-emerald-400 font-bold text-[10px]">
+                                 <span className="px-2 py-0.5 rounded bg-black border border-white/10 text-white font-bold text-[10px]">
                                    CERTIFICADA
                                  </span>
                                )}
                              </div>
 
-                             <div className="h-px bg-white/5" />
+                             <div className="h-px bg-white/6" />
 
                              <div className="text-left">
                                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5 mb-1.5">
-                                 <Cpu className="w-3.5 h-3.5 text-purple-400" />
+                                 <Cpu className="w-3.5 h-3.5 text-white/70" />
                                  Auditoría de Calidad IA
                                </div>
                                {viajeSeleccionado.auditoria_ia ? (
@@ -967,7 +967,7 @@ export default function Dashboard() {
                                  </p>
                                ) : (
                                  <div className="flex items-center gap-2 py-1 text-slate-500 text-[11px]">
-                                   <div className="w-3.5 h-3.5 border-2 border-slate-700 border-t-purple-400 rounded-full animate-spin" />
+                                   <div className="w-3.5 h-3.5 border-2 border-slate-700 border-t-white/20 rounded-full animate-spin" />
                                    <span>Compilando veredicto y cargando certificado...</span>
                                  </div>
                                )}
@@ -977,28 +977,28 @@ export default function Dashboard() {
                            <div className="grid grid-cols-2 gap-2.5 w-full">
                              <button
                                onClick={() => handleExportPDF(viajeSeleccionado)}
-                               className="flex items-center justify-center gap-2 py-2 px-3 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white rounded-xl text-xs font-bold transition-all duration-300 shadow-lg shadow-cyan-600/15 cursor-pointer"
+                               className="flex items-center justify-center gap-2 py-2 px-3 bg-black hover:bg-white/6 text-white border border-white/14 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer"
                              >
                                <FileText className="w-4 h-4" />
                                Certificado PDF
                              </button>
                              <button
                                onClick={() => handleExportCSV(viajeSeleccionado)}
-                               className="flex items-center justify-center gap-2 py-2 px-3 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-white/5 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer"
+                               className="flex items-center justify-center gap-2 py-2 px-3 bg-black hover:bg-white/6 text-slate-200 border border-white/10 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer"
                              >
                                <FileSpreadsheet className="w-4 h-4" />
                                Datos CSV
                              </button>
                              <button
                                onClick={() => setCurrentView("compliance")}
-                               className="flex items-center justify-center gap-2 py-2 px-3 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-white/5 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer"
+                               className="flex items-center justify-center gap-2 py-2 px-3 bg-black hover:bg-white/6 text-slate-200 border border-white/10 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer"
                              >
                                <History className="w-4 h-4" />
                                Ver Historial
                              </button>
                              <button
                                onClick={() => { resetModalForm(); setIsModalOpen(true); }}
-                               className="flex items-center justify-center gap-2 py-2 px-3 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-white/5 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer"
+                               className="flex items-center justify-center gap-2 py-2 px-3 bg-black hover:bg-white/6 text-slate-200 border border-white/10 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer"
                              >
                                <Plus className="w-4 h-4" />
                                Nuevo Envío
@@ -1007,7 +1007,7 @@ export default function Dashboard() {
 
                            <button
                              onClick={() => setViajeFinalizadoDismissed((prev) => prev.includes(viajeSeleccionado.id) ? prev : [...prev, viajeSeleccionado.id])}
-                             className="w-full py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-white/5 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer flex items-center justify-center gap-2"
+                             className="w-full py-2 bg-black hover:bg-white/6 text-slate-200 border border-white/10 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer flex items-center justify-center gap-2"
                            >
                              Cerrar Ventana
                            </button>
@@ -1016,8 +1016,8 @@ export default function Dashboard() {
                      )}
                   </>
                 ) : (
-                  <div className="w-full h-full flex flex-col items-center justify-center text-slate-400 gap-4 p-8 bg-[#0d111a]/30">
-                    <Truck className="w-12 h-12 text-slate-605 animate-pulse" />
+                  <div className="w-full h-full flex flex-col items-center justify-center text-slate-400 gap-4 p-8 bg-black">
+                    <Truck className="w-12 h-12 text-white/40 animate-pulse" />
                     <div className="text-center">
                       <h3 className="text-sm font-bold text-white uppercase tracking-wider">Monitoreo de Envíos</h3>
                       <p className="text-xs text-slate-500 mt-1 max-w-xs">
@@ -1026,7 +1026,7 @@ export default function Dashboard() {
                     </div>
                     <button
                       onClick={() => { resetModalForm(); setIsModalOpen(true); }}
-                      className="flex items-center gap-2 py-2 px-4 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white rounded-xl text-xs font-bold transition-all duration-300 shadow-lg shadow-cyan-600/15 cursor-pointer"
+                      className="flex items-center gap-2 py-2 px-4 bg-black border border-white/10 hover:bg-white/6 text-white rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer"
                     >
                       <Plus className="w-4 h-4" />
                       Iniciar Nuevo Envío
@@ -1035,19 +1035,19 @@ export default function Dashboard() {
                 )}
               </div>
 
-              <div className="h-[280px] shrink-0 bg-slate-900/30 backdrop-blur-xl border border-white/[0.05] hover:border-cyan-500/10 rounded-2xl flex flex-col overflow-hidden shadow-2xl transition-colors duration-500">
+              <div className="h-[280px] shrink-0 bg-black border border-white/[0.08] rounded-2xl flex flex-col overflow-hidden transition-colors duration-500">
                 {viajeSeleccionado ? (
                   <>
-                    <div className="flex border-b border-white/[0.05] px-4 bg-transparent shrink-0">
+                    <div className="flex border-b border-white/[0.08] px-4 bg-transparent shrink-0">
                       <button
                         onClick={() => setActiveTab("overview")}
-                        className={`px-4 py-3 text-[10px] font-bold uppercase tracking-widest border-b-2 transition-all duration-300 cursor-pointer ${activeTab === "overview" ? "border-cyan-500 text-white" : "border-transparent text-slate-500 hover:text-slate-300"}`}
+                        className={`px-4 py-3 text-[10px] font-bold uppercase tracking-widest border-b-2 transition-all duration-300 cursor-pointer ${activeTab === "overview" ? "border-white text-white" : "border-transparent text-slate-500 hover:text-slate-300"}`}
                       >
                         Historial Térmico
                       </button>
                       <button
                         onClick={() => setActiveTab("timeline")}
-                        className={`px-4 py-3 text-[10px] font-bold uppercase tracking-widest border-b-2 transition-all duration-300 cursor-pointer ${activeTab === "timeline" ? "border-cyan-500 text-white" : "border-transparent text-slate-500 hover:text-slate-300"}`}
+                        className={`px-4 py-3 text-[10px] font-bold uppercase tracking-widest border-b-2 transition-all duration-300 cursor-pointer ${activeTab === "timeline" ? "border-white text-white" : "border-transparent text-slate-500 hover:text-slate-300"}`}
                       >
                         Ficha de Despacho
                       </button>
@@ -1056,9 +1056,9 @@ export default function Dashboard() {
                     <div className="flex-1 p-4 overflow-y-auto no-scrollbar">
                       {activeTab === "overview" && (
                         <div className="flex gap-4 h-full items-stretch">
-                          <div className="w-[120px] shrink-0 bg-slate-950/40 border border-white/[0.05] p-3 rounded-xl flex flex-col justify-center gap-2">
+                          <div className="w-[120px] shrink-0 bg-black border border-white/[0.08] p-3 rounded-xl flex flex-col justify-center gap-2">
                             <span className="text-[8px] font-mono text-slate-500 uppercase tracking-widest">Rango °C</span>
-                            <div className="text-[11px] font-mono text-rose-400 font-bold">↑ {viajeSeleccionado.limite_max_temp || 5}°C</div>
+                            <div className="text-[11px] font-mono text-white/70 font-bold">↑ {viajeSeleccionado.limite_max_temp || 5}°C</div>
                             <div className="text-[11px] font-mono text-sky-400 font-bold">↓ {viajeSeleccionado.limite_min_temp || 1}°C</div>
                             <div className="h-px bg-white/5 my-1" />
                             <span className="text-[8px] font-mono text-slate-650">{viajeSeleccionado.peso_kg || 0} Kg</span>
@@ -1088,10 +1088,10 @@ export default function Dashboard() {
                               valueClass={
                                 telemetryList.some((p) => p.temp > (viajeSeleccionado.limite_max_temp || 5) || p.temp < (viajeSeleccionado.limite_min_temp || 1))
                                   ? "text-rose-400"
-                                  : "text-emerald-400"
+                                  : "text-white/70"
                               }
                             />
-                            <StatCard label="Ocupación" value={`${((Number(viajeSeleccionado.peso_kg || 0) / 15000) * 100).toFixed(1)}%`} valueClass="text-cyan-400" />
+                            <StatCard label="Ocupación" value={`${((Number(viajeSeleccionado.peso_kg || 0) / 15000) * 100).toFixed(1)}%`} valueClass="text-white/70" />
                           </div>
                           <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-[10px] font-mono border-t border-white/[0.05] pt-3">
                             <KV label="Categoría" value={viajeSeleccionado.tipo_producto || "N/A"} />
@@ -1124,13 +1124,13 @@ export default function Dashboard() {
           <main className={`flex-1 flex p-3 gap-3 overflow-hidden h-full transition-[margin-left] duration-300 ease-in-out ${sidebarExpanded ? "ml-[240px]" : "ml-[64px]"}`}>
 
             {/* Lista lateral histórica */}
-            <aside className={`h-full flex flex-col bg-slate-900/30 backdrop-blur-xl border border-white/[0.05] hover:border-cyan-500/10 rounded-2xl overflow-hidden shrink-0 shadow-2xl transition-all duration-300 ${
+            <aside className={`h-full flex flex-col bg-black border border-white/[0.08] rounded-2xl overflow-hidden shrink-0 transition-all duration-300 ${
               isLeftCollapsed ? "w-0 opacity-0 pointer-events-none border-none p-0 m-0" : "w-[290px]"
             }`}>
-              <div className="p-4 border-b border-white/[0.05]">
+              <div className="p-4 border-b border-white/[0.08]">
                 <div className="flex justify-between items-center mb-3">
                   <h2 className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">Auditorías</h2>
-                  <span className="text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded-full border border-cyan-500/15 text-[10px] font-bold">{viajesHistoricos.length}</span>
+                  <span className="text-white bg-white/6 px-2 py-0.5 rounded-full border border-white/10 text-[10px] font-bold">{viajesHistoricos.length}</span>
                 </div>
                 <div className="relative">
                   <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-600" />
@@ -1139,7 +1139,7 @@ export default function Dashboard() {
                     placeholder="Buscar despacho..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full bg-slate-950/50 border border-white/[0.07] rounded-xl pl-8 pr-3 py-2 text-[11px] text-white placeholder-slate-600 outline-none focus:border-cyan-500/30 focus:ring-1 focus:ring-cyan-500/15 transition-all font-mono"
+                    className="w-full bg-black border border-white/[0.10] rounded-xl pl-8 pr-3 py-2 text-[11px] text-white placeholder-slate-600 outline-none focus:border-white/28 transition-all font-mono"
                   />
                 </div>
               </div>
@@ -1157,36 +1157,36 @@ export default function Dashboard() {
 
             {/* Centro: mapa + gráfico compliance */}
             <div className="flex-1 flex flex-col gap-3 h-full min-w-0">
-              <div className="flex-1 bg-slate-900/30 backdrop-blur-xl border border-white/[0.05] hover:border-cyan-500/10 rounded-2xl relative overflow-hidden shadow-2xl z-10 transition-colors duration-500">
+              <div className="flex-1 bg-black border border-white/[0.08] rounded-2xl relative overflow-hidden z-10 transition-colors duration-500">
                 {viajeSeleccionado && waypointsViajeActivo.length === 2 ? (
                   <RouteMap viajeId={viajeSeleccionado.id} waypoints={waypointsViajeActivo} telemetryPoints={telemetryList} routePreviewApiUrl={API_URL} />
                 ) : (
                   <div className="w-full h-full flex flex-col items-center justify-center text-slate-600 gap-3">
-                    <div className="w-10 h-10 border-2 border-slate-700 border-t-cyan-500 rounded-full animate-spin" />
+                    <div className="w-10 h-10 border-2 border-slate-700 border-t-white/20 rounded-full animate-spin" />
                     <p className="text-xs font-mono">Cargando trayectoria histórica...</p>
                   </div>
                 )}
               </div>
 
               {/* Panel de exportación + gráfico */}
-              <div className="h-[280px] shrink-0 bg-slate-900/30 backdrop-blur-xl border border-white/[0.05] hover:border-cyan-500/10 rounded-2xl flex flex-col overflow-hidden shadow-2xl transition-colors duration-500">
-                <div className="flex justify-between items-center border-b border-white/[0.05] px-4 py-2.5 shrink-0">
+              <div className="h-[280px] shrink-0 bg-black border border-white/[0.08] rounded-2xl flex flex-col overflow-hidden transition-colors duration-500">
+                <div className="flex justify-between items-center border-b border-white/[0.08] px-4 py-2.5 shrink-0">
                   <span className="text-[10px] font-bold uppercase tracking-widest text-slate-300 flex items-center gap-2">
-                    <ShieldCheck className="w-3.5 h-3.5 text-cyan-400" />
+                    <ShieldCheck className="w-3.5 h-3.5 text-white/70" />
                     Certificación y Exportación
                   </span>
                   {viajeSeleccionado && (
                     <div className="flex gap-2">
                       <button
                         onClick={() => handleExportCSV(viajeSeleccionado)}
-                        className="flex items-center gap-2 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 hover:border-emerald-400/40 text-emerald-400 font-bold rounded-xl px-3.5 py-1.5 text-[10px] uppercase tracking-wider shadow-sm hover:shadow-emerald-500/10 transition-all duration-300 cursor-pointer"
+                        className="flex items-center gap-2 bg-black hover:bg-white/6 border border-white/10 hover:border-white/20 text-white font-bold rounded-xl px-3.5 py-1.5 text-[10px] uppercase tracking-wider transition-all duration-300 cursor-pointer"
                       >
                         <FileSpreadsheet className="w-3.5 h-3.5 shrink-0" />
                         <span>CSV</span>
                       </button>
                       <button
                         onClick={() => handleExportPDF(viajeSeleccionado)}
-                        className="flex items-center gap-2 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/20 hover:border-cyan-400/40 text-cyan-400 font-bold rounded-xl px-3.5 py-1.5 text-[10px] uppercase tracking-wider shadow-sm hover:shadow-cyan-500/10 transition-all duration-300 cursor-pointer"
+                        className="flex items-center gap-2 bg-black hover:bg-white/6 border border-white/10 hover:border-white/20 text-white font-bold rounded-xl px-3.5 py-1.5 text-[10px] uppercase tracking-wider transition-all duration-300 cursor-pointer"
                       >
                         <FileText className="w-3.5 h-3.5 shrink-0" />
                         <span>PDF</span>
@@ -1197,9 +1197,9 @@ export default function Dashboard() {
                 <div className="flex-1 p-4 overflow-y-auto no-scrollbar">
                   {viajeSeleccionado ? (
                     <div className="flex gap-4 h-full items-stretch">
-                      <div className="w-[130px] shrink-0 bg-slate-950/40 border border-white/[0.05] p-3 rounded-xl flex flex-col justify-center gap-2">
+                      <div className="w-[130px] shrink-0 bg-black border border-white/[0.08] p-3 rounded-xl flex flex-col justify-center gap-2">
                         <span className="text-[8px] font-mono text-slate-500 uppercase tracking-widest">Parámetros</span>
-                        <div className="text-[11px] font-mono text-rose-400 font-bold">Máx: {viajeSeleccionado.limite_max_temp || 5}°C</div>
+                        <div className="text-[11px] font-mono text-white/70 font-bold">Máx: {viajeSeleccionado.limite_max_temp || 5}°C</div>
                         <div className="text-[11px] font-mono text-sky-400 font-bold">Mín: {viajeSeleccionado.limite_min_temp || 1}°C</div>
                         <div className="h-px bg-white/5 my-1" />
                         <span className="text-[8px] font-mono text-slate-600">{viajeSeleccionado.peso_kg || 0} Kg</span>
@@ -1262,8 +1262,8 @@ export default function Dashboard() {
              <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-[#020408]/85 backdrop-blur-md p-4 animate-in fade-in duration-300">
                <div className="max-w-md w-full bg-slate-900/95 border border-white/10 p-8 rounded-3xl shadow-2xl flex flex-col items-center gap-5 relative overflow-hidden">
                  {/* Decorative gradient overlay */}
-                 <div className="absolute -top-12 -right-12 w-32 h-32 bg-cyan-500/10 rounded-full blur-2xl" />
-                 <div className="absolute -bottom-12 -left-12 w-32 h-32 bg-purple-500/10 rounded-full blur-2xl" />
+                 <div className="absolute -top-12 -right-12 w-32 h-32 bg-white/6 rounded-full blur-2xl" />
+                 <div className="absolute -bottom-12 -left-12 w-32 h-32 bg-white/6 rounded-full blur-2xl" />
                  
                  {/* Close Button */}
                  <button
@@ -1273,7 +1273,7 @@ export default function Dashboard() {
                    <X className="w-5 h-5" />
                  </button>
 
-                 <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center shadow-lg shadow-emerald-500/20 animate-bounce">
+                 <div className="w-16 h-16 rounded-full bg-black border border-white/12 flex items-center justify-center animate-bounce">
                    <ShieldCheck className="w-9 h-9 text-white" />
                  </div>
                  
@@ -1288,11 +1288,11 @@ export default function Dashboard() {
                    <div className="flex justify-between items-center text-xs font-mono">
                      <span className="text-slate-500">Cadena de Frío:</span>
                      {telemetryList.some((p) => p.temp > (viajeSeleccionado.limite_max_temp || 5) || p.temp < (viajeSeleccionado.limite_min_temp || 1)) ? (
-                       <span className="px-2 py-0.5 rounded bg-rose-500/15 border border-rose-500/20 text-rose-400 font-bold text-[10px]">
+                       <span className="px-2 py-0.5 rounded bg-black border border-white/10 text-white font-bold text-[10px]">
                          DESVIADA
                        </span>
                      ) : (
-                       <span className="px-2 py-0.5 rounded bg-emerald-500/15 border border-emerald-500/20 text-emerald-400 font-bold text-[10px]">
+                       <span className="px-2 py-0.5 rounded bg-black border border-white/10 text-white font-bold text-[10px]">
                          CERTIFICADA
                        </span>
                      )}
@@ -1321,7 +1321,7 @@ export default function Dashboard() {
                  <div className="grid grid-cols-2 gap-2.5 w-full">
                    <button
                      onClick={() => handleExportPDF(viajeSeleccionado)}
-                     className="flex items-center justify-center gap-2 py-2 px-3 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white rounded-xl text-xs font-bold transition-all duration-300 shadow-lg shadow-cyan-600/15 cursor-pointer"
+                     className="flex items-center justify-center gap-2 py-2 px-3 bg-black border border-white/14 hover:bg-white/6 text-white rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer"
                    >
                      <FileText className="w-4 h-4" />
                      Certificado PDF
@@ -1505,7 +1505,7 @@ export default function Dashboard() {
                             onClick={() => setVehicleDropOpen((o) => !o)}
                             className={`w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg border text-[11px] transition-all duration-150 cursor-pointer ${
                               vehicleDropOpen
-                                ? "border-sky-500/50 bg-[#0c0f1b] ring-2 ring-sky-500/10"
+                                ? "border-white/10 bg-[#0c0f1b] ring-2 ring-white/6"
                                 : "border-slate-800 bg-[#0a0d15] hover:border-slate-700"
                             }`}
                           >
@@ -1517,7 +1517,7 @@ export default function Dashboard() {
                                   <span className="text-slate-400 truncate text-[10px]">({selectedVehicle.empresa_nombre})</span>
                                   <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wide ${
                                     selectedVehicle.estado === "disponible"
-                                      ? "bg-emerald-950/40 text-emerald-400 border border-emerald-800/20"
+                                      ? "bg-black border border-white/10 text-white"
                                       : "bg-slate-850 text-slate-400 border border-slate-700/30"
                                   }`}>
                                     {selectedVehicle.estado}
@@ -1575,7 +1575,7 @@ export default function Dashboard() {
                                           <span className="text-[10px] text-slate-400 flex-1 truncate">{(t.capacidad_carga_kg ?? 0).toLocaleString()} kg de cap.</span>
                                           <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded uppercase ${
                                             t.estado === "disponible"
-                                              ? "bg-emerald-955/45 text-emerald-400 border border-emerald-800/20"
+                                              ? "bg-black border border-white/10 text-white"
                                               : "bg-slate-800/80 text-slate-400"
                                           }`}>
                                             {t.estado}
@@ -1592,7 +1592,7 @@ export default function Dashboard() {
                                   <button
                                     type="button"
                                     onClick={() => { setTransporteIdForm(""); setVehicleDropOpen(false); }}
-                                    className="text-[9px] text-rose-400 hover:text-rose-350 cursor-pointer transition-colors uppercase tracking-wider font-semibold"
+                                    className="text-[9px] text-white/70 hover:text-white/90 cursor-pointer transition-colors uppercase tracking-wider font-semibold"
                                   >
                                     Limpiar Selección
                                   </button>
@@ -1717,7 +1717,7 @@ export default function Dashboard() {
                       <div className="flex-1 relative">
                         <div className="h-1.5 rounded-full bg-slate-800 overflow-hidden relative">
                           <div 
-                            className="absolute h-full rounded-full bg-gradient-to-r from-sky-400 via-emerald-400 to-amber-400"
+                            className="absolute h-full rounded-full bg-white/6"
                             style={{ left: "25%", right: "30%" }}
                           />
                         </div>
@@ -1769,7 +1769,7 @@ export default function Dashboard() {
                   {/* Errores */}
                   {submitError && (
                     <div className="flex items-start gap-2.5 text-[11px] text-rose-350 bg-rose-950/20 border border-rose-900/30 rounded-xl px-4 py-3">
-                      <svg className="w-4 h-4 shrink-0 mt-0.5 text-rose-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <svg className="w-4 h-4 shrink-0 mt-0.5 text-white/70" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
                       </svg>
                       {submitError}
@@ -1786,10 +1786,10 @@ export default function Dashboard() {
                       <p className="text-[11px] font-bold text-slate-300 mt-0.5">Vista Previa del Trayecto</p>
                     </div>
                     {waypointsFormModal.length === 2 && (
-                      <span className="flex items-center gap-1.5 text-[9px] font-bold text-emerald-400 uppercase tracking-wider">
+                      <span className="flex items-center gap-1.5 text-[9px] font-bold text-white/70 uppercase tracking-wider">
                         <span className="relative flex h-1.5 w-1.5">
-                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60" />
-                          <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white/20 opacity-60" />
+                          <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-white" />
                         </span>
                         Ruta Lista
                       </span>
@@ -1888,21 +1888,11 @@ export default function Dashboard() {
 // ─── MICRO COMPONENTS ──────────────────────────────────────────────────────────
 
 function StatusPill({ label, status }: { label: string; status: "up" | "down" | "degraded" }) {
-  const dotColorClass =
-    status === "up"
-      ? "bg-emerald-500"
-      : status === "degraded"
-      ? "bg-amber-500"
-      : "bg-rose-500";
-  const pingColorClass =
-    status === "up"
-      ? "bg-emerald-400"
-      : status === "degraded"
-      ? "bg-amber-400"
-      : "bg-rose-400";
+  const dotColorClass = status === "up" ? "bg-white" : "bg-white/80";
+  const pingColorClass = "bg-white/20";
 
   return (
-    <div className="flex items-center gap-1.5 bg-slate-950/50 border border-white/[0.06] px-2.5 py-1 rounded-lg">
+    <div className="flex items-center gap-1.5 bg-black border border-white/[0.10] px-2.5 py-1 rounded-lg">
       <span className="relative flex h-1.5 w-1.5 shrink-0">
         <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${pingColorClass} opacity-75`} />
         <span className={`relative inline-flex rounded-full h-1.5 w-1.5 ${dotColorClass}`} />
@@ -2005,7 +1995,7 @@ function GraphExplorer({
                   onSelectTrip(val);
                 }
               }}
-              className="bg-slate-950/70 border border-white/10 hover:border-white/20 rounded-xl px-3 py-1.5 text-[11px] text-slate-200 font-mono outline-none focus:border-cyan-500/30 cursor-pointer max-w-[280px] transition-colors"
+              className="bg-slate-950/70 border border-white/10 hover:border-white/20 rounded-xl px-3 py-1.5 text-[11px] text-slate-200 font-mono outline-none focus:border-white/20 cursor-pointer max-w-[280px] transition-colors"
             >
               <option value="global">🌍 Grafo Global (Todos los viajes)</option>
               {viajes.map((v) => (
@@ -2023,7 +2013,7 @@ function GraphExplorer({
                 id="filterByTripCheckbox"
                 checked={filterByTrip}
                 onChange={(e) => setFilterByTrip(e.target.checked)}
-                className="accent-cyan-500 rounded border-white/10 bg-slate-950/50 cursor-pointer w-3.5 h-3.5"
+                className="accent-white/60 rounded border-white/10 bg-slate-950/50 cursor-pointer w-3.5 h-3.5"
               />
               <label htmlFor="filterByTripCheckbox" className="text-[10px] text-slate-400 font-mono cursor-pointer hover:text-white transition-colors">
                 Limitar búsqueda estrictamente a este viaje seleccionado
@@ -2045,13 +2035,13 @@ function GraphExplorer({
               placeholder="Buscar en el grafo semántico... (ej. falla, compresor, desvío, viaje)"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              className="w-full bg-slate-950/50 border border-white/[0.07] rounded-xl pl-9 pr-3 py-2.5 text-xs text-white placeholder-slate-600 outline-none focus:border-cyan-500/30 focus:ring-1 focus:ring-cyan-500/15 font-mono"
+              className="w-full bg-slate-950/50 border border-white/[0.07] rounded-xl pl-9 pr-3 py-2.5 text-xs text-white placeholder-slate-600 outline-none focus:border-white/20 focus:ring-1 focus:ring-white/6 font-mono"
             />
           </div>
           <button
             type="submit"
             disabled={isLoading}
-            className="bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold px-6 py-2.5 rounded-xl text-xs uppercase tracking-wider transition-all duration-150 cursor-pointer disabled:opacity-40"
+            className="bg-black hover:bg-white/6 text-white font-bold px-6 py-2.5 rounded-xl text-xs uppercase tracking-wider transition-all duration-150 cursor-pointer disabled:opacity-40"
           >
             {isLoading ? "Buscando..." : "Buscar"}
           </button>
@@ -2063,7 +2053,7 @@ function GraphExplorer({
             <button
               key={term}
               onClick={() => quickSearch(term)}
-              className="bg-slate-950/60 hover:bg-cyan-500/10 border border-white/[0.05] hover:border-cyan-500/20 text-slate-400 hover:text-cyan-400 px-2.5 py-1 rounded-lg text-[10px] font-mono transition-colors"
+              className="bg-slate-950/60 hover:bg-white/6 border border-white/[0.05] hover:border-white/6 text-slate-400 hover:text-white/70 px-2.5 py-1 rounded-lg text-[10px] font-mono transition-colors"
             >
               {term}
             </button>
@@ -2076,14 +2066,14 @@ function GraphExplorer({
         {isLoading ? (
           <div className="flex-grow flex items-center justify-center border border-dashed border-white/[0.05] rounded-2xl p-12 bg-slate-950/20">
             <div className="text-center font-mono">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-400 mx-auto mb-4" />
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white/20 mx-auto mb-4" />
               <p className="text-xs text-slate-500 uppercase tracking-widest">Interrogando Grafo Semántico de Zep...</p>
             </div>
           </div>
         ) : !hasSearched ? (
           <div className="flex-grow flex items-center justify-center border border-dashed border-white/[0.05] rounded-2xl p-12 bg-slate-950/20 text-center">
             <div className="max-w-md">
-              <Network className="w-10 h-10 text-cyan-500/30 mx-auto mb-4" />
+              <Network className="w-10 h-10 text-white/40 mx-auto mb-4" />
               <span className="text-xs text-slate-400 font-bold uppercase tracking-wider block">Búsqueda Semántica de Grafo</span>
               <p className="text-[10px] text-slate-500 font-mono mt-2 leading-relaxed">
                 Ingresa una consulta arriba para interrogar al grafo Standalone de Zep. Se recuperarán relaciones e incidentes previos correlacionados vectorialmente.
@@ -2093,8 +2083,8 @@ function GraphExplorer({
         ) : edges.length === 0 && nodes.length === 0 ? (
           <div className="flex-grow flex items-center justify-center border border-dashed border-white/[0.05] rounded-2xl p-12 bg-slate-950/20 text-center">
             <div className="max-w-md">
-              <Network className="w-10 h-10 text-rose-500/30 mx-auto mb-4" />
-              <span className="text-xs text-rose-400 font-bold uppercase tracking-wider block">Sin resultados encontrados</span>
+              <Network className="w-10 h-10 text-white/40 mx-auto mb-4" />
+              <span className="text-xs text-white/70 font-bold uppercase tracking-wider block">Sin resultados encontrados</span>
               <p className="text-[10px] text-slate-500 font-mono mt-2 leading-relaxed">
                 No se encontraron hechos semánticos ni nodos coincidentes con la palabra &quot;{query}&quot; en el grafo de conocimiento global.
               </p>
@@ -2112,7 +2102,7 @@ function GraphExplorer({
                 {edges.map((edge, index) => (
                   <div
                     key={index}
-                    className="bg-[#111319]/80 border border-slate-800/80 rounded-xl p-4 flex flex-col gap-3 shadow-md hover:border-cyan-500/20 transition-all duration-200"
+                    className="bg-[#111319]/80 border border-slate-800/80 rounded-xl p-4 flex flex-col gap-3 shadow-md hover:border-white/6 transition-all duration-200"
                   >
                     <div className="flex items-center gap-2 text-[9px] font-mono uppercase tracking-wider flex-wrap">
                       <span className="text-sky-400 font-bold px-2 py-0.5 rounded bg-sky-500/5 border border-sky-500/10 truncate max-w-[150px]">
@@ -2126,7 +2116,7 @@ function GraphExplorer({
                       </span>
                     </div>
                     <div className="bg-slate-950/60 border border-slate-800/40 rounded-lg p-3 text-[11px] text-slate-300 font-mono leading-relaxed">
-                      <div className="text-[8px] font-bold text-cyan-400 uppercase tracking-wider mb-1 font-sans">Hecho Semántico Extraído por Zep:</div>
+                      <div className="text-[8px] font-bold text-white/70 uppercase tracking-wider mb-1 font-sans">Hecho Semántico Extraído por Zep:</div>
                       {edge.fact}
                     </div>
                   </div>
@@ -2149,7 +2139,7 @@ function GraphExplorer({
                       <span className="text-[11px] font-bold text-slate-200 truncate pr-2 font-mono">
                         {node.name}
                       </span>
-                      <span className="text-[8px] font-bold uppercase font-sans px-1.5 py-0.5 rounded bg-cyan-950/70 text-cyan-400 border border-cyan-800/30">
+                      <span className="text-[8px] font-bold uppercase font-sans px-1.5 py-0.5 rounded bg-white/6 text-white/70 border border-white/10">
                         {node.type}
                       </span>
                     </div>
@@ -2215,7 +2205,7 @@ function NavItem({
   const content = (
     <div className={`flex items-center gap-3 w-full py-2.5 rounded-xl transition-all duration-300 ${
       isActive
-        ? "bg-gradient-to-r from-cyan-500/15 to-indigo-500/10 border border-cyan-500/25 text-cyan-300 font-bold shadow-[0_0_20px_rgba(34,211,238,0.08)]"
+        ? "bg-white/6 border border-white/15 text-white font-bold"
         : "text-slate-400 hover:text-slate-200 hover:bg-white/5 border border-transparent"
     } ${sidebarExpanded ? "px-3 justify-start" : "justify-center"}`}>
       <Icon className={`w-[18px] h-[18px] shrink-0 transition-transform duration-300 ${isActive ? "scale-110" : ""}`} />
@@ -2251,7 +2241,7 @@ function NavItem({
         </button>
       )}
       {!sidebarExpanded && (
-        <div className="pointer-events-none absolute left-[68px] top-1/2 -translate-y-1/2 rounded-lg bg-slate-900/95 border border-white/10 px-3 py-1.5 text-[10px] font-semibold text-white opacity-0 transition-all duration-200 group-hover:translate-x-1 group-hover:opacity-100 z-[100] backdrop-blur-md whitespace-nowrap shadow-2xl shadow-black/40">
+        <div className="pointer-events-none absolute left-[68px] top-1/2 -translate-y-1/2 rounded-lg bg-black border border-white/10 px-3 py-1.5 text-[10px] font-semibold text-white opacity-0 transition-all duration-200 group-hover:translate-x-1 group-hover:opacity-100 z-[100] whitespace-nowrap shadow-2xl shadow-black/40">
           {label}
         </div>
       )}
@@ -2291,8 +2281,8 @@ function ViajeCard({
       onClick={() => onSelect(viaje)}
       className={`border rounded-xl p-3.5 cursor-pointer transition-colors duration-300 ${
         isSelected
-          ? "border-cyan-500/40 bg-gradient-to-br from-cyan-950/20 to-indigo-950/10 shadow-[0_0_20px_rgba(34,211,238,0.07)]"
-          : "border-white/[0.05] bg-slate-950/20 hover:border-white/10 hover:bg-slate-900/30"
+          ? "border-white/20 bg-white/5"
+          : "border-white/[0.08] bg-black hover:border-white/16 hover:bg-white/4"
       }`}
     >
       <div className="flex justify-between items-start mb-2">
@@ -2300,23 +2290,23 @@ function ViajeCard({
           #{viaje.id.substring(0, 8).toUpperCase()}
         </span>
         {isHistorico ? (
-          <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-emerald-950/70 text-emerald-400 border border-emerald-800/25 uppercase tracking-wider">
+          <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-black text-white/70 border border-white/10 uppercase tracking-wider">
             Cerrado
           </span>
         ) : (
           <span
             className={`text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1.5 ${
               isEnCurso
-                ? "bg-cyan-950/70 text-cyan-400 border border-cyan-800/25"
+                ? "bg-black text-white border border-white/10"
                 : isPausado
-                  ? "bg-sky-950/70 text-sky-400 border border-sky-800/25"
-                  : "bg-amber-950/60 text-amber-400 border border-amber-800/20"
+                  ? "bg-black text-white border border-white/10"
+                  : "bg-black text-white border border-white/10"
             }`}
           >
             {isEnCurso && (
               <span className="relative flex h-1.5 w-1.5 shrink-0">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-cyan-500" />
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white/20 opacity-75" />
+                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-white" />
               </span>
             )}
             {viaje.estado}
@@ -2347,7 +2337,7 @@ function ViajeCard({
           <button
             onClick={(e) => { e.stopPropagation(); onIniciar(viaje.id); }}
             disabled={isSubmitting}
-            className="text-[9px] font-bold tracking-widest uppercase px-3 py-1.5 w-full rounded-lg bg-amber-500/10 border border-amber-500/25 hover:bg-amber-500/20 hover:border-amber-500/50 text-amber-400 transition-all duration-300 cursor-pointer disabled:opacity-40"
+            className="text-[9px] font-bold tracking-widest uppercase px-3 py-1.5 w-full rounded-lg bg-black border border-white/10 hover:border-white/20 text-white transition-all duration-300 cursor-pointer disabled:opacity-40"
           >
             {isSubmitting ? "Iniciando..." : "▶  Iniciar Viaje"}
           </button>
@@ -2359,7 +2349,7 @@ function ViajeCard({
             <button
               onClick={(e) => { e.stopPropagation(); onPausar(viaje.id); }}
               disabled={isSubmitting}
-              className="text-[8px] font-bold tracking-widest uppercase px-2 py-1.5 rounded-lg bg-sky-500/10 border border-sky-500/25 hover:bg-sky-500/20 hover:border-sky-500/50 text-sky-400 transition-all duration-300 cursor-pointer disabled:opacity-40"
+              className="text-[8px] font-bold tracking-widest uppercase px-2 py-1.5 rounded-lg bg-black border border-white/10 hover:border-white/20 text-white transition-all duration-300 cursor-pointer disabled:opacity-40"
             >
               Pausar
             </button>
@@ -2368,7 +2358,7 @@ function ViajeCard({
             <button
               onClick={(e) => { e.stopPropagation(); onReanudar(viaje.id); }}
               disabled={isSubmitting}
-              className="text-[8px] font-bold tracking-widest uppercase px-2 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/25 hover:bg-emerald-500/20 hover:border-emerald-500/50 text-emerald-400 transition-all duration-300 cursor-pointer disabled:opacity-40"
+              className="text-[8px] font-bold tracking-widest uppercase px-2 py-1.5 rounded-lg bg-black border border-white/10 hover:border-white/20 text-white transition-all duration-300 cursor-pointer disabled:opacity-40"
             >
               Reanudar
             </button>
@@ -2377,7 +2367,7 @@ function ViajeCard({
             <button
               onClick={(e) => { e.stopPropagation(); onCancelar(viaje.id); }}
               disabled={isSubmitting}
-              className="text-[8px] font-bold tracking-widest uppercase px-2 py-1.5 rounded-lg bg-rose-500/10 border border-rose-500/25 hover:bg-rose-500/20 hover:border-rose-500/50 text-rose-400 transition-all duration-300 cursor-pointer disabled:opacity-40"
+              className="text-[8px] font-bold tracking-widest uppercase px-2 py-1.5 rounded-lg bg-black border border-white/10 hover:border-white/20 text-white transition-all duration-300 cursor-pointer disabled:opacity-40"
             >
               Cancelar
             </button>
@@ -2423,7 +2413,7 @@ function ModalSelect({
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full bg-[#0a0d15] border border-slate-800 rounded-lg px-3 py-2.5 text-[11px] text-slate-200 outline-none cursor-pointer transition-all duration-200 focus:border-sky-500/50 focus:ring-2 focus:ring-sky-500/10 font-sans"
+        className="w-full bg-black border border-white/10 rounded-lg px-3 py-2.5 text-[11px] text-slate-200 outline-none cursor-pointer transition-all duration-200 focus:border-white/25 font-sans"
       >
         {children}
       </select>
@@ -2453,7 +2443,7 @@ function ModalInput({
       step={step}
       disabled={disabled}
       onChange={(e) => onChange(e.target.value)}
-      className="w-full bg-[#0a0d15] border border-slate-800 rounded-lg px-3 py-2.5 text-[11px] text-slate-200 outline-none transition-all duration-200 focus:border-sky-500/50 focus:ring-2 focus:ring-sky-500/10 font-mono placeholder:text-slate-700 disabled:opacity-55 disabled:bg-[#07090e] disabled:cursor-not-allowed"
+      className="w-full bg-black border border-white/10 rounded-lg px-3 py-2.5 text-[11px] text-slate-200 outline-none transition-all duration-200 focus:border-white/25 font-mono placeholder:text-slate-700 disabled:opacity-55 disabled:bg-[#050505] disabled:cursor-not-allowed"
     />
   );
 }
@@ -2510,7 +2500,6 @@ function AdminPanel({ apiUrl }: { apiUrl: string }) {
   const getHeaders = () => {
     const token = localStorage.getItem("accessToken");
     return {
-      "Content-Type": "application/json",
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     };
   };
@@ -2706,7 +2695,7 @@ function AdminPanel({ apiUrl }: { apiUrl: string }) {
       {/* HEADER */}
       <div className="flex flex-col gap-1.5 border-b border-white/[0.05] pb-4">
         <h2 className="text-base font-bold text-white uppercase tracking-wider flex items-center gap-2">
-          <Building className="w-5 h-5 text-cyan-400" />
+          <Building className="w-5 h-5 text-white/70" />
           Administrar Entidades Logísticas
         </h2>
         <p className="text-[11px] text-slate-400 font-mono">
@@ -2719,8 +2708,8 @@ function AdminPanel({ apiUrl }: { apiUrl: string }) {
         <div
           className={`rounded-2xl border px-4 py-3 text-[11px] font-mono flex items-center justify-between shrink-0 shadow-lg ${
             feedback.type === "success"
-              ? "border-emerald-400/40 bg-emerald-500/10 text-emerald-300"
-              : "border-rose-400/40 bg-rose-500/10 text-rose-300"
+                ? "border-white/10 bg-white/6 text-white/70"
+                  : "border-white/10 bg-white/6 text-white/70"
           }`}
         >
           <span>{feedback.message}</span>
@@ -2734,9 +2723,9 @@ function AdminPanel({ apiUrl }: { apiUrl: string }) {
       <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-6 overflow-hidden min-h-0">
         
         {/* COLUMN 1: EMPRESAS */}
-        <div className="bg-slate-900/30 border border-white/[0.05] hover:border-cyan-500/10 rounded-[1.5rem] p-5 flex flex-col gap-4 overflow-hidden shadow-2xl transition-all">
+        <div className="bg-slate-900/30 border border-white/[0.05] hover:border-white/6 rounded-[1.5rem] p-5 flex flex-col gap-4 overflow-hidden shadow-2xl transition-all">
           <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2 border-b border-white/[0.05] pb-3 shrink-0">
-            <Building className="w-4 h-4 text-cyan-400" />
+            <Building className="w-4 h-4 text-white/70" />
             1. Registrar Empresa
           </h3>
 
@@ -2780,7 +2769,7 @@ function AdminPanel({ apiUrl }: { apiUrl: string }) {
         {/* COLUMN 2: SUCURSALES */}
         <div className="bg-slate-900/30 border border-white/[0.05] hover:border-cyan-500/10 rounded-[1.5rem] p-5 flex flex-col gap-4 overflow-hidden shadow-2xl transition-all">
           <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2 border-b border-white/[0.05] pb-3 shrink-0">
-            <MapPin className="w-4 h-4 text-emerald-400" />
+            <MapPin className="w-4 h-4 text-white/70" />
             2. Registrar Sucursal
           </h3>
 
@@ -2791,7 +2780,7 @@ function AdminPanel({ apiUrl }: { apiUrl: string }) {
                 required
                 value={sucursalEmpresaId}
                 onChange={(e) => setSucursalEmpresaId(e.target.value)}
-                className="w-full bg-[#0a0d15] border border-slate-800 rounded-lg px-3 py-2 text-[11px] text-slate-200 outline-none cursor-pointer transition focus:border-emerald-500/50"
+                className="w-full bg-[#0a0d15] border border-slate-800 rounded-lg px-3 py-2 text-[11px] text-slate-200 outline-none cursor-pointer transition focus:border-white/20"
               >
                 <option value="">Selecciona una empresa...</option>
                 {empresas.map((e) => (
@@ -2808,7 +2797,7 @@ function AdminPanel({ apiUrl }: { apiUrl: string }) {
                 value={sucursalNombre}
                 onChange={(e) => setSucursalNombre(e.target.value)}
                 placeholder="Ej. Centro de Distribución A"
-                className="w-full bg-[#0a0d15] border border-slate-800 rounded-lg px-3 py-2 text-[11px] text-slate-200 outline-none transition focus:border-emerald-500/50"
+                className="w-full bg-[#0a0d15] border border-slate-800 rounded-lg px-3 py-2 text-[11px] text-slate-200 outline-none transition focus:border-white/20"
               />
             </div>
 
@@ -2822,7 +2811,7 @@ function AdminPanel({ apiUrl }: { apiUrl: string }) {
                   value={sucursalLat}
                   onChange={(e) => setSucursalLat(e.target.value)}
                   placeholder="Ej. 13.6929"
-                  className="w-full bg-[#0a0d15] border border-slate-800 rounded-lg px-3 py-2 text-[11px] text-slate-200 outline-none transition focus:border-emerald-500/50 font-mono"
+                  className="w-full bg-[#0a0d15] border border-slate-800 rounded-lg px-3 py-2 text-[11px] text-slate-200 outline-none transition focus:border-white/20 font-mono"
                 />
               </div>
               <div className="space-y-1.5">
@@ -2834,7 +2823,7 @@ function AdminPanel({ apiUrl }: { apiUrl: string }) {
                   value={sucursalLon}
                   onChange={(e) => setSucursalLon(e.target.value)}
                   placeholder="Ej. -89.2182"
-                  className="w-full bg-[#0a0d15] border border-slate-800 rounded-lg px-3 py-2 text-[11px] text-slate-200 outline-none transition focus:border-emerald-500/50 font-mono"
+                  className="w-full bg-[#0a0d15] border border-slate-800 rounded-lg px-3 py-2 text-[11px] text-slate-200 outline-none transition focus:border-white/20 font-mono"
                 />
               </div>
             </div>
@@ -2846,14 +2835,14 @@ function AdminPanel({ apiUrl }: { apiUrl: string }) {
                 value={sucursalDireccion}
                 onChange={(e) => setSucursalDireccion(e.target.value)}
                 placeholder="Calle 23 oriente, No. 5"
-                className="w-full bg-[#0a0d15] border border-slate-800 rounded-lg px-3 py-2 text-[11px] text-slate-200 outline-none transition focus:border-emerald-500/50"
+                className="w-full bg-[#0a0d15] border border-slate-800 rounded-lg px-3 py-2 text-[11px] text-slate-200 outline-none transition focus:border-white/20"
               />
             </div>
 
             <button
               type="submit"
               disabled={isLoading || !sucursalEmpresaId || !sucursalNombre.trim()}
-              className="w-full bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold rounded-lg py-2 text-[10px] uppercase tracking-wider transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+              className="w-full bg-black border border-white/10 hover:bg-white/6 text-white font-bold rounded-lg py-2 text-[10px] uppercase tracking-wider transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             >
               Registrar
             </button>
@@ -2959,10 +2948,10 @@ function AdminPanel({ apiUrl }: { apiUrl: string }) {
                     <div className="flex justify-between items-start gap-1">
                       <p className="text-[11px] font-bold text-white font-mono">{trans.placa}</p>
                       <span className={`text-[8px] px-1.5 py-0.5 rounded border font-mono ${
-                        trans.estado === "Activo" 
-                          ? "bg-emerald-950/40 border-emerald-900/20 text-emerald-400"
-                          : "bg-rose-950/40 border-rose-900/20 text-rose-400"
-                      }`}>{trans.estado}</span>
+                          trans.estado === "Activo" 
+                            ? "bg-black border border-white/10 text-white"
+                            : "bg-black border border-white/10 text-white"
+                          }`}>{trans.estado}</span>
                     </div>
                     {owner && <p className="text-[9px] text-slate-500 font-mono">Empresa: {owner.nombre}</p>}
                     <p className="text-[8px] text-slate-600 font-mono truncate">IoT Link: {trans.iot_id}</p>
