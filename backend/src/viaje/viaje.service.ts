@@ -577,4 +577,50 @@ export class ViajeService {
     );
     return result.rows;
   }
+
+  async pausar(id: string) {
+    const viaje = await this.findOne(id);
+    if (viaje.estado !== 'en_curso') {
+      throw new Error(
+        `El viaje ${id} no está en curso (estado actual: ${viaje.estado}).`,
+      );
+    }
+    await this.db.query(
+      `UPDATE viaje SET estado = 'pausado' WHERE id = $1`,
+      [id],
+    );
+    return this.findOne(id);
+  }
+
+  async reanudar(id: string) {
+    const viaje = await this.findOne(id);
+    if (viaje.estado !== 'pausado') {
+      throw new Error(
+        `El viaje ${id} no está pausado (estado actual: ${viaje.estado}).`,
+      );
+    }
+    await this.db.query(
+      `UPDATE viaje SET estado = 'en_curso' WHERE id = $1`,
+      [id],
+    );
+    return this.findOne(id);
+  }
+
+  async cancelar(id: string) {
+    const viaje = await this.findOne(id);
+    if (viaje.estado === 'finalizado' || viaje.estado === 'cancelado') {
+      throw new Error(
+        `El viaje ${id} ya está finalizado o cancelado (estado actual: ${viaje.estado}).`,
+      );
+    }
+    await this.db.query(
+      `UPDATE viaje SET estado = 'cancelado', final_viaje = NOW() WHERE id = $1`,
+      [id],
+    );
+    await this.db.query(
+      `UPDATE incidente SET resuelta = true, timestamp_fin = NOW() WHERE viaje_id = $1 AND resuelta = false`,
+      [id],
+    );
+    return this.findOne(id);
+  }
 }

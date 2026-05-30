@@ -49,6 +49,7 @@ export default function RouteMap({
   const mapClickRef = useRef(onMapClick);
   const resizeTimeoutRef = useRef<number | null>(null);
   const lastFittedViajeId = useRef<string | number | null>(null);
+  const lastFittedWaypointsKey = useRef<string>("");
 
   useEffect(() => {
     addRef.current = onAddWaypoint;
@@ -302,16 +303,27 @@ export default function RouteMap({
 
         if (bounds.isValid()) {
           const isNewViaje = viajeId && (viajeId !== lastFittedViajeId.current);
-          const isSetupMode = !viajeId;
+          
+          // Serialize waypoints and whether route is loaded to prevent refitting on zoom/pan or async route loads
+          const waypointsKey = waypoints.map(w => `${w.lat.toFixed(5)},${w.lon.toFixed(5)}`).join(';') + `|route:${!!routeToDraw}`;
+          const isSetupMode = !viajeId && (waypointsKey !== lastFittedWaypointsKey.current);
           
           if (isNewViaje || isSetupMode) {
+            let fitted = false;
             if (routeToDraw && routeToDraw.length > 1) {
               map.fitBounds(bounds.pad(0.15), { animate: false });
+              fitted = true;
             } else if (waypoints.length === 1) {
               map.setView([waypoints[0].lat, waypoints[0].lon], 16, { animate: false });
+              fitted = true;
             }
-            if (viajeId) {
-              lastFittedViajeId.current = viajeId;
+
+            if (fitted) {
+              if (viajeId) {
+                lastFittedViajeId.current = viajeId;
+              } else {
+                lastFittedWaypointsKey.current = waypointsKey;
+              }
             }
           }
         }
