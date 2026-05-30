@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { API_URL } from "@/lib/config";
 import { apiFetch } from "@/lib/api";
@@ -69,22 +70,22 @@ export default function LoginPage() {
 
       <main className="relative z-10 mx-auto flex min-h-[calc(100vh-2.5rem)] w-full max-w-[1120px] flex-col">
         <header className="flex items-center justify-between border-b border-white/18 pb-2 pt-2 animate-fade-up">
-          <a href="/" className="flex items-end gap-2 transition hover:opacity-80">
+          <Link href="/" className="flex items-end gap-2 transition hover:opacity-80">
             <span className="text-[26px] font-black tracking-[-0.04em] leading-none sm:text-[31px]">
               COLDCASE
             </span>
             <span className="pb-0.5 text-[11px] font-medium uppercase tracking-[0.22em] text-white/72 sm:text-sm">
               Control
             </span>
-          </a>
+          </Link>
 
           <nav className="hidden items-center gap-10 text-sm font-semibold uppercase tracking-[0.18em] text-white/88 md:flex">
-            <a className="transition hover:text-white/60" href="/">
+            <Link className="transition hover:text-white/60" href="/">
               Inicio
-            </a>
-            <a className="transition hover:text-white/60" href="/ia">
+            </Link>
+            <Link className="transition hover:text-white/60" href="/ia">
               Probar IA
-            </a>
+            </Link>
           </nav>
         </header>
 
@@ -186,9 +187,9 @@ export default function LoginPage() {
                     Recordarme
                   </label>
 
-                  <a href="/" className="transition hover:text-white/70">
+                  <Link href="/" className="transition hover:text-white/70">
                     Volver al inicio
-                  </a>
+                  </Link>
                 </div>
 
                 <div className="grid gap-3 rounded-2xl border border-white/10 bg-black p-4 text-xs uppercase tracking-[0.2em] text-white/42 sm:grid-cols-3">
