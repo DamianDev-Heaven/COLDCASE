@@ -28,7 +28,7 @@ export class TransporteService {
 
   async findAll() {
     const result = await this.db.query(
-      'SELECT id, placa, iot_id, empresa_id, estado, capacidad FROM transporte ORDER BY placa ASC',
+      'SELECT t.id, t.placa, t.iot_id, t.empresa_id, e.nombre AS empresa_nombre, t.estado, t.capacidad, t.capacidad AS capacidad_carga_kg FROM transporte t INNER JOIN empresa e ON e.id = t.empresa_id ORDER BY t.placa ASC',
     );
 
     return result.rows;

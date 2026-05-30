@@ -199,6 +199,16 @@ export default function Dashboard() {
   const vehicleDropRef = useRef<HTMLDivElement>(null);
   const [mapMounted, setMapMounted] = useState(false);
 
+  const handleToggleVehicleDrop = () => {
+    if (vehicleDropOpen) {
+      setVehicleDropOpen(false);
+      return;
+    }
+
+    setVehicleSearch("");
+    setVehicleDropOpen(true);
+  };
+
   const resetModalForm = () => {
     setSelectedEmpresa("");
     setTransporteIdForm("");
@@ -1504,7 +1514,7 @@ export default function Dashboard() {
                         <div ref={vehicleDropRef} className="relative mt-1">
                           <button
                             type="button"
-                            onClick={() => setVehicleDropOpen((o) => !o)}
+                            onClick={handleToggleVehicleDrop}
                             className={`w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg border text-[11px] transition-all duration-150 cursor-pointer ${
                               vehicleDropOpen
                                 ? "border-white/20 bg-black ring-2 ring-white/6"
