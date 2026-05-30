@@ -293,11 +293,11 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(56,189,248,0.18),_transparent_45%),radial-gradient(circle_at_bottom_right,_rgba(244,114,182,0.18),_transparent_35%)]" />
+    <div className="min-h-screen bg-black text-white">
+      <div className="pointer-events-none absolute inset-0" />
       <div className="relative mx-auto flex min-h-screen w-full max-w-4xl flex-col justify-center px-6 py-16">
-        <div className="rounded-3xl border border-slate-800/80 bg-slate-900/80 p-10 shadow-2xl shadow-cyan-500/10 backdrop-blur">
-          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-cyan-300">
+        <div className="rounded-3xl border border-white/10 bg-[#050505] p-10 shadow-none">
+          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-white/60">
             Alta administrativa
           </p>
           <h1 className="mt-4 text-3xl font-semibold">Crear usuario</h1>
@@ -321,7 +321,7 @@ export default function RegisterPage() {
                   type="email"
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
-                  className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white focus:border-cyan-300 focus:outline-none"
+                  className="mt-2 w-full rounded-xl border border-white/10 bg-black px-4 py-3 text-white focus:border-white/20 focus:outline-none"
                   placeholder="operador@coldcase.com"
                   required
                 />
@@ -333,7 +333,7 @@ export default function RegisterPage() {
                   type="password"
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
-                  className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white focus:border-cyan-300 focus:outline-none"
+                  className="mt-2 w-full rounded-xl border border-white/10 bg-black px-4 py-3 text-white focus:border-white/20 focus:outline-none"
                   placeholder="Minimo 6 caracteres"
                   required
                 />
@@ -344,7 +344,7 @@ export default function RegisterPage() {
                 <select
                   value={rol}
                   onChange={(event) => setRol(event.target.value as (typeof roles)[number])}
-                  className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white focus:border-cyan-300 focus:outline-none"
+                  className="mt-2 w-full rounded-xl border border-white/10 bg-black px-4 py-3 text-white focus:border-white/20 focus:outline-none"
                 >
                   {roles.map((role) => (
                     <option key={role} value={role}>
@@ -354,11 +354,11 @@ export default function RegisterPage() {
                 </select>
               </label>
 
-              <div className="grid gap-3 text-sm text-slate-400 sm:grid-cols-2">
-                <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
+              <div className="grid gap-3 text-sm text-white/60 sm:grid-cols-2">
+                <div className="rounded-2xl border border-white/8 bg-black p-4">
                   El backend exige un token valido y rol Admin.
                 </div>
-                <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
+                <div className="rounded-2xl border border-white/8 bg-black p-4">
                   El login sigue siendo publico para operar el sistema desde el exterior.
                 </div>
               </div>
@@ -366,7 +366,7 @@ export default function RegisterPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="mt-2 inline-flex items-center justify-center rounded-full bg-cyan-400 px-6 py-3 text-sm font-semibold text-slate-900 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-70"
+                className="mt-2 inline-flex items-center justify-center rounded-full bg-black border border-white/10 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/6 disabled:cursor-not-allowed disabled:opacity-70"
               >
                 {loading ? "Registrando..." : "Crear usuario"}
               </button>
@@ -377,7 +377,7 @@ export default function RegisterPage() {
             <section className="mt-10 rounded-3xl border border-slate-800 bg-slate-950/70 p-6">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.3em] text-cyan-300">
+                  <p className="text-xs font-semibold uppercase tracking-[0.3em] text-white/60">
                     Usuarios creados
                   </p>
                   <h2 className="mt-3 text-2xl font-semibold">Lista de administración</h2>
@@ -385,23 +385,23 @@ export default function RegisterPage() {
                     Edita email, rol o contraseña. También puedes eliminar cuentas, excepto la tuya propia.
                   </p>
                 </div>
-                <div className="text-sm text-slate-400">
-                  Total: <span className="font-semibold text-slate-100">{users.length}</span>
+                <div className="text-sm text-white/60">
+                  Total: <span className="font-semibold text-white">{users.length}</span>
                 </div>
               </div>
 
               {editUser && (
-                <form onSubmit={handleUpdateUser} className="mt-6 rounded-3xl border border-cyan-400/20 bg-cyan-500/5 p-5">
+                <form onSubmit={handleUpdateUser} className="mt-6 rounded-3xl border border-white/8 bg-black p-5">
                   <div className="flex items-start justify-between gap-4">
                     <div>
-                      <p className="text-xs font-semibold uppercase tracking-[0.3em] text-cyan-300">Editar usuario</p>
+                      <p className="text-xs font-semibold uppercase tracking-[0.3em] text-white/60">Editar usuario</p>
                       <h3 className="mt-2 text-lg font-semibold">{editUser.email}</h3>
                       <p className="mt-2 text-sm text-slate-400">La contraseña nueva es opcional; si la dejas vacía, no se modifica.</p>
                     </div>
                     <button
                       type="button"
                       onClick={handleCancelEdit}
-                      className="rounded-full border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:border-slate-500"
+                      className="rounded-full border border-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:border-white/20"
                     >
                       Cancelar
                     </button>
@@ -447,17 +447,17 @@ export default function RegisterPage() {
                     </select>
                   </label>
 
-                  <button
+                    <button
                     type="submit"
                     disabled={loading}
-                    className="mt-5 inline-flex items-center justify-center rounded-full bg-cyan-400 px-6 py-3 text-sm font-semibold text-slate-900 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-70"
+                    className="mt-5 inline-flex items-center justify-center rounded-full bg-black border border-white/10 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/6 disabled:cursor-not-allowed disabled:opacity-70"
                   >
                     {loading ? "Guardando..." : "Guardar cambios"}
                   </button>
                 </form>
               )}
 
-              <div className="mt-6 overflow-hidden rounded-3xl border border-slate-800 bg-slate-900/60">
+              <div className="mt-6 overflow-hidden rounded-3xl border border-white/8 bg-black">
                 {usersLoading ? (
                   <div className="p-5 text-sm text-slate-300">Cargando usuarios...</div>
                 ) : usersError ? (
@@ -476,15 +476,15 @@ export default function RegisterPage() {
                       </thead>
                       <tbody className="divide-y divide-slate-800">
                         {users.map((userItem) => (
-                          <tr key={userItem.id} className="bg-slate-900/40">
-                            <td className="px-5 py-4 text-slate-100">{userItem.email}</td>
-                            <td className="px-5 py-4 text-slate-300">{userItem.rol}</td>
+                          <tr key={userItem.id} className="bg-black/40">
+                            <td className="px-5 py-4 text-white">{userItem.email}</td>
+                            <td className="px-5 py-4 text-white/70">{userItem.rol}</td>
                             <td className="px-5 py-4">
                               <div className="flex flex-wrap gap-2">
                                 <button
                                   type="button"
                                   onClick={() => handleStartEdit(userItem)}
-                                  className="rounded-full border border-cyan-400/30 bg-cyan-500/10 px-4 py-2 text-xs font-semibold text-cyan-100 transition hover:border-cyan-300"
+                                  className="rounded-full border border-white/10 bg-black/80 px-4 py-2 text-xs font-semibold text-white transition hover:border-white/20"
                                 >
                                   Editar
                                 </button>
@@ -492,7 +492,7 @@ export default function RegisterPage() {
                                   type="button"
                                   onClick={() => handleDeleteUser(userItem.id)}
                                   disabled={loading}
-                                  className="rounded-full border border-rose-400/30 bg-rose-500/10 px-4 py-2 text-xs font-semibold text-rose-100 transition hover:border-rose-300 disabled:cursor-not-allowed disabled:opacity-70"
+                                  className="rounded-full border border-white/10 bg-black/80 px-4 py-2 text-xs font-semibold text-white transition hover:border-white/20 disabled:cursor-not-allowed disabled:opacity-70"
                                 >
                                   Eliminar
                                 </button>

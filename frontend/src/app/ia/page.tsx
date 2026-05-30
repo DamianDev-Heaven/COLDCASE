@@ -179,23 +179,24 @@ export default function IaPage() {
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white">
-      <div className="mx-auto flex min-h-screen w-full max-w-7xl flex-col gap-8 px-6 py-10">
+    <div className="relative min-h-screen overflow-hidden bg-black text-white">
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:72px_72px] opacity-[0.08]" />
+      <div className="mx-auto flex min-h-screen w-full max-w-7xl flex-col gap-8 px-6 py-10 relative z-10">
 
         {/* Header */}
-        <header className="flex items-center justify-between gap-4 flex-wrap border-b border-white/[0.05] pb-5">
+        <header className="flex items-center justify-between gap-4 flex-wrap border-b border-white/[0.08] pb-5 animate-fade-up">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-cyan-500/20 to-indigo-500/20 border border-cyan-500/20 rounded-xl flex items-center justify-center shadow-lg shadow-cyan-500/5">
-              <ShieldCheck className="w-5 h-5 text-cyan-400" />
+            <div className="w-10 h-10 bg-black border border-white/12 rounded-xl flex items-center justify-center">
+              <ShieldCheck className="w-5 h-5 text-white" />
             </div>
             <div>
-              <span className="text-[13px] font-extrabold tracking-widest text-white">COLD<span className="text-cyan-400">CASE</span></span>
+              <span className="text-[13px] font-extrabold tracking-widest text-white">COLD<span className="text-white/70">CASE</span></span>
               <p className="text-[9px] text-slate-500 tracking-[0.12em] uppercase mt-0.5">Control · Sandbox</p>
             </div>
           </div>
           <Link
             href="/dashboard"
-            className="rounded-full border border-slate-700 bg-slate-900/50 hover:bg-slate-900 px-5 py-2 text-xs font-semibold text-slate-200 transition hover:border-cyan-400/40"
+            className="rounded-full border border-white/10 bg-black hover:bg-white/6 px-5 py-2 text-xs font-semibold text-slate-200 transition hover:border-white/20"
           >
             Volver al Dashboard
           </Link>
@@ -204,9 +205,9 @@ export default function IaPage() {
         <div className="flex flex-col gap-6">
 
           {/* Hero strip */}
-          <div className="rounded-[2rem] border border-rose-400/15 bg-[radial-gradient(circle_at_top_left,_rgba(239,68,68,0.12),_transparent_50%),linear-gradient(180deg,rgba(15,23,42,0.95),rgba(15,23,42,0.80))] p-6 flex flex-wrap items-center justify-between gap-4">
+          <div className="rounded-[2rem] border border-white/10 bg-[#050505] p-6 flex flex-wrap items-center justify-between gap-4 transition-colors hover:border-white/16">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.35em] text-rose-300">Sandbox · Control de Viaje</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.35em] text-white/45">Sandbox · Control de Viaje</p>
               <h2 className="mt-2 text-2xl font-semibold">Simulación e Inyección de Fallas</h2>
               <p className="mt-1.5 text-sm text-slate-400">Selecciona un despacho activo para controlar el simulador, gestionar alertas y enviar comandos Downlink.</p>
             </div>
@@ -215,7 +216,7 @@ export default function IaPage() {
             <div className="relative" ref={dropRef}>
               <button
                 onClick={() => setDropOpen((o) => !o)}
-                className="flex items-center gap-2 bg-slate-900 border border-white/10 hover:border-cyan-500/30 rounded-xl px-4 py-2.5 text-[11px] font-semibold text-slate-200 transition cursor-pointer min-w-[220px] justify-between"
+                className="flex items-center gap-2 bg-black border border-white/10 hover:border-white/25 rounded-xl px-4 py-2.5 text-[11px] font-semibold text-slate-200 transition cursor-pointer min-w-[220px] justify-between"
               >
                 <span className="truncate">
                   {viajeSeleccionado
@@ -225,7 +226,7 @@ export default function IaPage() {
                 <ChevronDown className={`w-3.5 h-3.5 text-slate-500 shrink-0 transition-transform ${dropOpen ? "rotate-180" : ""}`} />
               </button>
               {dropOpen && (
-                <div className="absolute right-0 top-full mt-1 z-50 w-64 bg-slate-900 border border-white/10 rounded-xl shadow-2xl overflow-hidden">
+                <div className="absolute right-0 top-full mt-1 z-50 w-64 bg-black border border-white/10 rounded-xl overflow-hidden">
                   {viajes.length === 0 ? (
                     <p className="text-center text-slate-600 text-xs py-4 font-mono">Sin despachos activos.</p>
                   ) : (
@@ -246,20 +247,20 @@ export default function IaPage() {
           </div>
 
           {!viajeSeleccionado ? (
-            <div className="rounded-[2rem] border border-slate-800 bg-slate-900/40 p-16 flex flex-col items-center gap-3 text-center">
-              <Cpu className="w-10 h-10 text-slate-700" />
+            <div className="rounded-[2rem] border border-white/10 bg-[#050505] p-16 flex flex-col items-center gap-3 text-center">
+              <Cpu className="w-10 h-10 text-white/25" />
               <p className="text-sm text-slate-500 font-mono">Selecciona un despacho activo para comenzar.</p>
             </div>
           ) : viajeSeleccionado.estado === "finalizado" ? (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 animate-in fade-in duration-300">
               {/* Celebration & Details */}
-              <div className="md:col-span-2 bg-slate-900/40 border border-white/[0.06] rounded-[1.5rem] p-8 flex flex-col gap-6 items-center justify-center min-h-[520px] text-center">
-                <div className="w-16 h-16 bg-emerald-500/10 border border-emerald-500/20 rounded-full flex items-center justify-center shadow-lg shadow-emerald-500/5">
-                  <CheckCircle2 className="w-8 h-8 text-emerald-400 animate-bounce" />
+              <div className="md:col-span-2 bg-[#050505] border border-white/10 rounded-[1.5rem] p-8 flex flex-col gap-6 items-center justify-center min-h-[520px] text-center">
+                <div className="w-16 h-16 bg-black border border-white/12 rounded-full flex items-center justify-center">
+                  <CheckCircle2 className="w-8 h-8 text-white animate-bounce" />
                 </div>
                 
                 <div>
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-400">Despacho Completado</span>
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-white/60">Despacho Completado</span>
                   <h2 className="mt-2 text-2xl font-bold">¡Destino Alcanzado con Éxito!</h2>
                   <p className="mt-2 text-sm text-slate-400 max-w-md">
                     El viaje del vehículo <strong className="text-white font-mono">{viajeSeleccionado.transporte_placa}</strong> ha finalizado. La cadena de frío ha sido completada para este despacho.
@@ -267,7 +268,7 @@ export default function IaPage() {
                 </div>
 
                 {/* Details box */}
-                <div className="w-full max-w-md bg-slate-950/40 border border-white/[0.04] rounded-2xl p-5 text-left grid grid-cols-2 gap-4">
+                <div className="w-full max-w-md bg-black border border-white/8 rounded-2xl p-5 text-left grid grid-cols-2 gap-4">
                   <div>
                     <span className="text-[9px] text-slate-500 uppercase font-bold tracking-wider">Producto</span>
                     <p className="text-xs font-semibold text-slate-200 mt-0.5">{viajeSeleccionado.tipo_producto}</p>
@@ -296,13 +297,13 @@ export default function IaPage() {
                           <button
                             key={v.id}
                             onClick={() => setViajeSeleccionado(v)}
-                            className="w-full text-left px-4 py-3 rounded-xl bg-slate-950/30 border border-white/5 hover:border-cyan-500/20 hover:bg-slate-950/60 transition cursor-pointer flex items-center justify-between text-xs"
+                            className="w-full text-left px-4 py-3 rounded-xl bg-black border border-white/8 hover:border-white/18 hover:bg-white/4 transition cursor-pointer flex items-center justify-between text-xs"
                           >
                             <div className="flex flex-col gap-0.5">
                               <span className="font-bold font-mono text-slate-200">{v.transporte_placa}</span>
                               <span className="text-[10px] text-slate-500">{v.tipo_producto}</span>
                             </div>
-                            <span className="text-[10px] text-cyan-400 font-bold uppercase tracking-wider flex items-center gap-1">
+                            <span className="text-[10px] text-white font-bold uppercase tracking-wider flex items-center gap-1">
                               Monitorear <ArrowRight className="w-3 h-3" />
                             </span>
                           </button>
@@ -314,7 +315,7 @@ export default function IaPage() {
                       <p className="text-xs text-slate-500 font-mono">No hay otros viajes activos en este momento.</p>
                       <Link
                         href="/dashboard"
-                        className="rounded-full bg-slate-900 border border-white/10 hover:border-cyan-500/20 px-5 py-2 text-xs font-semibold text-slate-300 transition"
+                        className="rounded-full bg-black border border-white/10 hover:border-white/20 px-5 py-2 text-xs font-semibold text-slate-300 transition"
                       >
                         Ir al Dashboard Principal
                       </Link>
@@ -324,11 +325,11 @@ export default function IaPage() {
               </div>
 
               {/* Bitácora de incidentes (auditoría de cierre) */}
-              <div className="bg-slate-900/40 border border-white/[0.06] rounded-[1.5rem] p-4 flex flex-col gap-3 min-h-[520px]">
-                <div className="flex items-center justify-between border-b border-white/[0.05] pb-3 shrink-0 gap-2 flex-wrap">
+              <div className="bg-[#050505] border border-white/[0.10] rounded-[1.5rem] p-4 flex flex-col gap-3 min-h-[520px]">
+                <div className="flex items-center justify-between border-b border-white/[0.08] pb-3 shrink-0 gap-2 flex-wrap">
                   <h3 className="text-[10px] font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
                     Bitácora de Cierre
-                    <span className="bg-slate-800 text-slate-400 rounded-full px-2 py-0.5 text-[8px] font-mono">
+                    <span className="bg-black text-slate-400 rounded-full px-2 py-0.5 text-[8px] font-mono border border-white/8">
                       {incidentes.filter((i) => !i.resuelta).length} activas · {incidentes.filter((i) => i.resuelta).length} resueltas
                     </span>
                   </h3>
@@ -341,9 +342,9 @@ export default function IaPage() {
                       onClick={() => setIncFilter(f)}
                       className={`px-2.5 py-1 rounded-lg text-[8px] font-bold uppercase tracking-wide transition cursor-pointer ${
                         incFilter === f
-                          ? f === "activas" ? "bg-rose-500/15 text-rose-300 border border-rose-500/20"
-                            : f === "resueltas" ? "bg-emerald-500/15 text-emerald-300 border border-emerald-500/20"
-                            : "bg-slate-700/50 text-slate-200 border border-slate-600/30"
+                          ? f === "activas" ? "bg-black text-white border border-white/14"
+                            : f === "resueltas" ? "bg-black text-white border border-white/14"
+                            : "bg-black text-slate-200 border border-white/10"
                           : "text-slate-600 hover:text-slate-400 border border-transparent"
                       }`}
                     >
@@ -363,10 +364,10 @@ export default function IaPage() {
                         {filtered.map((inc) => (
                           <div
                             key={inc.id}
-                            className={`p-3 rounded-xl border text-xs flex flex-col gap-2 transition-all ${inc.resuelta ? "bg-emerald-950/5 border-emerald-500/10 text-slate-500" : "bg-rose-950/10 border-rose-500/20 text-slate-200"}`}
+                            className={`p-3 rounded-xl border text-xs flex flex-col gap-2 transition-all ${inc.resuelta ? "bg-black border-white/8 text-slate-500" : "bg-black border-white/14 text-slate-200"}`}
                           >
                             <div className="flex justify-between items-center">
-                              <span className={`font-mono text-[8px] font-bold px-1.5 py-0.5 rounded border uppercase tracking-wider ${inc.resuelta ? "bg-emerald-950/50 text-emerald-400 border-emerald-800/20" : "bg-rose-950/50 text-rose-400 border-rose-800/20"}`}>
+                              <span className={`font-mono text-[8px] font-bold px-1.5 py-0.5 rounded border uppercase tracking-wider ${inc.resuelta ? "bg-black text-white/70 border-white/10" : "bg-black text-white border-white/10"}`}>
                                 {inc.tipo_alerta}
                               </span>
                               <span className="text-[8px] font-mono text-slate-500">
@@ -378,8 +379,8 @@ export default function IaPage() {
                               <strong className={`font-mono ${inc.resuelta ? "text-slate-400" : "text-rose-400"}`}>{inc.valor_detectado}°C</strong>
                             </div>
                             {inc.resuelta ? (
-                              <div className="bg-slate-950/40 border border-white/5 rounded-lg p-2 text-[9px] italic text-slate-400">
-                                <span className="font-semibold text-emerald-400 not-italic block mb-0.5">✔ Resuelto:</span>
+                              <div className="bg-black border border-white/8 rounded-lg p-2 text-[9px] italic text-slate-400">
+                                <span className="font-semibold text-white not-italic block mb-0.5">✔ Resuelto:</span>
                                 &ldquo;{inc.comentario_resolucion}&rdquo;
                               </div>
                             ) : (
@@ -390,7 +391,7 @@ export default function IaPage() {
                                     type="text"
                                     id={`res-note-${inc.id}`}
                                     placeholder="Ej. Chofer reporta cierre de compuerta."
-                                    className="flex-1 bg-slate-950/60 border border-white/10 rounded-lg px-2 py-1 text-[9px] text-white outline-none focus:border-cyan-500/40"
+                                    className="flex-1 bg-black border border-white/10 rounded-lg px-2 py-1 text-[9px] text-white outline-none focus:border-white/25"
                                     onKeyDown={(e) => {
                                       if (e.key === "Enter") {
                                         handleResolveIncident(inc.id, e.currentTarget.value);
@@ -403,7 +404,7 @@ export default function IaPage() {
                                       const el = document.getElementById(`res-note-${inc.id}`) as HTMLInputElement;
                                       if (el) { handleResolveIncident(inc.id, el.value); el.value = ""; }
                                     }}
-                                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg px-2.5 py-1 text-[8px] uppercase tracking-wide cursor-pointer transition-all"
+                                    className="bg-black hover:bg-white/6 text-white border border-white/10 font-bold rounded-lg px-2.5 py-1 text-[8px] uppercase tracking-wide cursor-pointer transition-all"
                                   >
                                     Ok
                                   </button>
@@ -427,7 +428,7 @@ export default function IaPage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 
               {/* COL 1: ALERTS LOG */}
-              <div className="bg-slate-900/40 border border-white/[0.06] rounded-[1.5rem] p-4 flex flex-col gap-3 min-h-[520px]">
+              <div className="bg-[#050505] border border-white/[0.10] rounded-[1.5rem] p-4 flex flex-col gap-3 min-h-[520px]">
                 <div className="flex items-center justify-between border-b border-white/[0.05] pb-3 shrink-0 gap-2 flex-wrap">
                   <h3 className="text-[10px] font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
                     <span className="relative flex h-1.5 w-1.5">
@@ -468,9 +469,9 @@ export default function IaPage() {
                       onClick={() => setIncFilter(f)}
                       className={`px-2.5 py-1 rounded-lg text-[8px] font-bold uppercase tracking-wide transition cursor-pointer ${
                         incFilter === f
-                          ? f === "activas" ? "bg-rose-500/15 text-rose-300 border border-rose-500/20"
-                            : f === "resueltas" ? "bg-emerald-500/15 text-emerald-300 border border-emerald-500/20"
-                            : "bg-slate-700/50 text-slate-200 border border-slate-600/30"
+                          ? f === "activas" ? "bg-black text-white border border-white/14"
+                            : f === "resueltas" ? "bg-black text-white border border-white/14"
+                            : "bg-black text-slate-200 border border-white/10"
                           : "text-slate-600 hover:text-slate-400 border border-transparent"
                       }`}
                     >
@@ -506,8 +507,8 @@ export default function IaPage() {
                               <strong className={`font-mono ${inc.resuelta ? "text-slate-400" : "text-rose-400"}`}>{inc.valor_detectado}°C</strong>
                             </div>
                             {inc.resuelta ? (
-                              <div className="bg-slate-950/40 border border-white/5 rounded-lg p-2 text-[9px] italic text-slate-400">
-                                <span className="font-semibold text-emerald-400 not-italic block mb-0.5">✔ Resuelto:</span>
+                              <div className="bg-black border border-white/8 rounded-lg p-2 text-[9px] italic text-slate-400">
+                                <span className="font-semibold text-white not-italic block mb-0.5">✔ Resuelto:</span>
                                 &ldquo;{inc.comentario_resolucion}&rdquo;
                               </div>
                             ) : (
@@ -518,7 +519,7 @@ export default function IaPage() {
                                     type="text"
                                     id={`res-note-${inc.id}`}
                                     placeholder="Ej. Chofer reporta cierre de compuerta."
-                                    className="flex-1 bg-slate-950/60 border border-white/10 rounded-lg px-2 py-1 text-[9px] text-white outline-none focus:border-cyan-500/40"
+                                    className="flex-1 bg-black border border-white/10 rounded-lg px-2 py-1 text-[9px] text-white outline-none focus:border-white/25"
                                     onKeyDown={(e) => {
                                       if (e.key === "Enter") {
                                         handleResolveIncident(inc.id, e.currentTarget.value);
@@ -531,7 +532,7 @@ export default function IaPage() {
                                       const el = document.getElementById(`res-note-${inc.id}`) as HTMLInputElement;
                                       if (el) { handleResolveIncident(inc.id, el.value); el.value = ""; }
                                     }}
-                                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg px-2.5 py-1 text-[8px] uppercase tracking-wide cursor-pointer transition-all"
+                                    className="bg-black hover:bg-white/6 text-white border border-white/10 font-bold rounded-lg px-2.5 py-1 text-[8px] uppercase tracking-wide cursor-pointer transition-all"
                                   >
                                     Ok
                                   </button>
@@ -557,9 +558,9 @@ export default function IaPage() {
               </div>
 
               {/* COL 2: DOWNLINK MITIGATION */}
-              <div className="bg-slate-900/40 border border-white/[0.06] rounded-[1.5rem] p-4 flex flex-col gap-3 min-h-[520px]">
-                <h3 className="text-[10px] font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2 border-b border-white/[0.05] pb-3 shrink-0">
-                  <Radio className="w-3.5 h-3.5 text-cyan-400" />
+              <div className="bg-[#050505] border border-white/[0.10] rounded-[1.5rem] p-4 flex flex-col gap-3 min-h-[520px]">
+                <h3 className="text-[10px] font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2 border-b border-white/[0.08] pb-3 shrink-0">
+                  <Radio className="w-3.5 h-3.5 text-white/75" />
                   Comandos Downlink IoT
                 </h3>
 
@@ -602,7 +603,7 @@ export default function IaPage() {
                       { label: "Pausado", value: simState.paused ? "Sí" : "No" },
                       { label: "Turbo", value: simState.turboMode ? "Sí" : "No" },
                     ].map(({ label, value }) => (
-                      <div key={label} className="bg-slate-950/40 border border-white/[0.04] rounded-xl p-2">
+                      <div key={label} className="bg-black border border-white/[0.08] rounded-xl p-2">
                         <p className="text-[8px] text-slate-500 uppercase font-bold tracking-wider">{label}</p>
                         <p className="text-[10px] font-mono text-slate-300 mt-0.5">{value}</p>
                       </div>
@@ -612,11 +613,11 @@ export default function IaPage() {
               </div>
 
               {/* COL 3: FAULT INJECTION */}
-              <div className="bg-slate-900/40 border border-white/[0.06] rounded-[1.5rem] p-4 flex flex-col gap-3 min-h-[520px]">
-                <h3 className="text-[10px] font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2 border-b border-white/[0.05] pb-3 shrink-0">
-                  <Cpu className="w-3.5 h-3.5 text-rose-400" />
+              <div className="bg-[#050505] border border-white/[0.10] rounded-[1.5rem] p-4 flex flex-col gap-3 min-h-[520px]">
+                <h3 className="text-[10px] font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2 border-b border-white/[0.08] pb-3 shrink-0">
+                  <Cpu className="w-3.5 h-3.5 text-white/75" />
                   Inyección de Fallas
-                  <span className="ml-auto text-[8px] text-rose-400/60 font-mono">SANDBOX ONLY</span>
+                  <span className="ml-auto text-[8px] text-white/45 font-mono">SANDBOX ONLY</span>
                 </h3>
 
                 <div className="flex-1 flex flex-col gap-3 justify-center">
@@ -670,10 +671,10 @@ function DownlinkCard({
   onClick: () => void;
 }) {
   return (
-    <div className="bg-slate-950/30 border border-white/[0.05] rounded-xl p-3 flex flex-col gap-2">
+    <div className="bg-black border border-white/[0.08] rounded-xl p-3 flex flex-col gap-2">
       <div className="flex justify-between items-center text-[9px]">
         <span className="font-bold text-white uppercase tracking-wider">{label}</span>
-        <span className={`font-bold px-1.5 py-0.5 rounded border text-[8px] ${statusActive ? "text-rose-400 bg-rose-950/40 border-rose-900/20" : "text-emerald-400 bg-emerald-950/40 border-emerald-900/20"}`}>
+        <span className={`font-bold px-1.5 py-0.5 rounded border text-[8px] ${statusActive ? "text-white bg-black border-white/10" : "text-white/70 bg-black border-white/10"}`}>
           {statusLabel}
         </span>
       </div>
@@ -682,8 +683,8 @@ function DownlinkCard({
         disabled={disabled}
         className={`w-full font-bold rounded-lg py-2 text-[9px] uppercase tracking-wide transition-all border cursor-pointer ${
           !disabled
-            ? "bg-cyan-600 hover:bg-cyan-700 text-white border-cyan-500"
-            : "bg-slate-950/20 text-slate-600 border-white/5 cursor-not-allowed"
+            ? "bg-black hover:bg-white/6 text-white border-white/10 hover:border-white/20"
+            : "bg-black text-slate-600 border-white/8 cursor-not-allowed"
         }`}
       >
         {buttonLabel}
@@ -702,11 +703,8 @@ function FaultToggle({
   onToggle: () => void;
   color?: "rose" | "amber";
 }) {
-  const activeStyle = color === "amber"
-    ? "bg-amber-600 border-amber-500 text-white shadow-lg shadow-amber-500/20"
-    : "bg-rose-600 border-rose-500 text-white shadow-lg shadow-rose-500/20";
   return (
-    <div className="flex justify-between items-center bg-slate-950/30 p-3 border border-white/[0.05] rounded-xl text-[9px]">
+    <div className="flex justify-between items-center bg-black p-3 border border-white/[0.08] rounded-xl text-[9px]">
       <div className="flex flex-col gap-0.5">
         <span className="font-bold text-white leading-snug">{label}</span>
         <span className="text-[7.5px] text-slate-500 font-mono">{description}</span>
@@ -716,10 +714,10 @@ function FaultToggle({
         disabled={disabled}
         className={`px-3 py-1.5 rounded-lg font-bold uppercase tracking-wide border text-[8px] transition-all ${
           disabled
-            ? "bg-rose-950/30 border-rose-900/10 text-rose-600 cursor-not-allowed"
+            ? "bg-black border-white/8 text-slate-600 cursor-not-allowed"
             : active
-              ? activeStyle + " cursor-pointer"
-              : "bg-slate-950 hover:bg-slate-800 text-slate-400 border-white/10 cursor-pointer"
+              ? "bg-black border-white/14 text-white cursor-pointer"
+              : "bg-black hover:bg-white/6 text-slate-400 border-white/10 cursor-pointer"
         }`}
       >
         {disabled ? "Activa" : active ? "Desactivar" : "Simular"}

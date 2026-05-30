@@ -43,7 +43,7 @@ export default function AiInsightsPanel({
 
   if (!viaje) {
     return (
-      <div className="h-full flex items-center justify-center bg-slate-900/50 backdrop-blur-xl border border-cyan-500/10 rounded-xl p-6 text-center shadow-2xl transition-all duration-300">
+      <div className="h-full flex items-center justify-center bg-black border border-white/10 rounded-xl p-6 text-center transition-all duration-300">
         <p className="text-xs text-slate-500 font-mono">
           Selecciona un envío para ver el canal de monitoreo de IA.
         </p>
@@ -54,18 +54,17 @@ export default function AiInsightsPanel({
   const isFinalizado = viaje.estado === "finalizado";
 
   return (
-    <div className="h-full flex flex-col bg-slate-900/50 backdrop-blur-xl rounded-xl border border-cyan-500/10 hover:border-cyan-500/20 overflow-hidden relative shadow-2xl transition-all duration-300">
+    <div className="h-full flex flex-col bg-black rounded-xl border border-white/10 overflow-hidden relative transition-all duration-300">
       
-      {/* GLOW DE DEGRADADO SUTIL PARA MARCAR LA SECCIÓN DE IA */}
-      <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-sky-500 via-indigo-500 to-cyan-500" />
+      <div className="absolute top-0 left-0 w-full h-[1px] bg-white/12" />
 
       {/* CABECERA */}
-      <header className="px-5 py-4 border-b border-white/5 flex justify-between items-center bg-slate-950/20">
+      <header className="px-5 py-4 border-b border-white/8 flex justify-between items-center bg-black">
         <div className="flex items-center gap-2">
           {isFinalizado ? (
-            <Bot className="w-4 h-4 text-emerald-400" />
+            <Bot className="w-4 h-4 text-white/80" />
           ) : (
-            <Sparkles className="w-4 h-4 text-sky-400 animate-pulse" />
+            <Sparkles className="w-4 h-4 text-white/80 animate-pulse" />
           )}
           <h2 className="text-xs font-bold text-white uppercase tracking-wider">
             {isFinalizado ? "Auditoría de Calidad" : "Monitoreo Analítico IA"}
@@ -73,16 +72,16 @@ export default function AiInsightsPanel({
         </div>
         <div>
           {isFinalizado ? (
-            <span className="text-[9px] font-bold px-2 py-0.5 rounded bg-emerald-950/80 text-emerald-400 border border-emerald-800/30 uppercase tracking-wide">
+            <span className="text-[9px] font-bold px-2 py-0.5 rounded bg-black text-white/70 border border-white/10 uppercase tracking-wide">
               Finalizado
             </span>
           ) : (
-            <span className="flex items-center gap-1.5 bg-cyan-950/40 border border-cyan-800/20 px-2 py-0.5 rounded">
+            <span className="flex items-center gap-1.5 bg-black border border-white/10 px-2 py-0.5 rounded">
               <span className="relative flex h-1.5 w-1.5 shrink-0">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-cyan-500"></span>
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-60"></span>
+                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-white"></span>
               </span>
-              <span className="text-[9px] font-bold text-cyan-400 uppercase tracking-wide">
+              <span className="text-[9px] font-bold text-white uppercase tracking-wide">
                 En Vivo
               </span>
             </span>
@@ -98,11 +97,11 @@ export default function AiInsightsPanel({
           {isFinalizado ? (
             // ESTADO FINALIZADO: MOSTRAR AUDITORÍA FINAL PERSISTIDA
             <div className="space-y-3">
-              <div className="flex items-center gap-2 text-emerald-400 text-[10px] font-bold uppercase tracking-wider">
+              <div className="flex items-center gap-2 text-white text-[10px] font-bold uppercase tracking-wider">
                 <CheckCircle className="w-4 h-4 shrink-0 animate-bounce" />
                 Veredicto Final Persistido
               </div>
-              <div className="bg-slate-950/40 border border-white/5 rounded-lg p-4 text-xs text-slate-300 leading-relaxed font-sans shadow-inner">
+              <div className="bg-[#050505] border border-white/8 rounded-lg p-4 text-xs text-slate-300 leading-relaxed font-sans">
                 {viaje.auditoria_ia ? (
                   viaje.auditoria_ia
                 ) : (
@@ -115,27 +114,27 @@ export default function AiInsightsPanel({
           ) : (
             // ESTADO EN CURSO: MOSTRAR ÚLTIMO DIAGNÓSTICO EN TIEMPO REAL
             <div className="space-y-3">
-              <div className="flex items-center gap-2 text-cyan-400 text-[10px] font-bold uppercase tracking-wider">
+              <div className="flex items-center gap-2 text-white text-[10px] font-bold uppercase tracking-wider">
                 <Shield className="w-4 h-4 shrink-0" />
                 Diagnóstico del Sensor
               </div>
               
               {latestLiveDiagnosis ? (
                 <div className="space-y-3">
-                  <div className="flex justify-between items-center text-[9px] font-mono text-slate-400 bg-slate-950/40 px-3 py-1.5 rounded border border-white/5">
+                  <div className="flex justify-between items-center text-[9px] font-mono text-slate-400 bg-black px-3 py-1.5 rounded border border-white/8">
                     <span>
                       Hora Alerta: {new Date(latestLiveDiagnosis.timestamp_sensor).toLocaleTimeString()}
                     </span>
-                    <span className="text-rose-400 font-bold flex items-center gap-1">
+                    <span className="text-white font-bold flex items-center gap-1">
                       <span className="relative flex h-1.5 w-1.5 shrink-0">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-rose-500"></span>
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-60"></span>
+                        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-white"></span>
                       </span>
                       Temp: {latestLiveDiagnosis.temp}°C
                     </span>
                   </div>
                   
-                  <div className="bg-slate-950/40 border border-white/5 border-l-2 border-l-cyan-500 rounded-lg p-4 text-xs text-slate-300 leading-relaxed font-sans whitespace-pre-wrap">
+                  <div className="bg-[#050505] border border-white/8 rounded-lg p-4 text-xs text-slate-300 leading-relaxed font-sans whitespace-pre-wrap">
                     <div className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-2">
                       Análisis de Anomalías (Groq):
                     </div>
@@ -143,12 +142,12 @@ export default function AiInsightsPanel({
                   </div>
                 </div>
               ) : (
-                <div className="bg-slate-950/40 border border-white/5 p-5 rounded-lg flex items-center justify-center min-h-[140px] text-center">
+                <div className="bg-[#050505] border border-white/8 p-5 rounded-lg flex items-center justify-center min-h-[140px] text-center">
                   <div>
-                    <span className="text-emerald-400 text-xs font-bold flex items-center justify-center gap-1.5 uppercase tracking-wider">
+                    <span className="text-white text-xs font-bold flex items-center justify-center gap-1.5 uppercase tracking-wider">
                       <span className="relative flex h-1.5 w-1.5 shrink-0">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-60"></span>
+                        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-white"></span>
                       </span>
                       [ Canal Seguro ]
                     </span>
@@ -163,10 +162,10 @@ export default function AiInsightsPanel({
         </div>
 
         {/* PARTE INFERIOR: ACCIONES */}
-        <div className="pt-4 border-t border-white/5 shrink-0">
+        <div className="pt-4 border-t border-white/8 shrink-0">
           <button
             onClick={onOpenZepModal || (() => setIsModalOpen(true))}
-            className="w-full bg-slate-900/60 hover:bg-slate-950 border border-white/10 hover:border-cyan-500/40 text-white py-2 px-4 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition-all duration-300 shadow cursor-pointer"
+            className="w-full bg-black hover:bg-white/6 border border-white/10 hover:border-white/20 text-white py-2 px-4 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition-all duration-300 cursor-pointer"
           >
             <Search className="w-3.5 h-3.5" />
             Explorar Grafo de Memoria (IA)
