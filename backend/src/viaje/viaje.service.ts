@@ -585,10 +585,9 @@ export class ViajeService {
         `El viaje ${id} no está en curso (estado actual: ${viaje.estado}).`,
       );
     }
-    await this.db.query(
-      `UPDATE viaje SET estado = 'pausado' WHERE id = $1`,
-      [id],
-    );
+    await this.db.query(`UPDATE viaje SET estado = 'pausado' WHERE id = $1`, [
+      id,
+    ]);
     return this.findOne(id);
   }
 
@@ -599,10 +598,9 @@ export class ViajeService {
         `El viaje ${id} no está pausado (estado actual: ${viaje.estado}).`,
       );
     }
-    await this.db.query(
-      `UPDATE viaje SET estado = 'en_curso' WHERE id = $1`,
-      [id],
-    );
+    await this.db.query(`UPDATE viaje SET estado = 'en_curso' WHERE id = $1`, [
+      id,
+    ]);
     return this.findOne(id);
   }
 

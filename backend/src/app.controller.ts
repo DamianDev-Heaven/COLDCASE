@@ -67,13 +67,16 @@ export class AppController {
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 2000); // 2 seconds timeout
-      const res = await fetch(`${osrmBaseUrl}/route/v1/driving/-89.2182,13.6929;-89.2045,13.7001?overview=false`, {
-        signal: controller.signal,
-      });
+      const res = await fetch(
+        `${osrmBaseUrl}/route/v1/driving/-89.2182,13.6929;-89.2045,13.7001?overview=false`,
+        {
+          signal: controller.signal,
+        },
+      );
       clearTimeout(timeoutId);
 
       if (res.ok) {
-        const body = await res.json() as any;
+        const body = (await res.json()) as { code?: string };
         if (body.code === 'Ok') {
           osrmStatus = 'ok';
         }
