@@ -1,0 +1,65 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: munin-db-pvc
+  namespace: coldcase
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 2Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: munin
+  namespace: coldcase
+  labels:
+    app: munin
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: munin
+  template:
+    metadata:
+      labels:
+        app: munin
+    spec:
+      containers:
+        - name: munin
+          image: devdamian/coldcase-munin:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 80
+              name: http
+          resources:
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+          volumeMounts:
+            - name: munin-db
+              mountPath: /var/lib/munin
+      volumes:
+        - name: munin-db
+          persistentVolumeClaim:
+            claimName: munin-db-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: munin
+  namespace: coldcase
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: 80
+      protocol: TCP
+      name: http
+  selector:
+    app: munin

@@ -32,13 +32,14 @@ BOLD='\033[1m'
 show_help() {
   echo -e "${BOLD}Uso:${NC} $0 [comando] [opciones]"
   echo -e "\n${BOLD}Comandos disponibles:${NC}"
-  echo -e "  ${CYAN}all${NC}        - Despliega todos los servicios (backend, frontend, simulador, osrm, db, redis)"
+  echo -e "  ${CYAN}all${NC}        - Despliega todos los servicios (backend, frontend, simulador, osrm, db, redis, munin)"
   echo -e "  ${CYAN}backend${NC}    - Compila y despliega el Backend"
   echo -e "  ${CYAN}frontend${NC}   - Compila y despliega el Frontend"
   echo -e "  ${CYAN}simulador${NC}  - Compila y despliega el Simulador"
   echo -e "  ${CYAN}osrm${NC}       - Compila y despliega OSRM"
   echo -e "  ${CYAN}db${NC}         - Despliega la Base de Datos (StatefulSet)"
   echo -e "  ${CYAN}redis${NC}      - Despliega Redis"
+  echo -e "  ${CYAN}munin${NC}      - Compila y despliega el motor de monitoreo histórico Munin"
   echo -e "\n${BOLD}Opciones:${NC}"
   echo -e "  ${YELLOW}--skip-build${NC} - Salta la compilación y push de imágenes Docker"
   echo -e "  ${YELLOW}--skip-push${NC}  - Salta el comando de push de imágenes Docker"
@@ -80,7 +81,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 # Validate target service
-VALID_SERVICES=("all" "backend" "frontend" "simulador" "osrm" "db" "redis")
+VALID_SERVICES=("all" "backend" "frontend" "simulador" "osrm" "db" "redis" "munin")
 if [[ ! " ${VALID_SERVICES[*]} " =~ " ${SERVICE} " ]]; then
   echo -e "${RED}Error: Servicio '${SERVICE}' no válido.${NC}"
   show_help
@@ -275,6 +276,14 @@ if [[ "$SERVICE" == "frontend" || "$SERVICE" == "all" ]]; then
   
   deploy_k8s "frontend.yaml"
   restart_and_wait "deployment" "frontend"
+fi
+
+# 6.5. Munin
+if [[ "$SERVICE" == "munin" || "$SERVICE" == "all" ]]; then
+  echo -e "\n${BOLD}${YELLOW}[+] COMPILANDO Y DESPLEGANDO MONITOREO HISTÓRICO (MUNIN)${NC}"
+  build_and_push "munin" "infra/munin"
+  deploy_k8s "munin.yaml"
+  restart_and_wait "deployment" "munin"
 fi
 
 # 7. Apply Ingress & Certs if deploying all

@@ -12,6 +12,7 @@ spec:
     - hosts:
         - ccase.tech
         - api.ccase.tech
+        - munin.ccase.tech
       secretName: coldcase-tls
   rules:
     - host: ccase.tech
@@ -34,3 +35,13 @@ spec:
                 name: backend
                 port:
                   number: 3000
+    - host: munin.ccase.tech
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: munin
+                port:
+                  number: 80
