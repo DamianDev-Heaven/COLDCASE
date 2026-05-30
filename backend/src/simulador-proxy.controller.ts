@@ -15,6 +15,19 @@ export class SimuladorProxyController {
       if (!token && req.headers.authorization?.startsWith('Bearer ')) {
         token = req.headers.authorization.slice('Bearer '.length);
       }
+      const cookies = (req as any).cookies;
+      if (!token && cookies?.access_token) {
+        token = cookies.access_token;
+      }
+
+      if (token) {
+        res.cookie('access_token', token, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'lax',
+          maxAge: 24 * 60 * 60 * 1000, // 24 hours
+        });
+      }
 
       const response = await fetch(`${this.simuladorUrl}/`);
       let html = await response.text();

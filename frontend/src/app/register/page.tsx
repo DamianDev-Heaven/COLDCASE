@@ -4,6 +4,22 @@ import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { API_URL } from "@/lib/config";
 import { apiFetch } from "@/lib/api";
+import { 
+  ArrowLeft, 
+  UserPlus, 
+  Shield, 
+  Trash2, 
+  Edit3, 
+  Mail, 
+  Key, 
+  Users, 
+  CheckCircle, 
+  AlertCircle,
+  ChevronDown,
+  Info,
+  Eye,
+  EyeOff
+} from "lucide-react";
 
 const roles = ["Admin", "Operador"] as const;
 
@@ -31,6 +47,7 @@ export default function RegisterPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [rol, setRol] = useState<(typeof roles)[number]>("Admin");
+  const [showPassword, setShowPassword] = useState(false);
   const [status, setStatus] = useState<
     { type: "success" | "error"; message: string } | null
   >(null);
@@ -161,10 +178,12 @@ export default function RegisterPage() {
       rol: user.rol,
     });
     setStatus(null);
+    setShowPassword(false);
   };
 
   const handleCancelEdit = () => {
     setEditUser(null);
+    setShowPassword(false);
   };
 
   const handleUpdateUser = async (event: FormEvent<HTMLFormElement>) => {
@@ -293,237 +312,340 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white">
-      <div className="pointer-events-none absolute inset-0" />
-      <div className="relative mx-auto flex min-h-screen w-full max-w-4xl flex-col justify-center px-6 py-16">
-        <div className="rounded-3xl border border-white/10 bg-[#050505] p-10 shadow-none">
-          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-white/60">
-            Alta administrativa
-          </p>
-          <h1 className="mt-4 text-3xl font-semibold">Crear usuario</h1>
-          <p className="mt-2 max-w-2xl text-slate-300">
-            Este formulario queda habilitado solo para administradores autenticados.
-            El acceso público se mantiene únicamente para iniciar sesion.
-          </p>
-          <p className="mt-3 text-sm text-slate-400">
-            Aquí puedes crear usuarios y administrar los ya creados desde una sola vista.
-          </p>
+    <div className="min-h-screen bg-black text-white relative overflow-x-hidden">
+      {/* Background ambient glow */}
+      <div className="absolute top-0 right-1/4 w-[400px] h-[400px] bg-cyan-500/5 rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute bottom-0 left-1/4 w-[400px] h-[400px] bg-indigo-500/5 rounded-full blur-[120px] pointer-events-none" />
 
-          {authorizing ? (
-            <div className="mt-8 rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-3 text-sm text-slate-300">
-              Verificando permisos de administrador...
+      <div className="relative mx-auto flex min-h-screen w-full max-w-6xl flex-col px-6 py-12">
+        {/* TOP BAR / BACK LINK */}
+        <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-6 border-b border-white/[0.06] mb-8">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="text-[9px] font-mono px-2 py-0.5 rounded bg-zinc-950/60 text-cyan-400 border border-cyan-500/20 tracking-widest uppercase">
+                Panel de Administración
+              </span>
             </div>
-          ) : (
-            <form onSubmit={handleSubmit} className="mt-8 flex flex-col gap-5">
-              <label className="text-sm font-semibold text-slate-200">
-                Email
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  className="mt-2 w-full rounded-xl border border-white/10 bg-black px-4 py-3 text-white focus:border-white/20 focus:outline-none"
-                  placeholder="operador@coldcase.com"
-                  required
-                />
-              </label>
+            <h1 className="text-2xl font-extrabold bg-gradient-to-r from-white to-zinc-400 bg-clip-text text-transparent font-sans">
+              Gestión de Accesos & Usuarios
+            </h1>
+            <p className="text-[11px] text-zinc-500 font-mono">
+              Configura cuentas administrativas y gestiona roles para la cadena de frío de ColdCase.
+            </p>
+          </div>
+          
+          <a
+            href="/dashboard"
+            className="inline-flex items-center gap-2 text-xs font-semibold text-zinc-300 hover:text-white bg-zinc-950 border border-white/10 hover:border-white/20 rounded-xl px-4 py-2.5 transition-all duration-300 shadow-md shadow-black/40 hover:scale-[1.02] cursor-pointer"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span>Volver al Dashboard</span>
+          </a>
+        </header>
 
-              <label className="text-sm font-semibold text-slate-200">
-                Password
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  className="mt-2 w-full rounded-xl border border-white/10 bg-black px-4 py-3 text-white focus:border-white/20 focus:outline-none"
-                  placeholder="Minimo 6 caracteres"
-                  required
-                />
-              </label>
+        {authorizing ? (
+          <div className="flex-grow flex items-center justify-center border border-dashed border-white/[0.06] rounded-3xl p-12 bg-zinc-950/20 text-center min-h-[300px]">
+            <div className="max-w-md">
+              <div className="w-10 h-10 border-2 border-zinc-700 border-t-cyan-500 rounded-full animate-spin mx-auto mb-4" />
+              <span className="text-xs text-zinc-400 font-bold uppercase tracking-wider block">Verificando Credenciales</span>
+              <p className="text-[10px] text-zinc-500 font-mono mt-2 leading-relaxed">
+                Comprobando permisos administrativos en el backend seguro...
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+            
+            {/* LEFT COLUMN: FORM */}
+            <div className="lg:col-span-5 flex flex-col gap-5">
+              <div className="bg-zinc-950/60 border border-white/[0.06] backdrop-blur-md p-6 rounded-2xl shadow-xl relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-cyan-500/30 to-transparent" />
+                
+                <h2 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2 mb-1.5 font-sans">
+                  {editUser ? (
+                    <>
+                      <Edit3 className="w-4 h-4 text-cyan-400" />
+                      Editar Colaborador
+                    </>
+                  ) : (
+                    <>
+                      <UserPlus className="w-4 h-4 text-cyan-400" />
+                      Registrar Colaborador
+                    </>
+                  )}
+                </h2>
+                <p className="text-[10px] text-zinc-500 font-mono uppercase tracking-widest pb-3.5 border-b border-white/[0.04] mb-4">
+                  {editUser ? "ACTUALIZAR CREDENCIALES DE ACCESO" : "CREAR NUEVAS CREDENCIALES DE ACCESO"}
+                </p>
 
-              <label className="text-sm font-semibold text-slate-200">
-                Rol
-                <select
-                  value={rol}
-                  onChange={(event) => setRol(event.target.value as (typeof roles)[number])}
-                  className="mt-2 w-full rounded-xl border border-white/10 bg-black px-4 py-3 text-white focus:border-white/20 focus:outline-none"
-                >
-                  {roles.map((role) => (
-                    <option key={role} value={role}>
-                      {role}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <div className="grid gap-3 text-sm text-white/60 sm:grid-cols-2">
-                <div className="rounded-2xl border border-white/8 bg-black p-4">
-                  El backend exige un token valido y rol Admin.
-                </div>
-                <div className="rounded-2xl border border-white/8 bg-black p-4">
-                  El login sigue siendo publico para operar el sistema desde el exterior.
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="mt-2 inline-flex items-center justify-center rounded-full bg-black border border-white/10 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/6 disabled:cursor-not-allowed disabled:opacity-70"
-              >
-                {loading ? "Registrando..." : "Crear usuario"}
-              </button>
-            </form>
-          )}
-
-          {!authorizing && (
-            <section className="mt-10 rounded-3xl border border-slate-800 bg-slate-950/70 p-6">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.3em] text-white/60">
-                    Usuarios creados
-                  </p>
-                  <h2 className="mt-3 text-2xl font-semibold">Lista de administración</h2>
-                  <p className="mt-2 text-sm text-slate-400">
-                    Edita email, rol o contraseña. También puedes eliminar cuentas, excepto la tuya propia.
-                  </p>
-                </div>
-                <div className="text-sm text-white/60">
-                  Total: <span className="font-semibold text-white">{users.length}</span>
-                </div>
-              </div>
-
-              {editUser && (
-                <form onSubmit={handleUpdateUser} className="mt-6 rounded-3xl border border-white/8 bg-black p-5">
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-[0.3em] text-white/60">Editar usuario</p>
-                      <h3 className="mt-2 text-lg font-semibold">{editUser.email}</h3>
-                      <p className="mt-2 text-sm text-slate-400">La contraseña nueva es opcional; si la dejas vacía, no se modifica.</p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={handleCancelEdit}
-                      className="rounded-full border border-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:border-white/20"
-                    >
-                      Cancelar
-                    </button>
-                  </div>
-
-                  <div className="mt-5 grid gap-4 md:grid-cols-2">
-                    <label className="text-sm font-semibold text-slate-200">
-                      Email
+                <form onSubmit={editUser ? handleUpdateUser : handleSubmit} className="flex flex-col gap-4">
+                  {/* Email Input */}
+                  <div className="space-y-1.5">
+                    <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest flex items-center justify-between">
+                      <span>Correo Electrónico</span>
+                      <span className="text-[8px] font-mono text-zinc-600">Requerido</span>
+                    </label>
+                    <div className="relative">
+                      <Mail className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-650" />
                       <input
                         type="email"
-                        value={editUser.email}
-                        onChange={(event) => setEditUser({ ...editUser, email: event.target.value })}
-                        className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white focus:border-cyan-300 focus:outline-none"
+                        value={editUser ? editUser.email : email}
+                        onChange={(e) => {
+                          if (editUser) {
+                            setEditUser({ ...editUser, email: e.target.value });
+                          } else {
+                            setEmail(e.target.value);
+                          }
+                        }}
+                        placeholder="ej. operador@coldcase.com"
+                        className="w-full bg-zinc-900/30 border border-white/[0.06] hover:border-white/12 focus:border-cyan-500/40 rounded-xl pl-9 pr-4 py-2.5 text-xs text-white placeholder-zinc-700 outline-none focus:ring-1 focus:ring-cyan-500/10 font-mono transition-all duration-200"
                         required
                       />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest flex items-center justify-between">
+                      <span>Contraseña</span>
+                      <span className="text-[8px] font-mono text-zinc-600">
+                        {editUser ? "Opcional (Vacío para mantener)" : "Mínimo 6 caracteres"}
+                      </span>
                     </label>
-
-                    <label className="text-sm font-semibold text-slate-200">
-                      Nuevo password
+                    <div className="relative">
+                      <Key className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-655" />
                       <input
-                        type="password"
-                        value={editUser.password}
-                        onChange={(event) => setEditUser({ ...editUser, password: event.target.value })}
-                        className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white focus:border-cyan-300 focus:outline-none"
-                        placeholder="Opcional"
+                        type={showPassword ? "text" : "password"}
+                        value={editUser ? editUser.password : password}
+                        onChange={(e) => {
+                          if (editUser) {
+                            setEditUser({ ...editUser, password: e.target.value });
+                          } else {
+                            setPassword(e.target.value);
+                          }
+                        }}
+                        placeholder={editUser ? "Sin cambios" : "••••••••"}
+                        className="w-full bg-zinc-900/30 border border-white/[0.06] hover:border-white/12 focus:border-cyan-500/40 rounded-xl pl-9 pr-10 py-2.5 text-xs text-white placeholder-zinc-700 outline-none focus:ring-1 focus:ring-cyan-500/10 font-mono transition-all duration-200"
+                        required={!editUser}
                         minLength={6}
                       />
-                    </label>
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-white transition-colors p-1 cursor-pointer"
+                        title={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                      >
+                        {showPassword ? (
+                          <EyeOff className="w-3.5 h-3.5" />
+                        ) : (
+                          <Eye className="w-3.5 h-3.5" />
+                        )}
+                      </button>
+                    </div>
                   </div>
 
-                  <label className="mt-4 block text-sm font-semibold text-slate-200">
-                    Rol
-                    <select
-                      value={editUser.rol}
-                      onChange={(event) => setEditUser({ ...editUser, rol: event.target.value as (typeof roles)[number] })}
-                      className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white focus:border-cyan-300 focus:outline-none"
-                    >
-                      {roles.map((role) => (
-                        <option key={role} value={role}>
-                          {role}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-
-                    <button
-                    type="submit"
-                    disabled={loading}
-                    className="mt-5 inline-flex items-center justify-center rounded-full bg-black border border-white/10 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/6 disabled:cursor-not-allowed disabled:opacity-70"
-                  >
-                    {loading ? "Guardando..." : "Guardar cambios"}
-                  </button>
-                </form>
-              )}
-
-              <div className="mt-6 overflow-hidden rounded-3xl border border-white/8 bg-black">
-                {usersLoading ? (
-                  <div className="p-5 text-sm text-slate-300">Cargando usuarios...</div>
-                ) : usersError ? (
-                  <div className="p-5 text-sm text-rose-200">{usersError}</div>
-                ) : users.length === 0 ? (
-                  <div className="p-5 text-sm text-slate-300">Todavia no hay usuarios creados.</div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-slate-800 text-left text-sm">
-                      <thead className="bg-slate-950/70 text-slate-400">
-                        <tr>
-                          <th className="px-5 py-4 font-semibold">Email</th>
-                          <th className="px-5 py-4 font-semibold">Rol</th>
-                          <th className="px-5 py-4 font-semibold">Acciones</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-800">
-                        {users.map((userItem) => (
-                          <tr key={userItem.id} className="bg-black/40">
-                            <td className="px-5 py-4 text-white">{userItem.email}</td>
-                            <td className="px-5 py-4 text-white/70">{userItem.rol}</td>
-                            <td className="px-5 py-4">
-                              <div className="flex flex-wrap gap-2">
-                                <button
-                                  type="button"
-                                  onClick={() => handleStartEdit(userItem)}
-                                  className="rounded-full border border-white/10 bg-black/80 px-4 py-2 text-xs font-semibold text-white transition hover:border-white/20"
-                                >
-                                  Editar
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => handleDeleteUser(userItem.id)}
-                                  disabled={loading}
-                                  className="rounded-full border border-white/10 bg-black/80 px-4 py-2 text-xs font-semibold text-white transition hover:border-white/20 disabled:cursor-not-allowed disabled:opacity-70"
-                                >
-                                  Eliminar
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
+                  {/* Rol Select */}
+                  <div className="space-y-1.5">
+                    <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">Nivel de Acceso (Rol)</label>
+                    <div className="relative">
+                      <select
+                        value={editUser ? editUser.rol : rol}
+                        onChange={(e) => {
+                          const val = e.target.value as (typeof roles)[number];
+                          if (editUser) {
+                            setEditUser({ ...editUser, rol: val });
+                          } else {
+                            setRol(val);
+                          }
+                        }}
+                        className="w-full bg-zinc-900/30 border border-white/[0.06] hover:border-white/12 focus:border-cyan-500/40 rounded-xl pl-3 pr-8 py-2.5 text-xs text-zinc-200 outline-none focus:ring-1 focus:ring-cyan-500/10 appearance-none font-mono cursor-pointer transition-all duration-200"
+                      >
+                        {roles.map((r) => (
+                          <option key={r} value={r} className="bg-zinc-950 text-zinc-200">
+                            {r === "Admin" ? "Administrador" : "Operador Logístico"}
+                          </option>
                         ))}
-                      </tbody>
-                    </table>
+                      </select>
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-500">
+                        <ChevronDown className="w-3.5 h-3.5" />
+                      </div>
+                    </div>
                   </div>
-                )}
+
+                  {/* Info Cards */}
+                  <div className="bg-[#050505] border border-white/[0.04] p-3.5 rounded-xl space-y-2 mt-2">
+                    <div className="text-[8px] font-bold text-zinc-500 uppercase tracking-widest flex items-center gap-1.5 font-sans">
+                      <Info className="w-3 h-3 text-zinc-400" />
+                      Directivas de Privacidad
+                    </div>
+                    <p className="text-[9px] text-zinc-500 font-mono leading-normal">
+                      El sistema restringe la creación y edición únicamente a usuarios con rol Admin. Se requiere sesión activa.
+                    </p>
+                  </div>
+
+                  {status && (
+                    <div
+                      className={`flex items-start gap-2.5 rounded-xl border p-4 text-xs font-mono leading-relaxed mt-2 ${
+                        status.type === "success"
+                          ? "border-emerald-500/20 bg-emerald-500/5 text-emerald-450"
+                          : "border-rose-500/20 bg-rose-500/5 text-rose-450"
+                      }`}
+                    >
+                      {status.type === "success" ? (
+                        <CheckCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                      ) : (
+                        <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                      )}
+                      <div>
+                        <span className="font-bold uppercase tracking-wider block mb-0.5">
+                          {status.type === "success" ? "Operación Exitosa" : "Error en Solicitud"}
+                        </span>
+                        {status.message}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Buttons */}
+                  <div className="flex gap-2.5 mt-3">
+                    {editUser && (
+                      <button
+                        type="button"
+                        onClick={handleCancelEdit}
+                        className="flex-1 bg-zinc-900 hover:bg-zinc-800 border border-white/10 hover:border-white/20 text-white font-bold rounded-xl py-2.5 text-[10px] uppercase tracking-wider transition-all duration-200 cursor-pointer active:scale-[0.98]"
+                      >
+                        Cancelar
+                      </button>
+                    )}
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="flex-1 bg-white hover:bg-zinc-200 text-black font-bold rounded-xl py-2.5 text-[10px] uppercase tracking-wider transition-all duration-200 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shadow-lg shadow-white/5 active:scale-[0.98]"
+                    >
+                      {loading ? (editUser ? "Guardando..." : "Registrando...") : (editUser ? "Guardar Cambios" : "Crear Usuario")}
+                    </button>
+                  </div>
+                </form>
               </div>
-            </section>
-          )}
-
-          {status && (
-            <div
-              className={`mt-6 rounded-2xl border px-4 py-3 text-sm ${
-                status.type === "success"
-                  ? "border-emerald-400/40 bg-emerald-500/10 text-emerald-100"
-                  : "border-rose-400/40 bg-rose-500/10 text-rose-100"
-              }`}
-            >
-              {status.message}
             </div>
-          )}
 
-          <div className="mt-8 text-sm text-slate-400">
-            Volver al <a href="/dashboard" className="text-cyan-300">dashboard</a> o <a href="/login" className="text-cyan-300">cerrar sesion</a>.
+            {/* RIGHT COLUMN: LIST */}
+            <div className="lg:col-span-7 flex flex-col gap-5">
+              <div className="bg-zinc-950/40 border border-white/[0.06] backdrop-blur-md p-6 rounded-2xl shadow-xl flex flex-col min-h-[480px]">
+                
+                <div className="flex items-center justify-between pb-3.5 border-b border-white/[0.04] mb-4 shrink-0">
+                  <div>
+                    <h2 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2 font-sans">
+                      <Users className="w-4 h-4 text-indigo-400" />
+                      Colaboradores Activos
+                    </h2>
+                    <p className="text-[8px] text-zinc-500 font-mono tracking-widest uppercase mt-0.5">LISTA DE ADMINISTRACIÓN Y ACCESOS</p>
+                  </div>
+                  <span className="text-[10px] font-mono font-bold uppercase px-2.5 py-0.5 rounded-full bg-zinc-900 border border-white/10 text-zinc-400 tracking-wider">
+                    Total: {users.length}
+                  </span>
+                </div>
+
+                <div className="flex-1 overflow-y-auto space-y-3 pr-1.5 scrollbar-thin scrollbar-thumb-white/5 scrollbar-track-transparent max-h-[500px]">
+                  {usersLoading ? (
+                    <div className="flex items-center justify-center py-12 text-zinc-500 text-xs font-mono gap-2.5">
+                      <div className="w-4 h-4 border-2 border-zinc-700 border-t-white rounded-full animate-spin" />
+                      Cargando lista de usuarios...
+                    </div>
+                  ) : usersError ? (
+                    <div className="flex items-center justify-center py-12 text-rose-400 text-xs font-mono gap-2 border border-dashed border-rose-500/20 bg-rose-500/5 rounded-xl p-4">
+                      <AlertCircle className="w-4 h-4 shrink-0" />
+                      {usersError}
+                    </div>
+                  ) : users.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-16 text-center border border-dashed border-white/[0.06] rounded-xl bg-zinc-950/20 p-6">
+                      <Users className="w-8 h-8 text-zinc-650 mb-3" />
+                      <span className="text-xs font-semibold text-zinc-400">Sin colaboradores</span>
+                      <p className="text-[10px] text-zinc-500 font-mono mt-1 max-w-xs leading-normal">
+                        No hay usuarios adicionales registrados en el sistema. Utiliza el formulario lateral para agregar personal.
+                      </p>
+                    </div>
+                  ) : (
+                    users.map((userItem) => {
+                      const userInitials = userItem.email.split("@")[0].substring(0, 2).toUpperCase();
+                      const isCurrentUser = (() => {
+                        try {
+                          const curr = localStorage.getItem("currentUser");
+                          if (curr) {
+                            const parsed = JSON.parse(curr);
+                            return parsed.email === userItem.email;
+                          }
+                        } catch {}
+                        return false;
+                      })();
+                      
+                      return (
+                        <div
+                          key={userItem.id}
+                          className={`bg-zinc-950/60 border rounded-xl p-4 flex items-center justify-between gap-4 transition-all duration-200 hover:border-white/12 hover:bg-zinc-900/10 ${
+                            editUser?.id === userItem.id 
+                              ? "border-cyan-500/30 shadow-[0_0_15px_rgba(6,182,212,0.03)]" 
+                              : "border-white/[0.03]"
+                          }`}
+                        >
+                          <div className="flex items-center gap-3.5 min-w-0">
+                            {/* Avatar representation */}
+                            <div className="w-9 h-9 rounded-xl bg-zinc-900 border border-white/10 text-white font-mono flex items-center justify-center font-bold text-xs shrink-0 select-none">
+                              {userInitials}
+                            </div>
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-xs font-bold text-zinc-200 truncate font-mono max-w-[180px]">
+                                  {userItem.email}
+                                </span>
+                                {isCurrentUser && (
+                                  <span className="text-[7px] font-mono px-1.5 py-0.5 rounded bg-zinc-900 text-zinc-550 border border-white/5 uppercase select-none">
+                                    Tú
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-1.5 mt-1">
+                                {userItem.rol === "Admin" ? (
+                                  <span className="bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 font-bold uppercase text-[7px] px-2 py-0.5 rounded-full font-mono tracking-widest animate-pulse-once">
+                                    ADMIN
+                                  </span>
+                                ) : (
+                                  <span className="bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 font-bold uppercase text-[7px] px-2 py-0.5 rounded-full font-mono tracking-widest animate-pulse-once">
+                                    OPERADOR
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => handleStartEdit(userItem)}
+                              title="Editar usuario"
+                              className="p-2 text-zinc-400 hover:text-white bg-zinc-950 border border-white/5 hover:border-white/10 rounded-lg hover:scale-105 transition-all cursor-pointer active:scale-95 animate-pulse-once"
+                            >
+                              <Edit3 className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteUser(userItem.id)}
+                              disabled={isCurrentUser}
+                              title={isCurrentUser ? "No puedes eliminar tu propia cuenta" : "Eliminar usuario"}
+                              className="p-2 text-zinc-600 hover:text-rose-400 bg-zinc-950 border border-white/5 hover:border-white/10 rounded-lg hover:scale-105 transition-all cursor-pointer disabled:opacity-20 disabled:cursor-not-allowed disabled:hover:text-zinc-650 active:scale-95"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+
+              </div>
+            </div>
+
           </div>
-        </div>
+        )}
+
       </div>
     </div>
   );

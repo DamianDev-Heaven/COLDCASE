@@ -701,24 +701,55 @@ function FaultToggle({
   disabled?: boolean;
   onToggle: () => void;
 }) {
+  const [pending, setPending] = useState(false);
+
+  const handleClick = async () => {
+    if (disabled || pending) return;
+    setPending(true);
+    try {
+      await onToggle();
+    } finally {
+      // Give the state refresh a moment before clearing pending
+      setTimeout(() => setPending(false), 1200);
+    }
+  };
+
   return (
-    <div className="flex justify-between items-center bg-black p-3 border border-white/[0.08] rounded-xl text-[9px]">
-      <div className="flex flex-col gap-0.5">
-        <span className="font-bold text-white leading-snug">{label}</span>
-        <span className="text-[7.5px] text-slate-500 font-mono">{description}</span>
+    <div className={`flex justify-between items-center p-3 border rounded-xl text-[9px] transition-all duration-300 ${
+      active
+        ? "bg-red-950/30 border-red-500/40 shadow-[0_0_12px_rgba(239,68,68,0.08)]"
+        : "bg-black border-white/[0.08]"
+    }`}>
+      <div className="flex items-center gap-2.5">
+        {/* Status dot */}
+        <div className={`w-1.5 h-1.5 rounded-full shrink-0 transition-all duration-300 ${
+          pending
+            ? "bg-amber-400 animate-pulse shadow-[0_0_6px_rgba(251,191,36,0.8)]"
+            : active
+              ? "bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.8)]"
+              : "bg-zinc-700"
+        }`} />
+        <div className="flex flex-col gap-0.5">
+          <span className={`font-bold leading-snug transition-colors ${active ? "text-red-200" : "text-white"}`}>
+            {label}
+          </span>
+          <span className="text-[7.5px] text-slate-500 font-mono">{description}</span>
+        </div>
       </div>
       <button
-        onClick={onToggle}
-        disabled={disabled}
-        className={`px-3 py-1.5 rounded-lg font-bold uppercase tracking-wide border text-[8px] transition-all ${
+        onClick={handleClick}
+        disabled={disabled || pending}
+        className={`px-3 py-1.5 rounded-lg font-bold uppercase tracking-wide border text-[8px] transition-all duration-200 ${
           disabled
             ? "bg-black border-white/8 text-slate-600 cursor-not-allowed"
-            : active
-              ? "bg-black border-white/14 text-white cursor-pointer"
-              : "bg-black hover:bg-white/6 text-slate-400 border-white/10 cursor-pointer"
+            : pending
+              ? "bg-amber-950/40 border-amber-500/30 text-amber-400 cursor-not-allowed"
+              : active
+                ? "bg-red-950/60 border-red-500/40 text-red-300 hover:bg-red-900/40 cursor-pointer"
+                : "bg-black hover:bg-white/6 text-slate-400 border-white/10 cursor-pointer hover:text-white hover:border-white/20"
         }`}
       >
-        {disabled ? "Activa" : active ? "Desactivar" : "Simular"}
+        {pending ? "•••" : disabled ? "Activa" : active ? "Desactivar" : "Simular"}
       </button>
     </div>
   );

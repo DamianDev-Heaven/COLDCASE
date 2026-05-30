@@ -150,7 +150,7 @@ export class TelemetriaService {
             type: 'exponential',
             delay: 5000,
           },
-          removeOnComplete: true,
+          removeOnComplete: 100, // Conservar últimos 100 para que el dashboard muestre contadores reales
           removeOnFail: false, // DLQ para inspección manual SRE de fallos de IA
         },
       );
