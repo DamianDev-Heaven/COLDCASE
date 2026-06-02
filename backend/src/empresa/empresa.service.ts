@@ -16,7 +16,7 @@ export class EmpresaService {
 
   async findAll() {
     const result = await this.db.query(
-      'SELECT id, nombre FROM empresa ORDER BY created_at DESC',
+      'SELECT id, nombre FROM empresa ORDER BY created_at DESC, ctid DESC',
     );
 
     return result.rows;

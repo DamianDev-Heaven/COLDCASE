@@ -29,7 +29,7 @@ export class SucursalService {
 
   async findAll() {
     const result = await this.db.query(
-      'SELECT s.id, s.empresa_id, e.nombre AS empresa_nombre, s.nombre, s.lat, s.lon, s.direccion FROM sucursal s INNER JOIN empresa e ON e.id = s.empresa_id ORDER BY s.created_at DESC',
+      'SELECT s.id, s.empresa_id, e.nombre AS empresa_nombre, s.nombre, s.lat, s.lon, s.direccion FROM sucursal s INNER JOIN empresa e ON e.id = s.empresa_id ORDER BY s.created_at DESC, s.ctid DESC',
     );
 
     return result.rows;
