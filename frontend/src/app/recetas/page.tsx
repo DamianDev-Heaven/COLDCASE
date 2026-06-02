@@ -174,6 +174,8 @@ export default function RecetasPage() {
           const errorJson = await response.json();
           if (typeof errorJson?.message === "string") {
             errorMessage = errorJson.message;
+          } else if (Array.isArray(errorJson?.message)) {
+            errorMessage = errorJson.message.join(", ");
           }
         } catch {
           const errorText = await response.text();
@@ -274,6 +276,8 @@ export default function RecetasPage() {
           const errorJson = await response.json();
           if (typeof errorJson?.message === "string") {
             errorMessage = errorJson.message;
+          } else if (Array.isArray(errorJson?.message)) {
+            errorMessage = errorJson.message.join(", ");
           }
         } catch {
           const errorText = await response.text();
