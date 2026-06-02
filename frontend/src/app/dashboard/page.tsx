@@ -42,6 +42,8 @@ import {
   Bot,
   Sparkles,
   BookOpen,
+  Pencil,
+  Trash2,
 } from "lucide-react";
 
 import { API_URL, SIMULATOR_URL } from "@/lib/config";
@@ -3116,6 +3118,21 @@ function AdminPanel({ apiUrl }: { apiUrl: string }) {
   const [transporteEstado, setTransporteEstado] = useState<"Activo" | "Mantenimiento">("Activo");
   const [transporteCapacidad, setTransporteCapacidad] = useState("");
 
+  // Edit states
+  const [editingEmpresaId, setEditingEmpresaId] = useState<string | null>(null);
+  const [editingEmpresaNombre, setEditingEmpresaNombre] = useState("");
+
+  const [editingSucursalId, setEditingSucursalId] = useState<string | null>(null);
+  const [editingSucursalNombre, setEditingSucursalNombre] = useState("");
+  const [editingSucursalDireccion, setEditingSucursalDireccion] = useState("");
+  const [editingSucursalLat, setEditingSucursalLat] = useState("");
+  const [editingSucursalLon, setEditingSucursalLon] = useState("");
+
+  const [editingTransporteId, setEditingTransporteId] = useState<string | null>(null);
+  const [editingTransportePlaca, setEditingTransportePlaca] = useState("");
+  const [editingTransporteCapacidad, setEditingTransporteCapacidad] = useState("");
+  const [editingTransporteEstado, setEditingTransporteEstado] = useState<"Activo" | "Mantenimiento">("Activo");
+
   const getHeaders = () => {
     const token = localStorage.getItem("accessToken");
     return {
@@ -3319,6 +3336,196 @@ function AdminPanel({ apiUrl }: { apiUrl: string }) {
     }
   };
 
+  const handleUpdateEmpresa = async (e: React.FormEvent, id: string) => {
+    e.preventDefault();
+    if (!editingEmpresaNombre.trim()) return;
+
+    setIsLoading(true);
+    setFeedback(null);
+    try {
+      const res = await apiFetch(`${apiUrl}/empresa/${id}`, {
+        method: "PATCH",
+        headers: getHeaders(),
+        body: JSON.stringify({ nombre: editingEmpresaNombre.trim() }),
+      });
+
+      if (!res.ok) {
+        throw new Error("No pudimos actualizar la empresa.");
+      }
+
+      setEditingEmpresaId(null);
+      setFeedback({ type: "success", message: "Empresa actualizada correctamente." });
+      await loadData();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Error al actualizar la empresa.";
+      setFeedback({ type: "error", message: msg });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDeleteEmpresa = async (id: string) => {
+    if (!window.confirm("¿Estás seguro de que deseas eliminar esta empresa? Se eliminarán en cascada todas sus sucursales y vehículos asociados de forma permanente.")) {
+      return;
+    }
+
+    setIsLoading(true);
+    setFeedback(null);
+    try {
+      const res = await apiFetch(`${apiUrl}/empresa/${id}`, {
+        method: "DELETE",
+        headers: getHeaders(),
+      });
+
+      if (!res.ok) {
+        throw new Error("No pudimos eliminar la empresa.");
+      }
+
+      setFeedback({ type: "success", message: "Empresa eliminada correctamente." });
+      await loadData();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Error al eliminar la empresa.";
+      setFeedback({ type: "error", message: msg });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleUpdateSucursal = async (e: React.FormEvent, id: string) => {
+    e.preventDefault();
+    if (!editingSucursalNombre.trim() || !editingSucursalLat || !editingSucursalLon) {
+      setFeedback({ type: "error", message: "Por favor, completa todos los campos requeridos." });
+      return;
+    }
+
+    setIsLoading(true);
+    setFeedback(null);
+    try {
+      const res = await apiFetch(`${apiUrl}/sucursal/${id}`, {
+        method: "PATCH",
+        headers: getHeaders(),
+        body: JSON.stringify({
+          nombre: editingSucursalNombre.trim(),
+          direccion: editingSucursalDireccion.trim() || null,
+          lat: parseFloat(editingSucursalLat),
+          lon: parseFloat(editingSucursalLon),
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error("No pudimos actualizar la sucursal.");
+      }
+
+      setEditingSucursalId(null);
+      setFeedback({ type: "success", message: "Sucursal actualizada correctamente." });
+      await loadData();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Error al actualizar la sucursal.";
+      setFeedback({ type: "error", message: msg });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDeleteSucursal = async (id: string) => {
+    if (!window.confirm("¿Estás seguro de que deseas eliminar esta sucursal?")) {
+      return;
+    }
+
+    setIsLoading(true);
+    setFeedback(null);
+    try {
+      const res = await apiFetch(`${apiUrl}/sucursal/${id}`, {
+        method: "DELETE",
+        headers: getHeaders(),
+      });
+
+      if (!res.ok) {
+        throw new Error("No pudimos eliminar la sucursal.");
+      }
+
+      setFeedback({ type: "success", message: "Sucursal eliminada correctamente." });
+      await loadData();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Error al eliminar la sucursal.";
+      setFeedback({ type: "error", message: msg });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleUpdateTransporte = async (e: React.FormEvent, id: string) => {
+    e.preventDefault();
+    if (!editingTransportePlaca.trim()) {
+      setFeedback({ type: "error", message: "La placa es obligatoria." });
+      return;
+    }
+
+    const placaClean = editingTransportePlaca.toUpperCase().trim();
+    const placaRegex = /^[A-Z]{1,3}[ -]?[0-9]{3,6}$/;
+    if (!placaRegex.test(placaClean)) {
+      setFeedback({
+        type: "error",
+        message: "Formato de placa inválido. Debe comenzar con 1 a 3 letras, seguido opcionalmente de un guión o espacio, y finalizar con 3 a 6 dígitos (ej. P123-456, T123456, QRO-772).",
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    setFeedback(null);
+    try {
+      const res = await apiFetch(`${apiUrl}/transporte/${id}`, {
+        method: "PATCH",
+        headers: getHeaders(),
+        body: JSON.stringify({
+          placa: placaClean,
+          estado: editingTransporteEstado,
+          capacidad: editingTransporteCapacidad ? parseFloat(editingTransporteCapacidad) : null,
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error("No pudimos actualizar el transporte.");
+      }
+
+      setEditingTransporteId(null);
+      setFeedback({ type: "success", message: "Vehículo actualizado correctamente." });
+      await loadData();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Error al actualizar el transporte.";
+      setFeedback({ type: "error", message: msg });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDeleteTransporte = async (id: string) => {
+    if (!window.confirm("¿Estás seguro de que deseas eliminar este vehículo de transporte?")) {
+      return;
+    }
+
+    setIsLoading(true);
+    setFeedback(null);
+    try {
+      const res = await apiFetch(`${apiUrl}/transporte/${id}`, {
+        method: "DELETE",
+        headers: getHeaders(),
+      });
+
+      if (!res.ok) {
+        throw new Error("No pudimos eliminar el transporte.");
+      }
+
+      setFeedback({ type: "success", message: "Vehículo eliminado correctamente." });
+      await loadData();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Error al eliminar the transporte.";
+      setFeedback({ type: "error", message: msg });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="flex-grow flex flex-col h-full overflow-hidden p-6 gap-6 bg-black border border-white/[0.06] rounded-3xl shadow-2xl relative select-none">
       {/* Background radial gradients */}
@@ -3397,9 +3604,61 @@ function AdminPanel({ apiUrl }: { apiUrl: string }) {
             <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest shrink-0 mt-2">Empresas ({empresas.length})</span>
             <div className="flex-1 overflow-y-auto pr-1 space-y-2 scrollbar-thin scrollbar-thumb-white/5 scrollbar-track-transparent">
               {empresas.map((emp) => (
-                <div key={emp.id} className="bg-zinc-950/60 border border-white/[0.03] rounded-xl p-3.5 flex flex-col gap-1.5 transition duration-200 hover:border-white/10 hover:bg-zinc-900/10">
-                  <p className="text-[11px] font-bold text-zinc-100 font-mono tracking-tight">{emp.nombre}</p>
-                  <p className="text-[8px] text-zinc-600 font-mono truncate tracking-tight">ID: {emp.id}</p>
+                <div key={emp.id} className="bg-zinc-950/60 border border-white/[0.03] rounded-xl p-3.5 flex flex-col gap-1.5 transition duration-200 hover:border-white/10 hover:bg-zinc-900/10 group relative">
+                  {editingEmpresaId === emp.id ? (
+                    <form onSubmit={(e) => handleUpdateEmpresa(e, emp.id)} className="flex flex-col gap-2">
+                      <input
+                        type="text"
+                        value={editingEmpresaNombre}
+                        onChange={(e) => setEditingEmpresaNombre(e.target.value)}
+                        className="w-full bg-zinc-950 border border-cyan-500/50 rounded-lg px-2.5 py-1.5 text-xs text-zinc-200 outline-none font-mono focus:ring-1 focus:ring-cyan-500/20"
+                        required
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          type="submit"
+                          className="flex-1 bg-cyan-600 hover:bg-cyan-500 text-white font-mono text-[9px] uppercase tracking-wider py-1 rounded cursor-pointer"
+                        >
+                          Guardar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditingEmpresaId(null)}
+                          className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-mono text-[9px] uppercase tracking-wider py-1 rounded cursor-pointer"
+                        >
+                          Cancelar
+                        </button>
+                      </div>
+                    </form>
+                  ) : (
+                    <div className="flex justify-between items-center w-full">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[11px] font-bold text-zinc-100 font-mono tracking-tight truncate">{emp.nombre}</p>
+                        <p className="text-[8px] text-zinc-600 font-mono truncate tracking-tight">ID: {emp.id}</p>
+                      </div>
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity ml-2 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingEmpresaId(emp.id);
+                            setEditingEmpresaNombre(emp.nombre);
+                          }}
+                          className="p-1 hover:bg-zinc-800 rounded text-zinc-400 hover:text-cyan-400 cursor-pointer transition"
+                          title="Editar"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteEmpresa(emp.id)}
+                          className="p-1 hover:bg-zinc-800 rounded text-zinc-400 hover:text-rose-400 cursor-pointer transition"
+                          title="Eliminar"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
               {empresas.length === 0 && (
@@ -3500,15 +3759,106 @@ function AdminPanel({ apiUrl }: { apiUrl: string }) {
             <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest shrink-0 mt-2">Sucursales ({sucursales.length})</span>
             <div className="flex-1 overflow-y-auto pr-1 space-y-2 scrollbar-thin scrollbar-thumb-white/5 scrollbar-track-transparent">
               {sucursales.map((suc) => (
-                <div key={suc.id} className="bg-zinc-950/60 border border-white/[0.03] rounded-xl p-3.5 flex flex-col gap-2 transition duration-200 hover:border-white/10 hover:bg-zinc-900/10">
-                  <div className="flex justify-between items-start gap-2">
-                    <p className="text-[11px] font-bold text-zinc-100 font-mono tracking-tight">{suc.nombre}</p>
-                    <span className="text-[8px] bg-zinc-900/80 text-zinc-400 px-2 py-0.5 rounded-full border border-white/5 font-mono truncate max-w-[100px]">{suc.empresa_nombre}</span>
-                  </div>
-                  <div className="flex flex-col gap-0.5">
-                    <p className="text-[9px] text-zinc-500 font-mono">GPS: {suc.lat}, {suc.lon}</p>
-                    {suc.direccion && <p className="text-[9px] text-zinc-500/80 italic font-mono mt-0.5 truncate">{suc.direccion}</p>}
-                  </div>
+                <div key={suc.id} className="bg-zinc-950/60 border border-white/[0.03] rounded-xl p-3.5 flex flex-col gap-2 transition duration-200 hover:border-white/10 hover:bg-zinc-900/10 group relative">
+                  {editingSucursalId === suc.id ? (
+                    <form onSubmit={(e) => handleUpdateSucursal(e, suc.id)} className="flex flex-col gap-2 w-full">
+                      <div className="space-y-1">
+                        <label className="text-[8px] font-bold text-zinc-500 uppercase font-mono">Nombre</label>
+                        <input
+                          type="text"
+                          value={editingSucursalNombre}
+                          onChange={(e) => setEditingSucursalNombre(e.target.value)}
+                          className="w-full bg-zinc-950 border border-emerald-500/50 rounded-lg px-2 py-1 text-xs text-zinc-200 outline-none font-mono focus:ring-1 focus:ring-emerald-500/20"
+                          required
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-1.5">
+                        <div className="space-y-1">
+                          <label className="text-[8px] font-bold text-zinc-500 uppercase font-mono">Lat</label>
+                          <input
+                            type="number"
+                            step="0.000001"
+                            value={editingSucursalLat}
+                            onChange={(e) => setEditingSucursalLat(e.target.value)}
+                            className="w-full bg-zinc-950 border border-emerald-500/50 rounded-lg px-2 py-1 text-[11px] text-zinc-200 outline-none font-mono focus:ring-1 focus:ring-emerald-500/20"
+                            required
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[8px] font-bold text-zinc-500 uppercase font-mono">Lon</label>
+                          <input
+                            type="number"
+                            step="0.000001"
+                            value={editingSucursalLon}
+                            onChange={(e) => setEditingSucursalLon(e.target.value)}
+                            className="w-full bg-zinc-950 border border-emerald-500/50 rounded-lg px-2 py-1 text-[11px] text-zinc-200 outline-none font-mono focus:ring-1 focus:ring-emerald-500/20"
+                            required
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[8px] font-bold text-zinc-500 uppercase font-mono">Dirección</label>
+                        <input
+                          type="text"
+                          value={editingSucursalDireccion}
+                          onChange={(e) => setEditingSucursalDireccion(e.target.value)}
+                          className="w-full bg-zinc-950 border border-emerald-500/50 rounded-lg px-2 py-1 text-xs text-zinc-200 outline-none font-mono focus:ring-1 focus:ring-emerald-500/20"
+                        />
+                      </div>
+                      <div className="flex gap-2 mt-1">
+                        <button
+                          type="submit"
+                          className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-mono text-[9px] uppercase tracking-wider py-1 rounded cursor-pointer"
+                        >
+                          Guardar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditingSucursalId(null)}
+                          className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-mono text-[9px] uppercase tracking-wider py-1 rounded cursor-pointer"
+                        >
+                          Cancelar
+                        </button>
+                      </div>
+                    </form>
+                  ) : (
+                    <div className="flex justify-between items-start w-full">
+                      <div className="flex-grow min-w-0">
+                        <div className="flex justify-between items-start gap-2">
+                          <p className="text-[11px] font-bold text-zinc-100 font-mono tracking-tight truncate">{suc.nombre}</p>
+                          <span className="text-[8px] bg-zinc-900/80 text-zinc-400 px-2 py-0.5 rounded-full border border-white/5 font-mono truncate max-w-[100px] shrink-0">{suc.empresa_nombre}</span>
+                        </div>
+                        <div className="flex flex-col gap-0.5 mt-1.5">
+                          <p className="text-[9px] text-zinc-500 font-mono">GPS: {suc.lat}, {suc.lon}</p>
+                          {suc.direccion && <p className="text-[9px] text-zinc-500/80 italic font-mono mt-0.5 truncate">{suc.direccion}</p>}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity ml-2 self-center shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingSucursalId(suc.id);
+                            setEditingSucursalNombre(suc.nombre);
+                            setEditingSucursalDireccion(suc.direccion || "");
+                            setEditingSucursalLat(suc.lat.toString());
+                            setEditingSucursalLon(suc.lon.toString());
+                          }}
+                          className="p-1 hover:bg-zinc-800 rounded text-zinc-400 hover:text-emerald-400 cursor-pointer transition"
+                          title="Editar"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteSucursal(suc.id)}
+                          className="p-1 hover:bg-zinc-800 rounded text-zinc-400 hover:text-rose-400 cursor-pointer transition"
+                          title="Eliminar"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
               {sucursales.length === 0 && (
@@ -3604,23 +3954,103 @@ function AdminPanel({ apiUrl }: { apiUrl: string }) {
               {transportes.map((trans) => {
                 const owner = empresas.find(e => e.id === trans.empresa_id);
                 return (
-                  <div key={trans.id} className="bg-zinc-950/60 border border-white/[0.03] rounded-xl p-3.5 flex flex-col gap-2 transition duration-200 hover:border-white/10 hover:bg-zinc-900/10">
-                    <div className="flex justify-between items-center gap-2">
-                      <p className="text-[11px] font-bold text-zinc-100 font-mono tracking-tight">{trans.placa}</p>
-                      <span className={`inline-flex items-center gap-1.5 text-[8px] px-2 py-0.5 rounded-full border font-mono ${
-                        trans.estado === "Activo" 
-                          ? "bg-emerald-500/5 border-emerald-500/20 text-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.05)]"
-                          : "bg-amber-500/5 border-amber-500/20 text-amber-400 shadow-[0_0_8px_rgba(245,158,11,0.05)]"
-                      }`}>
-                        <span className={`w-1 h-1 rounded-full ${trans.estado === 'Activo' ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
-                        {trans.estado}
-                      </span>
-                    </div>
-                    <div className="flex flex-col gap-0.5">
-                      {owner && <p className="text-[9px] text-zinc-500 font-mono">Empresa: {owner.nombre}</p>}
-                      <p className="text-[8px] text-zinc-600 font-mono truncate">IoT Link: <span className="text-zinc-500 bg-zinc-950 px-1 py-0.5 border border-white/[0.02] rounded font-mono text-[7px]">{trans.iot_id}</span></p>
-                      {trans.capacidad && <p className="text-[9px] text-zinc-500 font-mono">Capacidad: {Number(trans.capacidad).toLocaleString()} Kg</p>}
-                    </div>
+                  <div key={trans.id} className="bg-zinc-950/60 border border-white/[0.03] rounded-xl p-3.5 flex flex-col gap-2 transition duration-200 hover:border-white/10 hover:bg-zinc-900/10 group relative">
+                    {editingTransporteId === trans.id ? (
+                      <form onSubmit={(e) => handleUpdateTransporte(e, trans.id)} className="flex flex-col gap-2 w-full">
+                        <div className="space-y-1">
+                          <label className="text-[8px] font-bold text-zinc-500 uppercase font-mono">Placa (Patente)</label>
+                          <input
+                            type="text"
+                            value={editingTransportePlaca}
+                            onChange={(e) => setEditingTransportePlaca(e.target.value.toUpperCase())}
+                            className="w-full bg-zinc-950 border border-violet-500/50 rounded-lg px-2.5 py-1 text-xs text-zinc-200 outline-none font-mono uppercase focus:ring-1 focus:ring-violet-500/20"
+                            required
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-1.5">
+                          <div className="space-y-1">
+                            <label className="text-[8px] font-bold text-zinc-500 uppercase font-mono">Capacidad (Kg)</label>
+                            <input
+                              type="number"
+                              step="0.1"
+                              value={editingTransporteCapacidad}
+                              onChange={(e) => setEditingTransporteCapacidad(e.target.value)}
+                              className="w-full bg-zinc-950 border border-violet-500/50 rounded-lg px-2 py-1 text-[11px] text-zinc-200 outline-none font-mono focus:ring-1 focus:ring-violet-500/20"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[8px] font-bold text-zinc-500 uppercase font-mono">Estado</label>
+                            <select
+                              value={editingTransporteEstado}
+                              onChange={(e) => setEditingTransporteEstado(e.target.value as "Activo" | "Mantenimiento")}
+                              className="w-full bg-zinc-950 border border-violet-500/50 rounded-lg px-2 py-1 text-[11px] text-zinc-200 outline-none font-mono cursor-pointer focus:ring-1 focus:ring-violet-500/20"
+                            >
+                              <option value="Activo">Activo</option>
+                              <option value="Mantenimiento">Mantenimiento</option>
+                            </select>
+                          </div>
+                        </div>
+                        <div className="flex gap-2 mt-1">
+                          <button
+                            type="submit"
+                            className="flex-1 bg-violet-600 hover:bg-violet-500 text-white font-mono text-[9px] uppercase tracking-wider py-1 rounded cursor-pointer"
+                          >
+                            Guardar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setEditingTransporteId(null)}
+                            className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-mono text-[9px] uppercase tracking-wider py-1 rounded cursor-pointer"
+                          >
+                            Cancelar
+                          </button>
+                        </div>
+                      </form>
+                    ) : (
+                      <div className="flex justify-between items-start w-full">
+                        <div className="flex-grow min-w-0">
+                          <div className="flex justify-between items-center gap-2">
+                            <p className="text-[11px] font-bold text-zinc-100 font-mono tracking-tight">{trans.placa}</p>
+                            <span className={`inline-flex items-center gap-1.5 text-[8px] px-2 py-0.5 rounded-full border font-mono ${
+                              trans.estado === "Activo" 
+                                ? "bg-emerald-500/5 border-emerald-500/20 text-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.05)]"
+                                : "bg-amber-500/5 border-amber-500/20 text-amber-400 shadow-[0_0_8px_rgba(245,158,11,0.05)]"
+                            }`}>
+                              <span className={`w-1 h-1 rounded-full ${trans.estado === 'Activo' ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
+                              {trans.estado}
+                            </span>
+                          </div>
+                          <div className="flex flex-col gap-0.5 mt-1.5">
+                            {owner && <p className="text-[9px] text-zinc-500 font-mono">Empresa: {owner.nombre}</p>}
+                            <p className="text-[8px] text-zinc-600 font-mono truncate">IoT Link: <span className="text-zinc-500 bg-zinc-950 px-1 py-0.5 border border-white/[0.02] rounded font-mono text-[7px]">{trans.iot_id}</span></p>
+                            {trans.capacidad && <p className="text-[9px] text-zinc-500 font-mono">Capacidad: {Number(trans.capacidad).toLocaleString()} Kg</p>}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity ml-2 self-center shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingTransporteId(trans.id);
+                              setEditingTransportePlaca(trans.placa);
+                              setEditingTransporteCapacidad(trans.capacidad ? trans.capacidad.toString() : "");
+                              setEditingTransporteEstado(trans.estado);
+                            }}
+                            className="p-1 hover:bg-zinc-800 rounded text-zinc-400 hover:text-violet-400 cursor-pointer transition"
+                            title="Editar"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteTransporte(trans.id)}
+                            className="p-1 hover:bg-zinc-800 rounded text-zinc-400 hover:text-rose-400 cursor-pointer transition"
+                            title="Eliminar"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })}
