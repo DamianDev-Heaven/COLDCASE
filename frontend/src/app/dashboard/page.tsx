@@ -3225,6 +3225,16 @@ function AdminPanel({ apiUrl }: { apiUrl: string }) {
       return;
     }
 
+    const placaClean = transportePlaca.toUpperCase().trim();
+    const placaRegex = /^[A-Z]{1,3}[ -]?[0-9]{3,6}$/;
+    if (!placaRegex.test(placaClean)) {
+      setFeedback({
+        type: "error",
+        message: "Formato de placa inválido. Debe comenzar con 1 a 3 letras, seguido opcionalmente de un guión o espacio, y finalizar con 3 a 6 dígitos (ej. P123-456, T123456, QRO-772).",
+      });
+      return;
+    }
+
     setIsLoading(true);
     setFeedback(null);
     try {
