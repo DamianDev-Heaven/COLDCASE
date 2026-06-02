@@ -46,7 +46,8 @@ CREATE TABLE IF NOT EXISTS usuario (
 
 CREATE TABLE IF NOT EXISTS empresa (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    nombre VARCHAR(150) NOT NULL
+    nombre VARCHAR(150) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS iot (
@@ -64,6 +65,7 @@ CREATE TABLE IF NOT EXISTS transporte (
     empresa_id UUID NOT NULL,
     estado estado_transporte_enum NOT NULL,
     capacidad DECIMAL(12,2),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT fk_transporte_iot
         FOREIGN KEY (iot_id) REFERENCES iot(id)
@@ -81,6 +83,7 @@ CREATE TABLE IF NOT EXISTS transporte (
         direccion VARCHAR(255),
         lat DECIMAL(9,6) NOT NULL,
         lon DECIMAL(9,6) NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
         CONSTRAINT fk_sucursal_empresa
         FOREIGN KEY (empresa_id) REFERENCES empresa(id)
