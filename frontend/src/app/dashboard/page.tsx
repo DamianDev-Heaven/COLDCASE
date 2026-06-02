@@ -3550,6 +3550,25 @@ function AdminPanel({ apiUrl }: { apiUrl: string }) {
           Registra y gestiona las empresas, sucursales (geocercas) y vehículos de transporte con telemetría activa.
         </p>
       </div>
+ 
+      {/* FEEDBACK STATUS BANNER */}
+      {feedback && (
+        <div
+          className={`rounded-2xl border px-4.5 py-3.5 text-[11px] font-mono flex items-center justify-between shrink-0 shadow-lg z-20 transition-all ${
+            feedback.type === "success"
+              ? "border-emerald-500/20 bg-emerald-500/5 text-emerald-400"
+              : "border-rose-500/20 bg-rose-500/5 text-rose-400"
+          }`}
+        >
+          <div className="flex items-center gap-2.5">
+            <div className={`w-1.5 h-1.5 rounded-full ${feedback.type === 'success' ? 'bg-emerald-400 animate-ping' : 'bg-rose-400 animate-pulse'}`} />
+            <span>{feedback.message}</span>
+          </div>
+          <button type="button" onClick={() => setFeedback(null)} className="text-zinc-500 hover:text-zinc-200 transition cursor-pointer p-1">
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
 
       {/* TABS SELECTOR */}
       <div className="flex border-b border-white/[0.06] shrink-0 gap-2 p-1 bg-zinc-950/60 rounded-2xl border border-white/[0.03] backdrop-blur-md z-10">
