@@ -15,6 +15,7 @@ import { TelemetriaModule } from './telemetria/telemetria.module';
 import { TransporteModule } from './transporte/transporte.module';
 import { SucursalModule } from './sucursal/sucursal.module';
 import { ViajeModule } from './viaje/viaje.module';
+import { PerfilProductoModule } from './perfil-producto/perfil-producto.module';
 import { MuninController } from './munin/munin.controller';
 import { SimuladorProxyController } from './simulador-proxy.controller';
 
@@ -47,6 +48,7 @@ import { SimuladorProxyController } from './simulador-proxy.controller';
     TransporteModule,
     SucursalModule,
     ViajeModule,
+    PerfilProductoModule,
   ],
   controllers: [AppController, MuninController, SimuladorProxyController],
   providers: [

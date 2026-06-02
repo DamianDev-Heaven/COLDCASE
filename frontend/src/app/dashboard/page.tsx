@@ -41,6 +41,7 @@ import {
   MapPin,
   Bot,
   Sparkles,
+  BookOpen,
 } from "lucide-react";
 
 import { API_URL, SIMULATOR_URL } from "@/lib/config";
@@ -943,6 +944,7 @@ export default function Dashboard() {
                 <NavItem icon={Building} label="Administrar Entidades" view="admin" currentView={currentView} sidebarExpanded={sidebarExpanded} onNavigate={setCurrentView} />
                 <NavItem icon={FileSpreadsheet} label="Estadisticas del Sistema" view="stats" currentView={currentView} sidebarExpanded={sidebarExpanded} onNavigate={setCurrentView} />
                 <NavItem icon={Users} label="Gestión de Usuarios" href="/register" sidebarExpanded={sidebarExpanded} />
+                <NavItem icon={BookOpen} label="Gestión de Recetas" href="/recetas" sidebarExpanded={sidebarExpanded} />
               </>
             )}
           </div>
