@@ -79,6 +79,7 @@ interface Viaje {
   sucursal_destino_id?: string;
   ruta_waypoints?: unknown;
   margen_desvio_km?: number;
+  detalle_carga?: Array<{ producto: string; cantidad: number; unidad: string }> | null;
 }
 
 interface Transporte {
@@ -229,6 +230,7 @@ export default function Dashboard() {
   const [valorComercialForm, setValorComercialForm] = useState("");
   const [pesoKgForm, setPesoKgForm] = useState("");
   const [volumenM3Form, setVolumenM3Form] = useState("");
+  const [detalleCargaForm, setDetalleCargaForm] = useState("");
   const [limiteMaxTempForm, setLimiteMaxTempForm] = useState("5");
   const [limiteMinTempForm, setLimiteMinTempForm] = useState("1");
   const [limiteMinHumForm, setLimiteMinHumForm] = useState("0");
@@ -259,6 +261,7 @@ export default function Dashboard() {
     setValorComercialForm("");
     setPesoKgForm("");
     setVolumenM3Form("");
+    setDetalleCargaForm("");
     setLimiteMaxTempForm("5");
     setLimiteMinTempForm("1");
     setLimiteMinHumForm("0");
@@ -541,6 +544,9 @@ export default function Dashboard() {
       perfil_producto_id: perfilProductoIdForm || undefined,
       estado: estadoForm,
       ruta_waypoints: {},
+      detalle_carga: detalleCargaForm.trim()
+        ? detalleCargaForm.split("\n").filter(line => line.trim()).map(line => ({ producto: line.trim() }))
+        : null,
     };
     setIsSubmitting(true);
     try {
@@ -1252,6 +1258,22 @@ export default function Dashboard() {
                             <KV label="Desvío Máx" value={`${viajeSeleccionado.margen_desvio_km || "N/A"} Km`} />
                             <KV label="Destino ID" value={viajeSeleccionado.sucursal_destino_id?.substring(0, 12) + "..." || "N/A"} />
                           </div>
+
+                          {viajeSeleccionado.detalle_carga && Array.isArray(viajeSeleccionado.detalle_carga) && viajeSeleccionado.detalle_carga.length > 0 && (
+                            <div className="border-t border-white/[0.05] pt-3 mt-3 space-y-1.5">
+                              <span className="text-[9px] uppercase font-mono tracking-[0.15em] font-bold text-slate-400 block mb-1">
+                                Detalle de Carga / Ítems
+                              </span>
+                              <div className="max-h-[100px] overflow-y-auto space-y-1 pr-1 text-[10px] font-mono text-slate-400">
+                                {viajeSeleccionado.detalle_carga.map((item, idx) => (
+                                  <div key={idx} className="flex items-center gap-2 bg-white/5 border border-white/5 px-2.5 py-1.5 rounded-lg">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0" />
+                                    <span className="truncate">{item.producto}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
@@ -1836,6 +1858,17 @@ export default function Dashboard() {
                           placeholder="0.00"
                           value={volumenM3Form}
                           onChange={setVolumenM3Form}
+                        />
+                      </ModalField>
+                    </div>
+
+                    <div className="w-full">
+                      <ModalField label="Detalle de Carga / Ítems (Un ítem por línea)">
+                        <textarea
+                          placeholder="Ej:&#10;200 cajas de yogurt de fresa&#10;150 cajas de queso crema"
+                          value={detalleCargaForm}
+                          onChange={(e) => setDetalleCargaForm(e.target.value)}
+                          className="w-full min-h-[80px] bg-black border border-white/[0.08] hover:border-white/16 focus:border-violet-500/40 rounded-2xl px-4 py-3 text-xs text-slate-200 outline-none placeholder-slate-700 font-mono transition focus:ring-1 focus:ring-violet-500/10 resize-y"
                         />
                       </ModalField>
                     </div>

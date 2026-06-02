@@ -235,6 +235,7 @@ export class ViajeService {
     inicio_viaje?: string;
     final_viaje?: string;
     estado?: 'pendiente' | 'en_curso' | 'pausado' | 'cancelado' | 'finalizado';
+    detalle_carga?: any;
   }) {
     const resolvedRoute = await this.resolveRouteEndpoints(payload);
     const routeData = await this.fetchOsrmRoute(resolvedRoute.points);
@@ -293,7 +294,7 @@ export class ViajeService {
         };
 
     const result = await this.db.query(
-      'INSERT INTO viaje (transporte_id, limite_max_temp, limite_min_temp, limite_min_humedad, limite_max_humedad, perfil_producto_id, tipo_producto, valor_comercial, peso_kg, volumen_m3, ruta_waypoints, margen_desvio_km, inicio_viaje, final_viaje, estado, sucursal_origen_id, sucursal_destino_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) RETURNING id, transporte_id, limite_max_temp, limite_min_temp, limite_min_humedad, limite_max_humedad, perfil_producto_id, tipo_producto, valor_comercial, peso_kg, volumen_m3, ruta_waypoints, margen_desvio_km, inicio_viaje, final_viaje, estado, sucursal_origen_id, sucursal_destino_id',
+      'INSERT INTO viaje (transporte_id, limite_max_temp, limite_min_temp, limite_min_humedad, limite_max_humedad, perfil_producto_id, tipo_producto, valor_comercial, peso_kg, volumen_m3, ruta_waypoints, margen_desvio_km, inicio_viaje, final_viaje, estado, sucursal_origen_id, sucursal_destino_id, detalle_carga) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18) RETURNING id, transporte_id, limite_max_temp, limite_min_temp, limite_min_humedad, limite_max_humedad, perfil_producto_id, tipo_producto, valor_comercial, peso_kg, volumen_m3, ruta_waypoints, margen_desvio_km, inicio_viaje, final_viaje, estado, sucursal_origen_id, sucursal_destino_id, detalle_carga',
       [
         payload.transporte_id,
         payload.limite_max_temp,
@@ -312,6 +313,7 @@ export class ViajeService {
         payload.estado ?? 'pendiente',
         payload.sucursal_origen_id ?? null,
         payload.sucursal_destino_id ?? null,
+        payload.detalle_carga ? JSON.stringify(payload.detalle_carga) : null,
       ],
     );
 
@@ -344,6 +346,7 @@ export class ViajeService {
         v.auditoria_ia,
         v.sucursal_origen_id,
         v.sucursal_destino_id,
+        v.detalle_carga,
         t.placa AS transporte_placa,
         so.nombre AS origen_sucursal_nombre,
         so.nombre AS origen_nombre,
@@ -389,6 +392,7 @@ export class ViajeService {
         v.auditoria_ia,
         v.sucursal_origen_id,
         v.sucursal_destino_id,
+        v.detalle_carga,
         t.placa AS transporte_placa,
         so.nombre AS origen_sucursal_nombre,
         so.nombre AS origen_nombre,
@@ -437,6 +441,7 @@ export class ViajeService {
         v.auditoria_ia,
         v.sucursal_origen_id,
         v.sucursal_destino_id,
+        v.detalle_carga,
         t.placa AS transporte_placa,
         so.nombre AS origen_sucursal_nombre,
         so.nombre AS origen_nombre,

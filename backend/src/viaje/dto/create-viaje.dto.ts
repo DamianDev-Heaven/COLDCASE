@@ -106,4 +106,7 @@ export class CreateViajeDto {
   @IsOptional()
   @IsIn(['pendiente', 'en_curso', 'pausado', 'cancelado', 'finalizado'])
   estado?: 'pendiente' | 'en_curso' | 'pausado' | 'cancelado' | 'finalizado';
+
+  @IsOptional()
+  detalle_carga?: any;
 }

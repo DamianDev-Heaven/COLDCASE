@@ -375,3 +375,5 @@ CREATE OR REPLACE TRIGGER trg_prevent_update_incidente_fields
 BEFORE UPDATE ON incidente
 FOR EACH ROW
 EXECUTE FUNCTION prevent_update_incidente_fields();
+
+ALTER TABLE viaje ADD COLUMN IF NOT EXISTS detalle_carga JSON;
