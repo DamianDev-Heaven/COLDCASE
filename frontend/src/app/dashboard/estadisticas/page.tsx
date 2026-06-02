@@ -97,7 +97,9 @@ export default function EstadisticasDashboard() {
 
   useEffect(() => {
     if (!viajeBase?.id) {
-      setTelemetria([]);
+      setTimeout(() => {
+        setTelemetria([]);
+      }, 0);
       return;
     }
 
