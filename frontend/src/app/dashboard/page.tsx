@@ -7,6 +7,20 @@ import AiInsightsPanel from "@/components/AiInsightsPanel";
 import TelemetryChart from "@/components/TelemetryChart";
 import ZepAuditModal from "@/components/ZepAuditModal";
 import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid,
+  PieChart,
+  Pie,
+  Cell,
+} from "recharts";
+import {
   Activity,
   History,
   LogOut,
@@ -188,9 +202,11 @@ export default function Dashboard() {
   }, []);
 
   const [sidebarExpanded, setSidebarExpanded] = useState(false);
-  const [currentView, setCurrentView] = useState<"overview" | "compliance" | "graph-explorer" | "admin">("overview");
+  const [currentView, setCurrentView] = useState<"overview" | "compliance" | "graph-explorer" | "admin" | "stats">("overview");
   const [searchQuery, setSearchQuery] = useState("");
   const [isTelemetryLoading, setIsTelemetryLoading] = useState(false);
+  const [telemetryAll, setTelemetryAll] = useState<TelemetryPoint[]>([]);
+  const [isTelemetryAllLoading, setIsTelemetryAllLoading] = useState(false);
   const [currentUser, setCurrentUser] = useState<UserSession | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
 
@@ -616,8 +632,10 @@ export default function Dashboard() {
     try {
       const res = await apiFetch(`${API_URL}/viaje/${viajeId}/cancelar`, { method: "PATCH" });
       if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error((err as { message?: string })?.message || `Error ${res.status}`);
+        const raw = await res.text();
+        const message = raw ? raw.slice(0, 200) : `Error ${res.status}`;
+        alert(`No se pudo cancelar el viaje. ${message}`);
+        return;
       }
       const actualizado = await res.json();
       setViajes((cur) => cur.map((v) => (v.id === actualizado.id ? actualizado : v)));
@@ -706,6 +724,43 @@ export default function Dashboard() {
     const interval = setInterval(cargarTelemetria, 5000);
     return () => { clearTimeout(timerLoading); clearInterval(interval); };
   }, [viajeSeleccionado?.id]);
+
+  useEffect(() => {
+    if (currentView !== "stats") return;
+
+    let mounted = true;
+    async function cargarTelemetriaGlobal() {
+      setIsTelemetryAllLoading(true);
+      try {
+        const res = await apiFetch(`${API_URL}/telemetria`);
+        if (res.ok) {
+          const data = await res.json();
+          const sorted = Array.isArray(data)
+            ? (data as TelemetryPoint[]).sort((a, b) =>
+                new Date(a.timestamp_sensor).getTime() - new Date(b.timestamp_sensor).getTime()
+              )
+            : [];
+          const trimmed = sorted.slice(-500);
+          if (mounted) {
+            setTelemetryAll(trimmed);
+          }
+        }
+      } catch (error) {
+        console.error("Error cargando telemetria global:", error);
+      } finally {
+        if (mounted) {
+          setIsTelemetryAllLoading(false);
+        }
+      }
+    }
+
+    cargarTelemetriaGlobal();
+    const interval = setInterval(cargarTelemetriaGlobal, 10000);
+    return () => {
+      mounted = false;
+      clearInterval(interval);
+    };
+  }, [currentView]);
 
   useEffect(() => {
     if (!viajeSeleccionado?.id) {
@@ -886,6 +941,7 @@ export default function Dashboard() {
                   <p className="text-[8px] font-bold text-slate-600 uppercase tracking-[0.15em] px-1 mt-4 mb-1">Administración</p>
                 )}
                 <NavItem icon={Building} label="Administrar Entidades" view="admin" currentView={currentView} sidebarExpanded={sidebarExpanded} onNavigate={setCurrentView} />
+                <NavItem icon={FileSpreadsheet} label="Estadisticas del Sistema" view="stats" currentView={currentView} sidebarExpanded={sidebarExpanded} onNavigate={setCurrentView} />
                 <NavItem icon={Users} label="Gestión de Usuarios" href="/register" sidebarExpanded={sidebarExpanded} />
               </>
             )}
@@ -1339,6 +1395,16 @@ export default function Dashboard() {
         ) : currentView === "admin" ? (
           <main className={`flex-1 flex p-3 gap-3 overflow-hidden h-full transition-[margin-left] duration-300 ease-in-out ${sidebarExpanded ? "ml-[240px]" : "ml-[64px]"}`}>
             <AdminPanel apiUrl={API_URL} />
+          </main>
+        ) : currentView === "stats" ? (
+          <main className={`flex-1 flex p-3 gap-3 overflow-y-auto h-full transition-[margin-left] duration-300 ease-in-out ${sidebarExpanded ? "ml-[240px]" : "ml-[64px]"}`}>
+            <AdminStatsPanel
+              viajes={viajes}
+              transportes={transportes}
+              sucursales={sucursales}
+              telemetryAll={telemetryAll}
+              isTelemetryAllLoading={isTelemetryAllLoading}
+            />
           </main>
         ) : (
           <main className={`flex-1 flex p-3 gap-3 overflow-hidden h-full transition-[margin-left] duration-300 ease-in-out ${sidebarExpanded ? "ml-[240px]" : "ml-[64px]"}`}>
@@ -2534,10 +2600,10 @@ function NavItem({
 }: {
   icon: React.ElementType;
   label: string;
-  view?: "overview" | "compliance" | "graph-explorer" | "admin";
-  currentView?: "overview" | "compliance" | "graph-explorer" | "admin";
+  view?: "overview" | "compliance" | "graph-explorer" | "admin" | "stats";
+  currentView?: "overview" | "compliance" | "graph-explorer" | "admin" | "stats";
   sidebarExpanded: boolean;
-  onNavigate?: (v: "overview" | "compliance" | "graph-explorer" | "admin") => void;
+  onNavigate?: (v: "overview" | "compliance" | "graph-explorer" | "admin" | "stats") => void;
   href?: string;
 }) {
   const isActive = view ? currentView === view : false;
@@ -2784,6 +2850,185 @@ function ModalInput({
       onChange={(e) => onChange(e.target.value)}
       className="w-full bg-black border border-white/10 rounded-lg px-3 py-2.5 text-[11px] text-slate-200 outline-none transition-all duration-200 focus:border-white/25 font-mono placeholder:text-slate-700 disabled:opacity-55 disabled:bg-[#050505] disabled:cursor-not-allowed"
     />
+  );
+}
+
+// ─── ADMIN PANEL COMPONENT ───────────────────────────────────────────────────
+
+function AdminStatsPanel({
+  viajes,
+  transportes,
+  sucursales,
+  telemetryAll,
+  isTelemetryAllLoading,
+}: {
+  viajes: Viaje[];
+  transportes: Transporte[];
+  sucursales: Sucursal[];
+  telemetryAll: TelemetryPoint[];
+  isTelemetryAllLoading: boolean;
+}) {
+  const totalViajes = viajes.length;
+  const viajesActivos = viajes.filter((v) => v.estado === "en_curso").length;
+  const viajesFinalizados = viajes.filter((v) => v.estado === "finalizado").length;
+  const viajesPendientes = viajes.filter((v) => v.estado === "pendiente").length;
+  const viajesCancelados = viajes.filter((v) => v.estado === "cancelado").length;
+
+  const viajesPorEstado = [
+    { name: "Pendiente", value: viajesPendientes },
+    { name: "En curso", value: viajesActivos },
+    { name: "Finalizado", value: viajesFinalizados },
+    { name: "Cancelado", value: viajesCancelados },
+  ].filter((item) => item.value > 0);
+
+  const estadosBar = [
+    { estado: "Pendiente", total: viajesPendientes },
+    { estado: "En curso", total: viajesActivos },
+    { estado: "Finalizado", total: viajesFinalizados },
+    { estado: "Cancelado", total: viajesCancelados },
+  ];
+
+  const telemetriaLine = telemetryAll.map((t) => ({
+    time: new Date(t.timestamp_sensor).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+    temp: t.temp,
+  }));
+
+  const temps = telemetryAll.map((t) => t.temp).filter((t) => Number.isFinite(t));
+  const minTemp = temps.length > 0 ? Math.min(...temps) : 1;
+  const maxTemp = temps.length > 0 ? Math.max(...temps) : 5;
+
+  const pieColors = ["#38bdf8", "#22c55e", "#f59e0b", "#ef4444"];
+
+  return (
+    <section className="flex-1 flex flex-col gap-3 pb-6">
+      <div className="rounded-2xl border border-white/[0.08] bg-black/80 p-5">
+        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">Panel administrativo</p>
+        <h2 className="text-lg text-white font-semibold mt-2">Estadisticas y graficas del sistema</h2>
+        <p className="text-xs text-slate-400 mt-1">Resumen en tiempo real del monitoreo operacional.</p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+        <div className="rounded-2xl border border-white/[0.08] bg-black/80 p-4">
+          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">Viajes totales</p>
+          <p className="text-2xl font-semibold text-white mt-2">{totalViajes}</p>
+          <p className="text-[11px] text-slate-500 mt-1">Total registrados</p>
+        </div>
+        <div className="rounded-2xl border border-white/[0.08] bg-black/80 p-4">
+          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">Activos</p>
+          <p className="text-2xl font-semibold text-white mt-2">{viajesActivos}</p>
+          <p className="text-[11px] text-slate-500 mt-1">En curso</p>
+        </div>
+        <div className="rounded-2xl border border-white/[0.08] bg-black/80 p-4">
+          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">Finalizados</p>
+          <p className="text-2xl font-semibold text-white mt-2">{viajesFinalizados}</p>
+          <p className="text-[11px] text-slate-500 mt-1">Completados</p>
+        </div>
+        <div className="rounded-2xl border border-white/[0.08] bg-black/80 p-4">
+          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">Pendientes</p>
+          <p className="text-2xl font-semibold text-white mt-2">{viajesPendientes}</p>
+          <p className="text-[11px] text-slate-500 mt-1">Por iniciar</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div className="rounded-2xl border border-white/[0.08] bg-black/80 p-4">
+          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">Infraestructura</p>
+          <div className="mt-3 flex items-center gap-4">
+            <div>
+              <p className="text-2xl font-semibold text-white">{transportes.length}</p>
+              <p className="text-[11px] text-slate-500 mt-1">Transportes</p>
+            </div>
+            <div>
+              <p className="text-2xl font-semibold text-white">{sucursales.length}</p>
+              <p className="text-[11px] text-slate-500 mt-1">Sucursales</p>
+            </div>
+          </div>
+        </div>
+        <div className="rounded-2xl border border-white/[0.08] bg-black/80 p-4 flex flex-col">
+          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">Grafica global de temperatura</p>
+          <div className="mt-3 flex-1">
+            {telemetryAll.length > 0 ? (
+              <TelemetryChart
+                telemetryData={telemetryAll}
+                limiteMin={minTemp - 1}
+                limiteMax={maxTemp + 1}
+                isLoading={isTelemetryAllLoading}
+              />
+            ) : (
+              <div className="h-full flex items-center justify-center text-slate-600 text-xs font-mono">
+                Sin datos globales para graficar.
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div className="rounded-2xl border border-white/[0.08] bg-black/80 p-4">
+          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">Viajes por estado</p>
+          <div className="h-[220px] mt-4">
+            {estadosBar.some((item) => item.total > 0) ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={estadosBar} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
+                  <CartesianGrid stroke="rgba(255,255,255,0.06)" strokeDasharray="3 3" />
+                  <XAxis dataKey="estado" tick={{ fontSize: 10, fill: "#94a3b8" }} />
+                  <YAxis tick={{ fontSize: 10, fill: "#94a3b8" }} />
+                  <Tooltip contentStyle={{ backgroundColor: "#050505", borderColor: "rgba(255, 255, 255, 0.12)", borderRadius: "6px", fontSize: "11px", color: "#fff" }} />
+                  <Bar dataKey="total" fill="#38bdf8" radius={[6, 6, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-full flex items-center justify-center text-slate-600 text-xs font-mono">
+                Sin datos para graficar.
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-white/[0.08] bg-black/80 p-4">
+          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">Distribucion de estados</p>
+          <div className="h-[220px] mt-4">
+            {viajesPorEstado.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Tooltip contentStyle={{ backgroundColor: "#050505", borderColor: "rgba(255, 255, 255, 0.12)", borderRadius: "6px", fontSize: "11px", color: "#fff" }} />
+                  <Pie data={viajesPorEstado} dataKey="value" nameKey="name" innerRadius={55} outerRadius={85} paddingAngle={2}>
+                    {viajesPorEstado.map((entry, index) => (
+                      <Cell key={entry.name} fill={pieColors[index % pieColors.length]} />
+                    ))}
+                  </Pie>
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-full flex items-center justify-center text-slate-600 text-xs font-mono">
+                Sin datos para graficar.
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-white/[0.08] bg-black/80 p-4">
+          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">Tendencia de temperatura</p>
+          <div className="h-[220px] mt-4">
+            {telemetriaLine.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={telemetriaLine} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
+                  <CartesianGrid stroke="rgba(255,255,255,0.06)" strokeDasharray="3 3" />
+                  <XAxis dataKey="time" tick={{ fontSize: 10, fill: "#94a3b8" }} />
+                  <YAxis tick={{ fontSize: 10, fill: "#94a3b8" }} />
+                  <Tooltip contentStyle={{ backgroundColor: "#050505", borderColor: "rgba(255, 255, 255, 0.12)", borderRadius: "6px", fontSize: "11px", color: "#fff" }} />
+                  <Line type="monotone" dataKey="temp" stroke="#22c55e" strokeWidth={2} dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-full flex items-center justify-center text-slate-600 text-xs font-mono">
+                Sin datos para graficar.
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </section>
   );
 }
 
