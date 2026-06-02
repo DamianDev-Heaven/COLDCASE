@@ -42,6 +42,8 @@ import {
   Bot,
   Sparkles,
   BookOpen,
+  Pencil,
+  Trash2,
 } from "lucide-react";
 
 import { API_URL, SIMULATOR_URL } from "@/lib/config";
@@ -3098,6 +3100,7 @@ function AdminPanel({ apiUrl }: { apiUrl: string }) {
   const [empresas, setEmpresas] = useState<AdminEmpresa[]>([]);
   const [sucursales, setSucursales] = useState<AdminSucursal[]>([]);
   const [transportes, setTransportes] = useState<AdminTransporte[]>([]);
+  const [activeTab, setActiveTab] = useState<"empresas" | "sucursales" | "vehiculos">("empresas");
 
   const [isLoading, setIsLoading] = useState(false);
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
@@ -3115,6 +3118,21 @@ function AdminPanel({ apiUrl }: { apiUrl: string }) {
   const [transportePlaca, setTransportePlaca] = useState("");
   const [transporteEstado, setTransporteEstado] = useState<"Activo" | "Mantenimiento">("Activo");
   const [transporteCapacidad, setTransporteCapacidad] = useState("");
+
+  // Edit states
+  const [editingEmpresaId, setEditingEmpresaId] = useState<string | null>(null);
+  const [editingEmpresaNombre, setEditingEmpresaNombre] = useState("");
+
+  const [editingSucursalId, setEditingSucursalId] = useState<string | null>(null);
+  const [editingSucursalNombre, setEditingSucursalNombre] = useState("");
+  const [editingSucursalDireccion, setEditingSucursalDireccion] = useState("");
+  const [editingSucursalLat, setEditingSucursalLat] = useState("");
+  const [editingSucursalLon, setEditingSucursalLon] = useState("");
+
+  const [editingTransporteId, setEditingTransporteId] = useState<string | null>(null);
+  const [editingTransportePlaca, setEditingTransportePlaca] = useState("");
+  const [editingTransporteCapacidad, setEditingTransporteCapacidad] = useState("");
+  const [editingTransporteEstado, setEditingTransporteEstado] = useState<"Activo" | "Mantenimiento">("Activo");
 
   const getHeaders = () => {
     const token = localStorage.getItem("accessToken");
@@ -3319,6 +3337,196 @@ function AdminPanel({ apiUrl }: { apiUrl: string }) {
     }
   };
 
+  const handleUpdateEmpresa = async (e: React.FormEvent, id: string) => {
+    e.preventDefault();
+    if (!editingEmpresaNombre.trim()) return;
+
+    setIsLoading(true);
+    setFeedback(null);
+    try {
+      const res = await apiFetch(`${apiUrl}/empresa/${id}`, {
+        method: "PATCH",
+        headers: getHeaders(),
+        body: JSON.stringify({ nombre: editingEmpresaNombre.trim() }),
+      });
+
+      if (!res.ok) {
+        throw new Error("No pudimos actualizar la empresa.");
+      }
+
+      setEditingEmpresaId(null);
+      setFeedback({ type: "success", message: "Empresa actualizada correctamente." });
+      await loadData();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Error al actualizar la empresa.";
+      setFeedback({ type: "error", message: msg });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDeleteEmpresa = async (id: string) => {
+    if (!window.confirm("¿Estás seguro de que deseas eliminar esta empresa? Se eliminarán en cascada todas sus sucursales y vehículos asociados de forma permanente.")) {
+      return;
+    }
+
+    setIsLoading(true);
+    setFeedback(null);
+    try {
+      const res = await apiFetch(`${apiUrl}/empresa/${id}`, {
+        method: "DELETE",
+        headers: getHeaders(),
+      });
+
+      if (!res.ok) {
+        throw new Error("No pudimos eliminar la empresa.");
+      }
+
+      setFeedback({ type: "success", message: "Empresa eliminada correctamente." });
+      await loadData();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Error al eliminar la empresa.";
+      setFeedback({ type: "error", message: msg });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleUpdateSucursal = async (e: React.FormEvent, id: string) => {
+    e.preventDefault();
+    if (!editingSucursalNombre.trim() || !editingSucursalLat || !editingSucursalLon) {
+      setFeedback({ type: "error", message: "Por favor, completa todos los campos requeridos." });
+      return;
+    }
+
+    setIsLoading(true);
+    setFeedback(null);
+    try {
+      const res = await apiFetch(`${apiUrl}/sucursal/${id}`, {
+        method: "PATCH",
+        headers: getHeaders(),
+        body: JSON.stringify({
+          nombre: editingSucursalNombre.trim(),
+          direccion: editingSucursalDireccion.trim() || null,
+          lat: parseFloat(editingSucursalLat),
+          lon: parseFloat(editingSucursalLon),
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error("No pudimos actualizar la sucursal.");
+      }
+
+      setEditingSucursalId(null);
+      setFeedback({ type: "success", message: "Sucursal actualizada correctamente." });
+      await loadData();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Error al actualizar la sucursal.";
+      setFeedback({ type: "error", message: msg });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDeleteSucursal = async (id: string) => {
+    if (!window.confirm("¿Estás seguro de que deseas eliminar esta sucursal?")) {
+      return;
+    }
+
+    setIsLoading(true);
+    setFeedback(null);
+    try {
+      const res = await apiFetch(`${apiUrl}/sucursal/${id}`, {
+        method: "DELETE",
+        headers: getHeaders(),
+      });
+
+      if (!res.ok) {
+        throw new Error("No pudimos eliminar la sucursal.");
+      }
+
+      setFeedback({ type: "success", message: "Sucursal eliminada correctamente." });
+      await loadData();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Error al eliminar la sucursal.";
+      setFeedback({ type: "error", message: msg });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleUpdateTransporte = async (e: React.FormEvent, id: string) => {
+    e.preventDefault();
+    if (!editingTransportePlaca.trim()) {
+      setFeedback({ type: "error", message: "La placa es obligatoria." });
+      return;
+    }
+
+    const placaClean = editingTransportePlaca.toUpperCase().trim();
+    const placaRegex = /^[A-Z]{1,3}[ -]?[0-9]{3,6}$/;
+    if (!placaRegex.test(placaClean)) {
+      setFeedback({
+        type: "error",
+        message: "Formato de placa inválido. Debe comenzar con 1 a 3 letras, seguido opcionalmente de un guión o espacio, y finalizar con 3 a 6 dígitos (ej. P123-456, T123456, QRO-772).",
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    setFeedback(null);
+    try {
+      const res = await apiFetch(`${apiUrl}/transporte/${id}`, {
+        method: "PATCH",
+        headers: getHeaders(),
+        body: JSON.stringify({
+          placa: placaClean,
+          estado: editingTransporteEstado,
+          capacidad: editingTransporteCapacidad ? parseFloat(editingTransporteCapacidad) : null,
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error("No pudimos actualizar el transporte.");
+      }
+
+      setEditingTransporteId(null);
+      setFeedback({ type: "success", message: "Vehículo actualizado correctamente." });
+      await loadData();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Error al actualizar el transporte.";
+      setFeedback({ type: "error", message: msg });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDeleteTransporte = async (id: string) => {
+    if (!window.confirm("¿Estás seguro de que deseas eliminar este vehículo de transporte?")) {
+      return;
+    }
+
+    setIsLoading(true);
+    setFeedback(null);
+    try {
+      const res = await apiFetch(`${apiUrl}/transporte/${id}`, {
+        method: "DELETE",
+        headers: getHeaders(),
+      });
+
+      if (!res.ok) {
+        throw new Error("No pudimos eliminar el transporte.");
+      }
+
+      setFeedback({ type: "success", message: "Vehículo eliminado correctamente." });
+      await loadData();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Error al eliminar the transporte.";
+      setFeedback({ type: "error", message: msg });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="flex-grow flex flex-col h-full overflow-hidden p-6 gap-6 bg-black border border-white/[0.06] rounded-3xl shadow-2xl relative select-none">
       {/* Background radial gradients */}
@@ -3342,284 +3550,497 @@ function AdminPanel({ apiUrl }: { apiUrl: string }) {
           Registra y gestiona las empresas, sucursales (geocercas) y vehículos de transporte con telemetría activa.
         </p>
       </div>
-
+ 
       {/* FEEDBACK STATUS BANNER */}
       {feedback && (
         <div
-          className={`rounded-2xl border px-4.5 py-3 text-[11px] font-mono flex items-center justify-between shrink-0 shadow-lg z-10 transition-all ${
+          className={`rounded-2xl border px-4.5 py-3.5 text-[11px] font-mono flex items-center justify-between shrink-0 shadow-lg z-20 transition-all ${
             feedback.type === "success"
               ? "border-emerald-500/20 bg-emerald-500/5 text-emerald-400"
               : "border-rose-500/20 bg-rose-500/5 text-rose-400"
           }`}
         >
-          <div className="flex items-center gap-2">
-            <div className={`w-1.5 h-1.5 rounded-full ${feedback.type === 'success' ? 'bg-emerald-400 animate-ping' : 'bg-rose-400'}`} />
+          <div className="flex items-center gap-2.5">
+            <div className={`w-1.5 h-1.5 rounded-full ${feedback.type === 'success' ? 'bg-emerald-400 animate-ping' : 'bg-rose-400 animate-pulse'}`} />
             <span>{feedback.message}</span>
           </div>
-          <button onClick={() => setFeedback(null)} className="text-zinc-500 hover:text-zinc-200 transition cursor-pointer">
+          <button type="button" onClick={() => setFeedback(null)} className="text-zinc-500 hover:text-zinc-200 transition cursor-pointer p-1">
             <X className="w-3.5 h-3.5" />
           </button>
         </div>
       )}
 
-      {/* GRID CONTAINER */}
-      <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-6 overflow-hidden min-h-0">
-        
-        {/* COLUMN 1: EMPRESAS */}
-        <div className="bg-zinc-950/40 border border-white/[0.06] rounded-2xl p-5 flex flex-col gap-4 overflow-hidden shadow-xl z-10 backdrop-blur-md">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-300 flex items-center gap-2 border-b border-white/[0.04] pb-3 shrink-0">
-            <Building className="w-4 h-4 text-cyan-400" />
-            1. Registrar Empresa
-          </h3>
+      {/* TABS SELECTOR */}
+      <div className="flex border-b border-white/[0.06] shrink-0 gap-2 p-1 bg-zinc-950/60 rounded-2xl border border-white/[0.03] backdrop-blur-md z-10">
+        <button
+          onClick={() => setActiveTab("empresas")}
+          type="button"
+          className={`flex-1 flex items-center justify-center gap-2.5 py-3 text-xs font-mono font-bold uppercase tracking-wider rounded-xl transition-all duration-300 cursor-pointer ${
+            activeTab === "empresas"
+              ? "bg-white text-black shadow-lg shadow-white/5 border border-white"
+              : "text-zinc-400 hover:text-zinc-100 hover:bg-white/[0.03] border border-transparent"
+          }`}
+        >
+          <Building className={`w-4 h-4 ${activeTab === 'empresas' ? 'text-black' : 'text-cyan-400'}`} />
+          <span>Empresas</span>
+          <span className={`text-[10px] px-2 py-0.5 rounded font-mono ${
+            activeTab === 'empresas' ? 'bg-black text-white' : 'bg-zinc-900 text-zinc-400 border border-white/5'
+          }`}>
+            {empresas.length}
+          </span>
+        </button>
 
-          <form onSubmit={handleCreateEmpresa} className="flex flex-col gap-3 shrink-0">
-            <div className="space-y-1.5">
-              <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">Nombre de Empresa</label>
-              <input
-                type="text"
-                required
-                value={empresaNombre}
-                onChange={(e) => setEmpresaNombre(e.target.value)}
-                placeholder="Ej. Exportadora del Norte"
-                className="w-full bg-zinc-950 border border-white/[0.06] rounded-xl px-3 py-2.5 text-xs text-zinc-200 outline-none transition focus:border-cyan-500/40 focus:ring-1 focus:ring-cyan-500/10 placeholder-zinc-700 font-mono"
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={isLoading || !empresaNombre.trim()}
-              className="w-full bg-white hover:bg-zinc-200 text-black font-bold rounded-xl py-2.5 text-[10px] uppercase tracking-wider transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-lg shadow-white/5 active:scale-[0.98]"
-            >
-              Registrar
-            </button>
-          </form>
+        <button
+          onClick={() => setActiveTab("sucursales")}
+          type="button"
+          className={`flex-1 flex items-center justify-center gap-2.5 py-3 text-xs font-mono font-bold uppercase tracking-wider rounded-xl transition-all duration-300 cursor-pointer ${
+            activeTab === "sucursales"
+              ? "bg-white text-black shadow-lg shadow-white/5 border border-white"
+              : "text-zinc-400 hover:text-zinc-100 hover:bg-white/[0.03] border border-transparent"
+          }`}
+        >
+          <MapPin className={`w-4 h-4 ${activeTab === 'sucursales' ? 'text-black' : 'text-emerald-400'}`} />
+          <span>Sucursales</span>
+          <span className={`text-[10px] px-2 py-0.5 rounded font-mono ${
+            activeTab === 'sucursales' ? 'bg-black text-white' : 'bg-zinc-900 text-zinc-400 border border-white/5'
+          }`}>
+            {sucursales.length}
+          </span>
+        </button>
 
-          <div className="flex-grow overflow-hidden flex flex-col gap-2 min-h-0">
-            <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest shrink-0 mt-2">Empresas ({empresas.length})</span>
-            <div className="flex-1 overflow-y-auto pr-1 space-y-2 scrollbar-thin scrollbar-thumb-white/5 scrollbar-track-transparent">
-              {empresas.map((emp) => (
-                <div key={emp.id} className="bg-zinc-950/60 border border-white/[0.03] rounded-xl p-3.5 flex flex-col gap-1.5 transition duration-200 hover:border-white/10 hover:bg-zinc-900/10">
-                  <p className="text-[11px] font-bold text-zinc-100 font-mono tracking-tight">{emp.nombre}</p>
-                  <p className="text-[8px] text-zinc-600 font-mono truncate tracking-tight">ID: {emp.id}</p>
-                </div>
-              ))}
-              {empresas.length === 0 && (
-                <p className="text-zinc-700 text-[10px] font-mono text-center py-12">Sin empresas registradas.</p>
-              )}
-            </div>
-          </div>
-        </div>
+        <button
+          onClick={() => setActiveTab("vehiculos")}
+          type="button"
+          className={`flex-1 flex items-center justify-center gap-2.5 py-3 text-xs font-mono font-bold uppercase tracking-wider rounded-xl transition-all duration-300 cursor-pointer ${
+            activeTab === "vehiculos"
+              ? "bg-white text-black shadow-lg shadow-white/5 border border-white"
+              : "text-zinc-400 hover:text-zinc-100 hover:bg-white/[0.03] border border-transparent"
+          }`}
+        >
+          <Truck className={`w-4 h-4 ${activeTab === 'vehiculos' ? 'text-black' : 'text-violet-400'}`} />
+          <span>Vehículos & IoT</span>
+          <span className={`text-[10px] px-2 py-0.5 rounded font-mono ${
+            activeTab === 'vehiculos' ? 'bg-black text-white' : 'bg-zinc-900 text-zinc-400 border border-white/5'
+          }`}>
+            {transportes.length}
+          </span>
+        </button>
+      </div>
 
-        {/* COLUMN 2: SUCURSALES */}
-        <div className="bg-zinc-950/40 border border-white/[0.06] rounded-2xl p-5 flex flex-col gap-4 overflow-hidden shadow-xl z-10 backdrop-blur-md">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-300 flex items-center gap-2 border-b border-white/[0.04] pb-3 shrink-0">
-            <MapPin className="w-4 h-4 text-emerald-400" />
-            2. Registrar Sucursal
-          </h3>
-
-          <form onSubmit={handleCreateSucursal} className="flex flex-col gap-3 shrink-0">
-            <div className="space-y-1.5">
-              <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">Empresa</label>
-              <div className="relative">
-                <select
-                  required
-                  value={sucursalEmpresaId}
-                  onChange={(e) => setSucursalEmpresaId(e.target.value)}
-                  className="w-full bg-zinc-950 border border-white/[0.06] rounded-xl pl-3 pr-8 py-2.5 text-xs text-zinc-200 outline-none cursor-pointer transition focus:border-emerald-500/40 focus:ring-1 focus:ring-emerald-500/10 appearance-none font-mono"
-                >
-                  <option value="" className="bg-zinc-950 text-zinc-400">Selecciona una empresa...</option>
-                  {empresas.map((e) => (
-                    <option key={e.id} value={e.id} className="bg-zinc-950 text-zinc-200">{e.nombre}</option>
-                  ))}
-                </select>
-                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-500">
-                  <ChevronDown className="w-3.5 h-3.5" />
-                </div>
-              </div>
+      {/* VIEW PANELS */}
+      {activeTab === "empresas" && (
+        <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-8 overflow-hidden min-h-0 z-10">
+          {/* REGISTRATION FORM (LEFT) */}
+          <div className="lg:col-span-4 bg-zinc-950/40 border border-white/[0.06] rounded-2xl p-6 flex flex-col gap-5 overflow-y-auto backdrop-blur-md shrink-0 scrollbar-thin scrollbar-thumb-white/5 scrollbar-track-transparent">
+            <div className="border-b border-white/[0.04] pb-3">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-200 flex items-center gap-2">
+                <Building className="w-4 h-4 text-cyan-400" />
+                Registrar Empresa
+              </h3>
+              <p className="text-[10px] text-zinc-400 font-mono mt-1 leading-relaxed">
+                Añade una nueva entidad corporativa para agrupar sucursales y vehículos.
+              </p>
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">Nombre de Sucursal</label>
-              <input
-                type="text"
-                required
-                value={sucursalNombre}
-                onChange={(e) => setSucursalNombre(e.target.value)}
-                placeholder="Ej. CD Querétaro"
-                className="w-full bg-zinc-950 border border-white/[0.06] rounded-xl px-3 py-2.5 text-xs text-zinc-200 outline-none transition focus:border-emerald-500/40 focus:ring-1 focus:ring-emerald-500/10 placeholder-zinc-700 font-mono"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
+            <form onSubmit={handleCreateEmpresa} className="flex flex-col gap-4">
               <div className="space-y-1.5">
-                <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">Latitud</label>
-                <input
-                  type="number"
-                  step="0.000001"
-                  required
-                  value={sucursalLat}
-                  onChange={(e) => setSucursalLat(e.target.value)}
-                  placeholder="Ej. 20.5888"
-                  className="w-full bg-zinc-950 border border-white/[0.06] rounded-xl px-3 py-2.5 text-xs text-zinc-200 outline-none transition focus:border-emerald-500/40 focus:ring-1 focus:ring-emerald-500/10 placeholder-zinc-700 font-mono"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">Longitud</label>
-                <input
-                  type="number"
-                  step="0.000001"
-                  required
-                  value={sucursalLon}
-                  onChange={(e) => setSucursalLon(e.target.value)}
-                  placeholder="Ej. -100.389"
-                  className="w-full bg-zinc-950 border border-white/[0.06] rounded-xl px-3 py-2.5 text-xs text-zinc-200 outline-none transition focus:border-emerald-500/40 focus:ring-1 focus:ring-emerald-500/10 placeholder-zinc-700 font-mono"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">Dirección (Opcional)</label>
-              <input
-                type="text"
-                value={sucursalDireccion}
-                onChange={(e) => setSucursalDireccion(e.target.value)}
-                placeholder="Industrial CD Qro"
-                className="w-full bg-zinc-950 border border-white/[0.06] rounded-xl px-3 py-2.5 text-xs text-zinc-200 outline-none transition focus:border-emerald-500/40 focus:ring-1 focus:ring-emerald-500/10 placeholder-zinc-700 font-mono"
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={isLoading || !sucursalEmpresaId || !sucursalNombre.trim()}
-              className="w-full bg-white hover:bg-zinc-200 text-black font-bold rounded-xl py-2.5 text-[10px] uppercase tracking-wider transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-lg shadow-white/5 active:scale-[0.98]"
-            >
-              Registrar
-            </button>
-          </form>
-
-          <div className="flex-grow overflow-hidden flex flex-col gap-2 min-h-0">
-            <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest shrink-0 mt-2">Sucursales ({sucursales.length})</span>
-            <div className="flex-1 overflow-y-auto pr-1 space-y-2 scrollbar-thin scrollbar-thumb-white/5 scrollbar-track-transparent">
-              {sucursales.map((suc) => (
-                <div key={suc.id} className="bg-zinc-950/60 border border-white/[0.03] rounded-xl p-3.5 flex flex-col gap-2 transition duration-200 hover:border-white/10 hover:bg-zinc-900/10">
-                  <div className="flex justify-between items-start gap-2">
-                    <p className="text-[11px] font-bold text-zinc-100 font-mono tracking-tight">{suc.nombre}</p>
-                    <span className="text-[8px] bg-zinc-900/80 text-zinc-400 px-2 py-0.5 rounded-full border border-white/5 font-mono truncate max-w-[100px]">{suc.empresa_nombre}</span>
-                  </div>
-                  <div className="flex flex-col gap-0.5">
-                    <p className="text-[9px] text-zinc-500 font-mono">GPS: {suc.lat}, {suc.lon}</p>
-                    {suc.direccion && <p className="text-[9px] text-zinc-500/80 italic font-mono mt-0.5 truncate">{suc.direccion}</p>}
-                  </div>
-                </div>
-              ))}
-              {sucursales.length === 0 && (
-                <p className="text-zinc-700 text-[10px] font-mono text-center py-12">Sin sucursales registradas.</p>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* COLUMN 3: VEHÍCULOS / TRANSPORTE */}
-        <div className="bg-zinc-950/40 border border-white/[0.06] rounded-2xl p-5 flex flex-col gap-4 overflow-hidden shadow-xl z-10 backdrop-blur-md">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-300 flex items-center gap-2 border-b border-white/[0.04] pb-3 shrink-0">
-            <Truck className="w-4 h-4 text-violet-400" />
-            3. Registrar Vehículo
-          </h3>
-
-          <form onSubmit={handleCreateTransporte} className="flex flex-col gap-3 shrink-0">
-            <div className="space-y-1.5">
-              <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">Empresa Propietaria</label>
-              <div className="relative">
-                <select
-                  required
-                  value={transporteEmpresaId}
-                  onChange={(e) => setTransporteEmpresaId(e.target.value)}
-                  className="w-full bg-zinc-950 border border-white/[0.06] rounded-xl pl-3 pr-8 py-2.5 text-xs text-zinc-200 outline-none cursor-pointer transition focus:border-violet-500/40 focus:ring-1 focus:ring-violet-500/10 appearance-none font-mono"
-                >
-                  <option value="" className="bg-zinc-950 text-zinc-400">Selecciona una empresa...</option>
-                  {empresas.map((e) => (
-                    <option key={e.id} value={e.id} className="bg-zinc-950 text-zinc-200">{e.nombre}</option>
-                  ))}
-                </select>
-                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-500">
-                  <ChevronDown className="w-3.5 h-3.5" />
-                </div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
-              <div className="space-y-1.5">
-                <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">Placa (Patente)</label>
+                <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">Nombre de Empresa</label>
                 <input
                   type="text"
                   required
-                  value={transportePlaca}
-                  onChange={(e) => setTransportePlaca(e.target.value)}
-                  placeholder="Ej. QRO-772"
-                  className="w-full bg-zinc-950 border border-white/[0.06] rounded-xl px-3 py-2.5 text-xs text-zinc-200 outline-none transition focus:border-violet-500/40 focus:ring-1 focus:ring-violet-500/10 placeholder-zinc-700 font-mono uppercase"
+                  value={empresaNombre}
+                  onChange={(e) => setEmpresaNombre(e.target.value)}
+                  placeholder="Ej. Exportadora del Norte"
+                  className="w-full bg-zinc-950 border border-white/[0.06] rounded-xl px-3 py-3 text-xs text-zinc-200 outline-none transition focus:border-cyan-500/40 focus:ring-1 focus:ring-cyan-500/10 placeholder-zinc-700 font-mono"
                 />
               </div>
-              <div className="space-y-1.5">
-                <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">Capacidad (Kg)</label>
-                <input
-                  type="number"
-                  step="0.1"
-                  value={transporteCapacidad}
-                  onChange={(e) => setTransporteCapacidad(e.target.value)}
-                  placeholder="Ej. 18000"
-                  className="w-full bg-zinc-950 border border-white/[0.06] rounded-xl px-3 py-2.5 text-xs text-zinc-200 outline-none transition focus:border-violet-500/40 focus:ring-1 focus:ring-violet-500/10 placeholder-zinc-700 font-mono"
-                />
-              </div>
+              <button
+                type="submit"
+                disabled={isLoading || !empresaNombre.trim()}
+                className="w-full bg-white hover:bg-zinc-200 text-black font-bold rounded-xl py-3 text-[10px] uppercase tracking-wider transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-lg shadow-white/5 active:scale-[0.98] mt-2"
+              >
+                Registrar Empresa
+              </button>
+            </form>
+          </div>
+
+          {/* LIST GRID (RIGHT) */}
+          <div className="lg:col-span-8 bg-zinc-950/20 border border-white/[0.04] rounded-2xl p-6 flex flex-col gap-4 overflow-hidden">
+            <div className="flex justify-between items-center border-b border-white/[0.04] pb-3 shrink-0">
+              <span className="text-xs font-bold text-zinc-300 uppercase tracking-wider">Empresas Registradas</span>
+              <span className="text-[10px] bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 px-2.5 py-0.5 rounded font-mono font-bold">
+                {empresas.length} En total
+              </span>
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">Estado Inicial</label>
-              <div className="relative">
-                <select
-                  required
-                  value={transporteEstado}
-                  onChange={(e) => setTransporteEstado(e.target.value as "Activo" | "Mantenimiento")}
-                  className="w-full bg-zinc-950 border border-white/[0.06] rounded-xl pl-3 pr-8 py-2.5 text-xs text-zinc-200 outline-none cursor-pointer transition focus:border-violet-500/40 focus:ring-1 focus:ring-violet-500/10 appearance-none font-mono"
-                >
-                  <option value="Activo" className="bg-zinc-950 text-zinc-200">Activo</option>
-                  <option value="Mantenimiento" className="bg-zinc-950 text-zinc-200">Mantenimiento</option>
-                </select>
-                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-500">
-                  <ChevronDown className="w-3.5 h-3.5" />
+            <div className="flex-1 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-white/5 scrollbar-track-transparent">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {empresas.map((emp) => (
+                  <div key={emp.id} className="bg-zinc-950/60 border border-white/[0.04] rounded-xl p-4.5 flex flex-col justify-between gap-3.5 transition duration-200 hover:border-cyan-500/30 hover:bg-zinc-900/10 group relative">
+                    <div className="flex justify-between items-start w-full gap-2">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-bold text-zinc-100 font-mono tracking-tight truncate">{emp.nombre}</p>
+                        <p className="text-[10px] text-zinc-500 font-mono truncate tracking-tight mt-1">ID: {emp.id}</p>
+                      </div>
+                      <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingEmpresaId(emp.id);
+                            setEditingEmpresaNombre(emp.nombre);
+                          }}
+                          className="p-1.5 hover:bg-zinc-850 rounded-lg text-zinc-400 hover:text-cyan-400 cursor-pointer transition border border-transparent hover:border-white/5"
+                          title="Editar"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteEmpresa(emp.id)}
+                          className="p-1.5 hover:bg-zinc-850 rounded-lg text-zinc-400 hover:text-rose-400 cursor-pointer transition border border-transparent hover:border-white/5"
+                          title="Eliminar"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {empresas.length === 0 && (
+                  <div className="col-span-full py-16 text-center">
+                    <p className="text-zinc-650 text-xs font-mono">Sin empresas registradas.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === "sucursales" && (
+        <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-8 overflow-hidden min-h-0 z-10">
+          {/* REGISTRATION FORM (LEFT) */}
+          <div className="lg:col-span-4 bg-zinc-950/40 border border-white/[0.06] rounded-2xl p-6 flex flex-col gap-5 overflow-y-auto backdrop-blur-md shrink-0 scrollbar-thin scrollbar-thumb-white/5 scrollbar-track-transparent">
+            <div className="border-b border-white/[0.04] pb-3">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-200 flex items-center gap-2">
+                <MapPin className="w-4 h-4 text-emerald-400" />
+                Registrar Sucursal
+              </h3>
+              <p className="text-[10px] text-zinc-400 font-mono mt-1 leading-relaxed">
+                Asigna una geocerca definiendo coordenadas GPS y enlázala a una empresa.
+              </p>
+            </div>
+
+            <form onSubmit={handleCreateSucursal} className="flex flex-col gap-4">
+              <div className="space-y-1.5">
+                <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">Empresa</label>
+                <div className="relative">
+                  <select
+                    required
+                    value={sucursalEmpresaId}
+                    onChange={(e) => setSucursalEmpresaId(e.target.value)}
+                    className="w-full bg-zinc-950 border border-white/[0.06] rounded-xl pl-3 pr-8 py-3 text-xs text-zinc-200 outline-none cursor-pointer transition focus:border-emerald-500/40 focus:ring-1 focus:ring-emerald-500/10 appearance-none font-mono"
+                  >
+                    <option value="" className="bg-zinc-950 text-zinc-500">Selecciona una empresa...</option>
+                    {empresas.map((e) => (
+                      <option key={e.id} value={e.id} className="bg-zinc-950 text-zinc-200">{e.nombre}</option>
+                    ))}
+                  </select>
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-500">
+                    <ChevronDown className="w-3.5 h-3.5" />
+                  </div>
                 </div>
               </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">Nombre de Sucursal</label>
+                <input
+                  type="text"
+                  required
+                  value={sucursalNombre}
+                  onChange={(e) => setSucursalNombre(e.target.value)}
+                  placeholder="Ej. CD Querétaro"
+                  className="w-full bg-zinc-950 border border-white/[0.06] rounded-xl px-3 py-3 text-xs text-zinc-200 outline-none transition focus:border-emerald-500/40 focus:ring-1 focus:ring-emerald-500/10 placeholder-zinc-700 font-mono"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3.5">
+                <div className="space-y-1.5">
+                  <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">Latitud</label>
+                  <input
+                    type="number"
+                    step="0.000001"
+                    required
+                    value={sucursalLat}
+                    onChange={(e) => setSucursalLat(e.target.value)}
+                    placeholder="Ej. 20.5888"
+                    className="w-full bg-zinc-950 border border-white/[0.06] rounded-xl px-3 py-3 text-xs text-zinc-200 outline-none transition focus:border-emerald-500/40 focus:ring-1 focus:ring-emerald-500/10 placeholder-zinc-700 font-mono"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">Longitud</label>
+                  <input
+                    type="number"
+                    step="0.000001"
+                    required
+                    value={sucursalLon}
+                    onChange={(e) => setSucursalLon(e.target.value)}
+                    placeholder="Ej. -100.389"
+                    className="w-full bg-zinc-950 border border-white/[0.06] rounded-xl px-3 py-3 text-xs text-zinc-200 outline-none transition focus:border-emerald-500/40 focus:ring-1 focus:ring-emerald-500/10 placeholder-zinc-700 font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">Dirección (Opcional)</label>
+                <input
+                  type="text"
+                  value={sucursalDireccion}
+                  onChange={(e) => setSucursalDireccion(e.target.value)}
+                  placeholder="Industrial CD Qro"
+                  className="w-full bg-zinc-950 border border-white/[0.06] rounded-xl px-3 py-3 text-xs text-zinc-200 outline-none transition focus:border-emerald-500/40 focus:ring-1 focus:ring-emerald-500/10 placeholder-zinc-700 font-mono"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={isLoading || !sucursalEmpresaId || !sucursalNombre.trim()}
+                className="w-full bg-white hover:bg-zinc-200 text-black font-bold rounded-xl py-3 text-[10px] uppercase tracking-wider transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-lg shadow-white/5 active:scale-[0.98] mt-2"
+              >
+                Registrar Sucursal
+              </button>
+            </form>
+          </div>
+
+          {/* LIST GRID (RIGHT) */}
+          <div className="lg:col-span-8 bg-zinc-950/20 border border-white/[0.04] rounded-2xl p-6 flex flex-col gap-4 overflow-hidden">
+            <div className="flex justify-between items-center border-b border-white/[0.04] pb-3 shrink-0">
+              <span className="text-xs font-bold text-zinc-300 uppercase tracking-wider">Sucursales Registradas</span>
+              <span className="text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2.5 py-0.5 rounded font-mono font-bold">
+                {sucursales.length} En total
+              </span>
             </div>
 
-            <button
-              type="submit"
-              disabled={isLoading || !transporteEmpresaId || !transportePlaca.trim()}
-              className="w-full bg-white hover:bg-zinc-200 text-black font-bold rounded-xl py-2.5 text-[10px] uppercase tracking-wider transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-lg shadow-white/5 active:scale-[0.98]"
-            >
-              Registrar
-            </button>
-          </form>
-
-          <div className="flex-grow overflow-hidden flex flex-col gap-2 min-h-0">
-            <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest shrink-0 mt-2">Vehículos & IoT ({transportes.length})</span>
-            <div className="flex-1 overflow-y-auto pr-1 space-y-2 scrollbar-thin scrollbar-thumb-white/5 scrollbar-track-transparent">
-              {transportes.map((trans) => {
-                const owner = empresas.find(e => e.id === trans.empresa_id);
-                return (
-                  <div key={trans.id} className="bg-zinc-950/60 border border-white/[0.03] rounded-xl p-3.5 flex flex-col gap-2 transition duration-200 hover:border-white/10 hover:bg-zinc-900/10">
-                    <div className="flex justify-between items-center gap-2">
-                      <p className="text-[11px] font-bold text-zinc-100 font-mono tracking-tight">{trans.placa}</p>
-                      <span className={`inline-flex items-center gap-1.5 text-[8px] px-2 py-0.5 rounded-full border font-mono ${
-                        trans.estado === "Activo" 
-                          ? "bg-emerald-500/5 border-emerald-500/20 text-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.05)]"
-                          : "bg-amber-500/5 border-amber-500/20 text-amber-400 shadow-[0_0_8px_rgba(245,158,11,0.05)]"
-                      }`}>
-                        <span className={`w-1 h-1 rounded-full ${trans.estado === 'Activo' ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
-                        {trans.estado}
-                      </span>
+            <div className="flex-1 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-white/5 scrollbar-track-transparent">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {sucursales.map((suc) => (
+                  <div key={suc.id} className="bg-zinc-950/60 border border-white/[0.04] rounded-xl p-4.5 flex flex-col justify-between gap-3.5 transition duration-200 hover:border-emerald-500/30 hover:bg-zinc-900/10 group relative">
+                    <div className="flex justify-between items-start w-full gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex justify-between items-start gap-2">
+                          <p className="text-xs font-bold text-zinc-100 font-mono tracking-tight truncate">{suc.nombre}</p>
+                          <span className="text-[9px] bg-emerald-500/10 text-emerald-400 px-2.5 py-0.5 rounded-md border border-emerald-500/20 font-mono truncate max-w-[120px] shrink-0 font-bold">
+                            {suc.empresa_nombre}
+                          </span>
+                        </div>
+                        <div className="flex flex-col gap-1.5 mt-3">
+                          <p className="text-[10px] text-zinc-300 font-mono flex items-center gap-1">
+                            <span className="text-emerald-500/60 font-bold">GPS:</span> {suc.lat}, {suc.lon}
+                          </p>
+                          {suc.direccion && (
+                            <p className="text-[10px] text-zinc-400 italic font-mono truncate">
+                              <span className="text-zinc-550 not-italic font-bold">Dir:</span> {suc.direccion}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingSucursalId(suc.id);
+                            setEditingSucursalNombre(suc.nombre);
+                            setEditingSucursalDireccion(suc.direccion || "");
+                            setEditingSucursalLat(suc.lat.toString());
+                            setEditingSucursalLon(suc.lon.toString());
+                          }}
+                          className="p-1.5 hover:bg-zinc-850 rounded-lg text-zinc-400 hover:text-emerald-400 cursor-pointer transition border border-transparent hover:border-white/5"
+                          title="Editar"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteSucursal(suc.id)}
+                          className="p-1.5 hover:bg-zinc-850 rounded-lg text-zinc-400 hover:text-rose-400 cursor-pointer transition border border-transparent hover:border-white/5"
+                          title="Eliminar"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
-                    <div className="flex flex-col gap-0.5">
-                      {owner && <p className="text-[9px] text-zinc-500 font-mono">Empresa: {owner.nombre}</p>}
-                      <p className="text-[8px] text-zinc-600 font-mono truncate">IoT Link: <span className="text-zinc-500 bg-zinc-950 px-1 py-0.5 border border-white/[0.02] rounded font-mono text-[7px]">{trans.iot_id}</span></p>
-                      {trans.capacidad && <p className="text-[9px] text-zinc-500 font-mono">Capacidad: {Number(trans.capacidad).toLocaleString()} Kg</p>}
+                  </div>
+                ))}
+                {sucursales.length === 0 && (
+                  <div className="col-span-full py-16 text-center">
+                    <p className="text-zinc-650 text-xs font-mono">Sin sucursales registradas.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === "vehiculos" && (
+        <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-8 overflow-hidden min-h-0 z-10">
+          {/* REGISTRATION FORM (LEFT) */}
+          <div className="lg:col-span-4 bg-zinc-950/40 border border-white/[0.06] rounded-2xl p-6 flex flex-col gap-5 overflow-y-auto backdrop-blur-md shrink-0 scrollbar-thin scrollbar-thumb-white/5 scrollbar-track-transparent">
+            <div className="border-b border-white/[0.04] pb-3">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-200 flex items-center gap-2">
+                <Truck className="w-4 h-4 text-violet-400" />
+                Registrar Vehículo
+              </h3>
+              <p className="text-[10px] text-zinc-400 font-mono mt-1 leading-relaxed">
+                Ingresa los datos de patente del vehículo y aprovisiona de forma automatizada su dispositivo IoT virtual.
+              </p>
+            </div>
+
+            <form onSubmit={handleCreateTransporte} className="flex flex-col gap-4">
+              <div className="space-y-1.5">
+                <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">Empresa Propietaria</label>
+                <div className="relative">
+                  <select
+                    required
+                    value={transporteEmpresaId}
+                    onChange={(e) => setTransporteEmpresaId(e.target.value)}
+                    className="w-full bg-zinc-950 border border-white/[0.06] rounded-xl pl-3 pr-8 py-3 text-xs text-zinc-200 outline-none cursor-pointer transition focus:border-violet-500/40 focus:ring-1 focus:ring-violet-500/10 appearance-none font-mono"
+                  >
+                    <option value="" className="bg-zinc-950 text-zinc-500">Selecciona una empresa...</option>
+                    {empresas.map((e) => (
+                      <option key={e.id} value={e.id} className="bg-zinc-950 text-zinc-200">{e.nombre}</option>
+                    ))}
+                  </select>
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-500">
+                    <ChevronDown className="w-3.5 h-3.5" />
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3.5">
+                <div className="space-y-1.5">
+                  <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">Placa (Patente)</label>
+                  <input
+                    type="text"
+                    required
+                    value={transportePlaca}
+                    onChange={(e) => setTransportePlaca(e.target.value)}
+                    placeholder="Ej. QRO-772"
+                    className="w-full bg-zinc-950 border border-white/[0.06] rounded-xl px-3 py-3 text-xs text-zinc-200 outline-none transition focus:border-violet-500/40 focus:ring-1 focus:ring-violet-500/10 placeholder-zinc-700 font-mono uppercase"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">Capacidad (Kg)</label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={transporteCapacidad}
+                    onChange={(e) => setTransporteCapacidad(e.target.value)}
+                    placeholder="Ej. 18000"
+                    className="w-full bg-zinc-950 border border-white/[0.06] rounded-xl px-3 py-3 text-xs text-zinc-200 outline-none transition focus:border-violet-500/40 focus:ring-1 focus:ring-violet-500/10 placeholder-zinc-700 font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">Estado Inicial</label>
+                <div className="relative">
+                  <select
+                    required
+                    value={transporteEstado}
+                    onChange={(e) => setTransporteEstado(e.target.value as "Activo" | "Mantenimiento")}
+                    className="w-full bg-zinc-950 border border-white/[0.06] rounded-xl pl-3 pr-8 py-3 text-xs text-zinc-200 outline-none cursor-pointer transition focus:border-violet-500/40 focus:ring-1 focus:ring-violet-500/10 appearance-none font-mono"
+                  >
+                    <option value="Activo" className="bg-zinc-950 text-zinc-200">Activo</option>
+                    <option value="Mantenimiento" className="bg-zinc-950 text-zinc-200">Mantenimiento</option>
+                  </select>
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-500">
+                    <ChevronDown className="w-3.5 h-3.5" />
+                  </div>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isLoading || !transporteEmpresaId || !transportePlaca.trim()}
+                className="w-full bg-white hover:bg-zinc-200 text-black font-bold rounded-xl py-3 text-[10px] uppercase tracking-wider transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-lg shadow-white/5 active:scale-[0.98] mt-2"
+              >
+                Registrar Vehículo e IoT
+              </button>
+            </form>
+          </div>
+
+          {/* LIST GRID (RIGHT) */}
+          <div className="lg:col-span-8 bg-zinc-950/20 border border-white/[0.04] rounded-2xl p-6 flex flex-col gap-4 overflow-hidden">
+            <div className="flex justify-between items-center border-b border-white/[0.04] pb-3 shrink-0">
+              <span className="text-xs font-bold text-zinc-300 uppercase tracking-wider">Vehículos Registrados</span>
+              <span className="text-[10px] bg-violet-500/10 text-violet-400 border border-violet-500/20 px-2.5 py-0.5 rounded font-mono font-bold">
+                {transportes.length} En total
+              </span>
+            </div>
+
+            <div className="flex-1 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-white/5 scrollbar-track-transparent">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {transportes.map((trans) => {
+                  const owner = empresas.find(e => e.id === trans.empresa_id);
+                  return (
+                    <div key={trans.id} className="bg-zinc-950/60 border border-white/[0.04] rounded-xl p-4.5 flex flex-col justify-between gap-3.5 transition duration-200 hover:border-violet-500/30 hover:bg-zinc-900/10 group relative">
+                      <div className="flex justify-between items-start w-full gap-2">
+                        <div className="flex-grow min-w-0">
+                          <div className="flex justify-between items-center gap-2">
+                            <p className="text-xs font-bold text-zinc-100 font-mono tracking-tight">{trans.placa}</p>
+                            <span className={`inline-flex items-center gap-1.5 text-[9px] px-2 py-0.5 rounded-md border font-mono font-bold ${
+                              trans.estado === "Activo" 
+                                ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
+                                : "bg-amber-500/10 border-amber-500/20 text-amber-400"
+                            }`}>
+                              <span className={`w-1 h-1 rounded-full ${trans.estado === 'Activo' ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
+                              {trans.estado}
+                            </span>
+                          </div>
+                          <div className="flex flex-col gap-1.5 mt-3">
+                            {owner && (
+                              <p className="text-[10px] text-zinc-350 font-mono">
+                                <span className="text-zinc-550 font-bold">Empresa:</span> {owner.nombre}
+                              </p>
+                            )}
+                            <p className="text-[10px] text-zinc-350 font-mono truncate">
+                              <span className="text-zinc-550 font-bold">IoT:</span>{" "}
+                              <span className="text-violet-400 bg-violet-950/50 px-1.5 py-0.5 border border-violet-500/20 rounded font-mono text-[9px]">
+                                {trans.iot_id}
+                              </span>
+                            </p>
+                            {trans.capacidad && (
+                              <p className="text-[10px] text-zinc-350 font-mono">
+                                <span className="text-zinc-550 font-bold">Capacidad:</span>{" "}
+                                <span className="text-zinc-100 font-bold">{Number(trans.capacidad).toLocaleString()} Kg</span>
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingTransporteId(trans.id);
+                              setEditingTransportePlaca(trans.placa);
+                              setEditingTransporteCapacidad(trans.capacidad ? trans.capacidad.toString() : "");
+                              setEditingTransporteEstado(trans.estado);
+                            }}
+                            className="p-1.5 hover:bg-zinc-800 rounded-lg text-zinc-400 hover:text-violet-400 cursor-pointer transition border border-transparent hover:border-white/5"
+                            title="Editar"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteTransporte(trans.id)}
+                            className="p-1.5 hover:bg-zinc-800 rounded-lg text-zinc-400 hover:text-rose-400 cursor-pointer transition border border-transparent hover:border-white/5"
+                            title="Eliminar"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                     </div>
                   </div>
                 );
@@ -3632,6 +4053,186 @@ function AdminPanel({ apiUrl }: { apiUrl: string }) {
         </div>
 
       </div>
+      )}
+
+      {/* MODALES DE EDICIÓN FROSTED GLASS */}
+      {editingEmpresaId !== null && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-zinc-950 border border-white/[0.08] rounded-2xl p-6 w-full max-w-md shadow-2xl relative">
+            <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2.5 mb-5 border-b border-white/[0.06] pb-3">
+              <Building className="w-4 h-4 text-cyan-400" />
+              Editar Empresa
+            </h3>
+            <form onSubmit={(e) => handleUpdateEmpresa(e, editingEmpresaId)} className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest font-mono">Nombre de Empresa</label>
+                <input
+                  type="text"
+                  required
+                  value={editingEmpresaNombre}
+                  onChange={(e) => setEditingEmpresaNombre(e.target.value)}
+                  className="w-full bg-zinc-900 border border-white/[0.08] rounded-xl px-3 py-2.5 text-xs text-zinc-200 outline-none transition focus:border-cyan-500/40 focus:ring-1 focus:ring-cyan-500/10 font-mono"
+                />
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="submit"
+                  disabled={isLoading || !editingEmpresaNombre.trim()}
+                  className="flex-grow bg-white hover:bg-zinc-200 text-black font-bold rounded-xl py-2.5 text-[10px] uppercase tracking-wider transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                >
+                  Guardar Cambios
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEditingEmpresaId(null)}
+                  className="bg-zinc-900 hover:bg-zinc-800 text-zinc-400 font-bold border border-white/[0.06] rounded-xl px-4 py-2.5 text-[10px] uppercase tracking-wider transition-all cursor-pointer"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {editingSucursalId !== null && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-zinc-950 border border-white/[0.08] rounded-2xl p-6 w-full max-w-md shadow-2xl relative">
+            <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2.5 mb-5 border-b border-white/[0.06] pb-3">
+              <MapPin className="w-4 h-4 text-emerald-400" />
+              Editar Sucursal
+            </h3>
+            <form onSubmit={(e) => handleUpdateSucursal(e, editingSucursalId)} className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest font-mono">Nombre de Sucursal</label>
+                <input
+                  type="text"
+                  required
+                  value={editingSucursalNombre}
+                  onChange={(e) => setEditingSucursalNombre(e.target.value)}
+                  className="w-full bg-zinc-900 border border-white/[0.08] rounded-xl px-3 py-2.5 text-xs text-zinc-200 outline-none transition focus:border-emerald-500/40 focus:ring-1 focus:ring-emerald-500/10 font-mono"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest font-mono">Latitud</label>
+                  <input
+                    type="number"
+                    step="0.000001"
+                    required
+                    value={editingSucursalLat}
+                    onChange={(e) => setEditingSucursalLat(e.target.value)}
+                    className="w-full bg-zinc-900 border border-white/[0.08] rounded-xl px-3 py-2.5 text-xs text-zinc-200 outline-none transition focus:border-emerald-500/40 focus:ring-1 focus:ring-emerald-500/10 font-mono"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest font-mono">Longitud</label>
+                  <input
+                    type="number"
+                    step="0.000001"
+                    required
+                    value={editingSucursalLon}
+                    onChange={(e) => setEditingSucursalLon(e.target.value)}
+                    className="w-full bg-zinc-900 border border-white/[0.08] rounded-xl px-3 py-2.5 text-xs text-zinc-200 outline-none transition focus:border-emerald-500/40 focus:ring-1 focus:ring-emerald-500/10 font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest font-mono">Dirección</label>
+                <input
+                  type="text"
+                  value={editingSucursalDireccion}
+                  onChange={(e) => setEditingSucursalDireccion(e.target.value)}
+                  className="w-full bg-zinc-900 border border-white/[0.08] rounded-xl px-3 py-2.5 text-xs text-zinc-200 outline-none transition focus:border-emerald-500/40 focus:ring-1 focus:ring-emerald-500/10 font-mono"
+                />
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="submit"
+                  disabled={isLoading || !editingSucursalNombre.trim() || !editingSucursalLat || !editingSucursalLon}
+                  className="flex-grow bg-white hover:bg-zinc-200 text-black font-bold rounded-xl py-2.5 text-[10px] uppercase tracking-wider transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                >
+                  Guardar Cambios
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEditingSucursalId(null)}
+                  className="bg-zinc-900 hover:bg-zinc-800 text-zinc-400 font-bold border border-white/[0.06] rounded-xl px-4 py-2.5 text-[10px] uppercase tracking-wider transition-all cursor-pointer"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {editingTransporteId !== null && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-zinc-950 border border-white/[0.08] rounded-2xl p-6 w-full max-w-md shadow-2xl relative">
+            <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2.5 mb-5 border-b border-white/[0.06] pb-3">
+              <Truck className="w-4 h-4 text-violet-400" />
+              Editar Vehículo
+            </h3>
+            <form onSubmit={(e) => handleUpdateTransporte(e, editingTransporteId)} className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest font-mono">Placa (Patente)</label>
+                <input
+                  type="text"
+                  required
+                  value={editingTransportePlaca}
+                  onChange={(e) => setEditingTransportePlaca(e.target.value.toUpperCase())}
+                  className="w-full bg-zinc-900 border border-white/[0.08] rounded-xl px-3 py-2.5 text-xs text-zinc-200 outline-none transition focus:border-violet-500/40 focus:ring-1 focus:ring-violet-500/10 font-mono uppercase"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest font-mono">Capacidad (Kg)</label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={editingTransporteCapacidad}
+                    onChange={(e) => setEditingTransporteCapacidad(e.target.value)}
+                    className="w-full bg-zinc-900 border border-white/[0.08] rounded-xl px-3 py-2.5 text-xs text-zinc-200 outline-none transition focus:border-violet-500/40 focus:ring-1 focus:ring-violet-500/10 font-mono"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest font-mono">Estado</label>
+                  <select
+                    value={editingTransporteEstado}
+                    onChange={(e) => setEditingTransporteEstado(e.target.value as "Activo" | "Mantenimiento")}
+                    className="w-full bg-zinc-900 border border-white/[0.08] rounded-xl px-3 py-2.5 text-xs text-zinc-200 outline-none transition focus:border-violet-500/40 focus:ring-1 focus:ring-violet-500/10 font-mono cursor-pointer"
+                  >
+                    <option value="Activo">Activo</option>
+                    <option value="Mantenimiento">Mantenimiento</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="submit"
+                  disabled={isLoading || !editingTransportePlaca.trim()}
+                  className="flex-grow bg-white hover:bg-zinc-200 text-black font-bold rounded-xl py-2.5 text-[10px] uppercase tracking-wider transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                >
+                  Guardar Cambios
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEditingTransporteId(null)}
+                  className="bg-zinc-900 hover:bg-zinc-800 text-zinc-400 font-bold border border-white/[0.06] rounded-xl px-4 py-2.5 text-[10px] uppercase tracking-wider transition-all cursor-pointer"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
