@@ -671,23 +671,25 @@ export default function Dashboard() {
         const transportesData = await transportesRes.json();
         const sucursalesData = await sucursalesRes.json();
         const perfilesData = await perfilesRes.json();
-        setViajes(data);
-        if (isFirstLoad.current && Array.isArray(data)) {
-          const alreadyFinished = data.filter((v: Viaje) => v.estado === "finalizado").map((v: Viaje) => v.id);
+        const viajesArray = Array.isArray(data) ? data : [];
+        const transportesArray = Array.isArray(transportesData) ? transportesData : [];
+        setViajes(viajesArray);
+        if (isFirstLoad.current) {
+          const alreadyFinished = viajesArray.filter((v: Viaje) => v.estado === "finalizado").map((v: Viaje) => v.id);
           setViajeFinalizadoDismissed(alreadyFinished);
           isFirstLoad.current = false;
         }
-        setTransportes(transportesData);
+        setTransportes(transportesArray);
         setSucursales(Array.isArray(sucursalesData) ? sucursalesData : []);
         setPerfiles(Array.isArray(perfilesData) ? perfilesData : []);
-        if (data.length > 0) {
-          const activePreferred = data.find((v: Viaje) =>
+        if (viajesArray.length > 0) {
+          const activePreferred = viajesArray.find((v: Viaje) =>
             v.estado === "en_curso" || v.estado === "pendiente" || v.estado === "pausado",
           );
 
           setViajeSeleccionado((current) => {
             if (current) {
-              const updated = data.find((v: Viaje) => v.id === current.id);
+              const updated = viajesArray.find((v: Viaje) => v.id === current.id);
               return updated || current;
             }
             return hasSelectedManually.current ? current : (activePreferred || null);
