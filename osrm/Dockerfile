@@ -1,6 +1,6 @@
 FROM osrm/osrm-backend
 
-# Install curl for healthchecks using archived Debian repos if needed
+# Install curl for healthchecks and data downloading
 USER root
 RUN set -eux; \
     if command -v apt-get >/dev/null 2>&1; then \
@@ -10,9 +10,20 @@ RUN set -eux; \
         echo 'Acquire::Check-Valid-Until "false";' > /etc/apt/apt.conf.d/99no-check-valid-until || true; \
       fi; \
       apt-get update || true; \
-      apt-get install -y --no-install-recommends curl ca-certificates && rm -rf /var/lib/apt/lists/*; \
+      apt-get install -y --no-install-recommends curl ca-certificates unzip && rm -rf /var/lib/apt/lists/*; \
     elif command -v apk >/dev/null 2>&1; then \
-      apk add --no-cache curl ca-certificates; \
+      apk add --no-cache curl ca-certificates unzip; \
     else \
       echo "No supported package manager found; healthcheck may fail"; \
     fi
+
+# Create data directory and pre-build El Salvador OSRM files
+WORKDIR /data
+RUN curl -L --fail -o el-salvador-latest.osm.pbf https://download.geofabrik.de/central-america/el-salvador-latest.osm.pbf && \
+    osrm-extract -p /opt/car.lua el-salvador-latest.osm.pbf && \
+    osrm-partition el-salvador-latest.osrm && \
+    osrm-customize el-salvador-latest.osrm && \
+    rm el-salvador-latest.osm.pbf
+
+WORKDIR /opt
+
