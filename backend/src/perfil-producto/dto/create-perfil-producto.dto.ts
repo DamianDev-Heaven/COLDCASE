@@ -4,7 +4,8 @@ export class CreatePerfilProductoDto {
   @IsString()
   @MinLength(3)
   @Matches(/^[a-z0-9-_]+$/, {
-    message: 'El ID debe ser en minúsculas, compuesto por letras, números, guiones y guiones bajos (e.g., lacteos-frescos).',
+    message:
+      'El ID debe ser en minúsculas, compuesto por letras, números, guiones y guiones bajos (e.g., lacteos-frescos).',
   })
   id: string;
 

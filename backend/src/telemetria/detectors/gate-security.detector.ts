@@ -119,7 +119,11 @@ export class GateSecurityDetector implements AnomalyDetector {
           query: (text, params) => client.query(text, params),
         });
 
-        return { incidente: newIncident, encolarIa: true, incidenteParaIa: newIncident };
+        return {
+          incidente: newIncident,
+          encolarIa: true,
+          incidenteParaIa: newIncident,
+        };
       } else {
         return { incidente: activeIncident };
       }

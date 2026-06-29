@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-argument, @typescript-eslint/unbound-method */
 import { Test, TestingModule } from '@nestjs/testing';
 import { TelemetriaService } from './telemetria.service';
 import { DbService } from '../db/db.service';
@@ -15,6 +16,7 @@ import { NotFoundException, BadRequestException } from '@nestjs/common';
 describe('TelemetriaService', () => {
   let service: TelemetriaService;
   let dbService: jest.Mocked<DbService>;
+
   let ingestQueue: any;
 
   beforeEach(async () => {
@@ -40,8 +42,14 @@ describe('TelemetriaService', () => {
         { provide: IncidenteService, useValue: {} },
         { provide: IaAnalysisService, useValue: {} },
         { provide: getQueueToken('ia-analysis-queue'), useValue: queueMock },
-        { provide: getQueueToken('telemetria-contingency-queue'), useValue: queueMock },
-        { provide: getQueueToken('telemetria-ingest-queue'), useValue: queueMock },
+        {
+          provide: getQueueToken('telemetria-contingency-queue'),
+          useValue: queueMock,
+        },
+        {
+          provide: getQueueToken('telemetria-ingest-queue'),
+          useValue: queueMock,
+        },
         { provide: TemperatureAnomalyDetector, useValue: detectorMock },
         { provide: BatteryAnomalyDetector, useValue: detectorMock },
         { provide: RouteDeviationDetector, useValue: detectorMock },
@@ -96,18 +104,22 @@ describe('TelemetriaService', () => {
 
       ingestQueue.add.mockRejectedValue(new Error('Redis connection failed'));
 
-      await expect(service.create(payload)).rejects.toThrow(BadRequestException);
+      await expect(service.create(payload)).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 
   describe('findOne', () => {
     it('debe devolver la telemetría si existe', async () => {
       const mockData = { id: 1, viaje_id: '123', lat: '10', lon: '-10' };
+
       dbService.query.mockResolvedValue({ rows: [mockData] } as any);
 
       const result = await service.findOne(1);
 
       expect(result).toEqual(mockData);
+
       expect(dbService.query).toHaveBeenCalledWith(expect.any(String), [1]);
     });
 

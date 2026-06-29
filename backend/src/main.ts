@@ -13,10 +13,12 @@ async function bootstrap() {
       origin: string | undefined,
       callback: (err: Error | null, allow?: boolean) => void,
     ) => {
-      const allowedOriginsEnv = process.env.ALLOWED_ORIGINS || 'http://localhost:3001,http://localhost:3000';
+      const allowedOriginsEnv =
+        process.env.ALLOWED_ORIGINS ||
+        'http://localhost:3001,http://localhost:3000';
       const allowedOrigins = allowedOriginsEnv.split(',').map((o) => o.trim());
 
-      // Permitir peticiones sin origen (como clientes REST tipo Postman o cURL) 
+      // Permitir peticiones sin origen (como clientes REST tipo Postman o cURL)
       // y peticiones cuyos orígenes estén en la lista blanca.
       if (!origin || allowedOrigins.indexOf(origin) !== -1) {
         callback(null, true);
@@ -27,29 +29,41 @@ async function bootstrap() {
     credentials: true,
   });
 
-  app.use(helmet({
-    contentSecurityPolicy: {
-      directives: {
-        ...helmet.contentSecurityPolicy.getDefaultDirectives(),
-        "script-src": ["'self'", "'unsafe-inline'", "https://unpkg.com"],
-        "script-src-attr": ["'unsafe-inline'"],
-        "style-src": ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://unpkg.com"],
-        "img-src": ["'self'", "data:", "https://unpkg.com", "https://*.tile.openstreetmap.org"],
-        "upgrade-insecure-requests": null,
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        directives: {
+          ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+          'script-src': ["'self'", "'unsafe-inline'", 'https://unpkg.com'],
+          'script-src-attr': ["'unsafe-inline'"],
+          'style-src': [
+            "'self'",
+            "'unsafe-inline'",
+            'https://fonts.googleapis.com',
+            'https://unpkg.com',
+          ],
+          'img-src': [
+            "'self'",
+            'data:',
+            'https://unpkg.com',
+            'https://*.tile.openstreetmap.org',
+          ],
+          'upgrade-insecure-requests': null,
+        },
       },
-    },
-    referrerPolicy: {
-      policy: 'strict-origin-when-cross-origin',
-    },
-  }));
+      referrerPolicy: {
+        policy: 'strict-origin-when-cross-origin',
+      },
+    }),
+  );
   app.use(cookieParser());
-  
+
   app.useGlobalPipes(
-    new ValidationPipe({ 
-      whitelist: true, 
-      forbidNonWhitelisted: true, 
-      transform: true 
-    })
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+    }),
   );
 
   // Configuración de Swagger
