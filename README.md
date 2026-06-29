@@ -195,29 +195,26 @@ cd frontend && npm run lint && npx tsc --noEmit
 
 ## 6. Patrones de Arquitectura y Resiliencia Implementados
 
-Se han incorporado mejoras estructurales para robustecer la asincronía, el rendimiento de red y la tolerancia a fallos del sistema en producción:
+Para garantizar que el sistema sea extremadamente confiable y no se caiga bajo presión, aplicamos las siguientes estrategias (explicadas de forma sencilla):
 
-### 1. Desacoplamiento de Ingesta Asíncrona (BullMQ & Redis)
-* **Problema Original:** El procesamiento síncrono de telemetrías hacía consultas cartográficas de red a OSRM y base de datos en caliente, arriesgando el bloqueo del Event Loop de Node.js bajo ráfagas concurrentes de múltiples vehículos.
-* **Solución:** El endpoint `POST /telemetria` ahora valida rápidamente el DTO y encola la telemetría en `'telemetria-ingest-queue'`, retornando un código **`HTTP 202 Accepted`** en `<2ms`. Un worker asíncrono con `concurrency: 1` consume la cola de forma aislada, garantizando procesamiento en orden cronológico estricto de ráfagas acumuladas (*Store and Forward*).
+### 1. Sala de Espera para Datos (Colas Asíncronas)
+* **El Problema:** Si decenas de camiones envían miles de coordenadas al mismo tiempo, el servidor se "asustaba" intentando guardar todo de golpe, corriendo el riesgo de congelarse.
+* **La Solución:** Ahora usamos una "sala de espera" (Cola). El servidor recibe los datos al instante (en menos de 2 milisegundos), dice "recibido", y los forma en la fila. Luego, un trabajador en segundo plano va procesándolos uno por uno con calma y en el orden correcto.
 
-### 2. Idempotencia y De-duplicación a Nivel de Ingesta
-* **Problema Original:** Los reintentos automáticos del hardware de transporte por fallas de cobertura celular saturaban la base de datos con telemetrías duplicadas.
-* **Solución:** Cada mensaje encolado genera una clave de de-duplicación única (`jobId`) basada en `${viaje_id}-${timestamp_sensor}`. Redis aborta la inserción de trabajos repetidos encolados en la misma marca de tiempo, garantizando la de-duplicación antes de tocar la persistencia relacional en PostgreSQL.
+### 2. Filtro Anti-Clones (De-duplicación)
+* **El Problema:** Cuando el hardware del camión pierde señal celular, a veces reintenta enviar exactamente la misma temperatura varias veces. Esto ensuciaba la base de datos con registros clonados.
+* **La Solución:** El sistema revisa la hora y fecha exacta de cada sensor. Si llega un reporte repetido con la misma firma de tiempo, el sistema dice: *"Ya tengo este dato"*, y lo descarta automáticamente antes de tocar la base de datos.
 
-### 3. Debouncing de Desvíos Geográficos y Telemetry Smoothing (OSRM)
-* **Problema Original:** Las alertas por desvíos menores causaban inyecciones repetitivas de incidentes paralelos e inundaban de llamadas redundantes a las APIs de IA (saturando tasas de tokens).
-* **Solución:** Refactorizamos `RouteDeviationDetector` para implementar un patrón de ciclo de vida controlado:
-  * Agrupa las anomalías de desvío consecutivas bajo un único incidente activo y registra eventos de actualización de pico en metros (`PICO_ACTUALIZADO`).
-  * Requiere un período de gracia de **3 pings consecutivos** dentro de la ruta para marcar el desvío como resuelto.
-  * Solo al consolidarse la resolución se encola el análisis de IA de forma asíncrona, optimizando costes de API e incrementando la precisión del LLM.
+### 3. Paciencia antes del Pánico (Debouncing de Rutas)
+* **El Problema:** Los sensores GPS no son perfectos y a veces saltan unos metros por error. Antes, el sistema disparaba alarmas por cada centímetro fuera de ruta, inundando la Inteligencia Artificial con incidentes falsos.
+* **La Solución:** Le enseñamos al sistema a tener paciencia (un "período de gracia"). Ahora exige **3 confirmaciones consecutivas** de que el camión sigue fuera de la ruta antes de declarar un desvío real e involucrar a la IA.
 
-### 4. Resiliencia de Workers IA & Dead Letter Queue (DLQ)
-* **Problema Original:** Un fallo en la API externa de Zep Cloud o Groq abortaba el flujo general o creaba reintentos infinitos que bloqueaban la cola de procesamiento.
-* **Solución:** Las tareas delegadas a la cola de IA (`ia-analysis-queue`) implementan reintentos máximos acotados (5) y una política de **Backoff Exponencial** de `5000ms`. Si la tarea falla de forma persistente, se retiene en Redis (`removeOnFail: false`) actuando como una **Dead Letter Queue (DLQ)** nativa para auditoría e inspección de errores, aislando cargas corruptas.
+### 4. El Cuarto de Cuarentena (Dead Letter Queue - DLQ)
+* **El Problema:** Ocasionalmente, las APIs externas de la Inteligencia Artificial pueden estar caídas. Si esto pasaba, el sistema se quedaba intentándolo para siempre, trabando toda la cola de análisis.
+* **La Solución:** Si la IA falla 5 veces seguidas, sacamos ese incidente de la fila principal y lo movemos a un rincón especial de cuarentena llamado *Dead Letter Queue (DLQ)*. El resto del sistema sigue funcionando normal, y el incidente queda guardado para ser revisado por un humano después.
 
 ![Auditoría de IA y Worker de Análisis](infra/assets/screenshot-ia.png)
 
-### 5. Healthcheck Multivariable y Autocuración Proactiva
-* **Problema Original:** El healthcheck tradicional solo consultaba PostgreSQL, exponiendo al clúster de Kubernetes a enviar tráfico a pods del backend que no tenían comunicación con Redis (causando fallos silenciosos en el procesamiento de BullMQ).
-* **Solución:** El endpoint de salud en `/health` de NestJS ejecuta consultas paralelas a PostgreSQL (`SELECT 1`) y verifica el estado vivo de la cola de BullMQ (`isPaused()` hacia Redis). Si cualquiera de los dos sistemas falla, responde un `503 Service Unavailable`, haciendo que Kubernetes aísle proactivamente el Pod del tráfico real y lo reinicie de forma autónoma.
+### 5. Chequeo Médico Completo (Autocuración)
+* **El Problema:** Antes, el chequeo de salud solo revisaba si la base de datos principal funcionaba. Si la sala de espera (Redis) se caía, el servidor seguía recibiendo tráfico pero perdiendo los datos en silencio.
+* **La Solución:** Ahora hacemos un chequeo médico completo. El orquestador pregunta constantemente: *"¿Base de datos viva? ¿Sala de espera viva?"*. Si alguna falla, apaga de inmediato ese proceso dañado y prende un "clon" nuevo y sano en menos de 2 segundos, sin intervención humana.
