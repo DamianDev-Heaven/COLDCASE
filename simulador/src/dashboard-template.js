@@ -1027,6 +1027,11 @@ function renderDashboardPage() {
 
 	<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 	<script>
+		function asNumber(value, fallback = 0) {
+			const numberValue = Number(value);
+			return Number.isFinite(numberValue) ? numberValue : fallback;
+		}
+
 		function switchSidebarTab(tabId) {
 			document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
 			document.getElementById(tabId).style.display = tabId === 'tab-trips' ? 'flex' : 'block';

@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { DbService } from '../db/db.service';
 import { CreatePerfilProductoDto } from './dto/create-perfil-producto.dto';
 import { UpdatePerfilProductoDto } from './dto/update-perfil-producto.dto';
@@ -24,7 +28,9 @@ export class PerfilProductoService {
     );
 
     if (existing.rowCount && existing.rowCount > 0) {
-      throw new BadRequestException(`El perfil de producto con ID "${dto.id}" ya existe.`);
+      throw new BadRequestException(
+        `El perfil de producto con ID "${dto.id}" ya existe.`,
+      );
     }
 
     const result = await this.db.query<PerfilProducto>(
@@ -56,13 +62,18 @@ export class PerfilProductoService {
     );
 
     if (!result.rowCount || result.rowCount === 0) {
-      throw new NotFoundException(`El perfil de producto con ID "${id}" no existe.`);
+      throw new NotFoundException(
+        `El perfil de producto con ID "${id}" no existe.`,
+      );
     }
 
     return result.rows[0];
   }
 
-  async update(id: string, dto: UpdatePerfilProductoDto): Promise<PerfilProducto> {
+  async update(
+    id: string,
+    dto: UpdatePerfilProductoDto,
+  ): Promise<PerfilProducto> {
     // Check if profile exists
     await this.findOne(id);
 
@@ -95,7 +106,9 @@ export class PerfilProductoService {
     }
 
     if (updates.length === 0) {
-      throw new BadRequestException('Debes enviar al menos un campo para actualizar.');
+      throw new BadRequestException(
+        'Debes enviar al menos un campo para actualizar.',
+      );
     }
 
     values.push(id);

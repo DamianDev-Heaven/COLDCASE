@@ -22,7 +22,8 @@ export class BatteryAnomalyDetector implements AnomalyDetector {
 
     if (payload.bateria != null && Number(payload.bateria) <= batteryLimit) {
       const bateriaValor = Number(payload.bateria);
-      const tipoAlerta = bateriaValor === 0 ? 'BATERIA_AGOTADA' : 'BATERIA_BAJA';
+      const tipoAlerta =
+        bateriaValor === 0 ? 'BATERIA_AGOTADA' : 'BATERIA_BAJA';
 
       const newIncident = await this.incidenteService.create({
         viaje_id: viaje.id,

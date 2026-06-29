@@ -25,6 +25,7 @@ async function postTelemetry(payload, API_URL, runtimeState) {
 	if (runtimeState.iotFailure) {
 		throw new Error('ERR_SIGNAL_LOST: Sensores fuera de línea (Pérdida de señal celular/IoT simulada).');
 	}
+	console.log("Sending payload:", payload);
 	const response = await fetch(`${API_URL}/telemetria`, {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },

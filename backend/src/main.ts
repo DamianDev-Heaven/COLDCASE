@@ -1,31 +1,25 @@
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
+import helmet from 'helmet';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
   app.enableCors({
     origin: (
       origin: string | undefined,
       callback: (err: Error | null, allow?: boolean) => void,
     ) => {
-      const allowedOriginsEnv = process.env.ALLOWED_ORIGINS;
-      const allowedOrigins = allowedOriginsEnv
-        ? allowedOriginsEnv.split(',').map((o) => o.trim())
-        : [
-            'http://ccase.tech',
-            'https://ccase.tech',
-            'http://www.ccase.tech',
-            'https://www.ccase.tech',
-            'http://api.ccase.tech',
-            'https://api.ccase.tech',
-            'http://localhost:3001',
-            'http://localhost:3000',
-            'http://104.64.127.24',
-            'http://104.64.127.23',
-            'http://104.64.127.23:3000',
-          ];
+      const allowedOriginsEnv =
+        process.env.ALLOWED_ORIGINS ||
+        'http://localhost:3001,http://localhost:3000';
+      const allowedOrigins = allowedOriginsEnv.split(',').map((o) => o.trim());
+
+      // Permitir peticiones sin origen (como clientes REST tipo Postman o cURL)
+      // y peticiones cuyos orígenes estén en la lista blanca.
       if (!origin || allowedOrigins.indexOf(origin) !== -1) {
         callback(null, true);
       } else {
@@ -34,8 +28,54 @@ async function bootstrap() {
     },
     credentials: true,
   });
+
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        directives: {
+          ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+          'script-src': ["'self'", "'unsafe-inline'", 'https://unpkg.com'],
+          'script-src-attr': ["'unsafe-inline'"],
+          'style-src': [
+            "'self'",
+            "'unsafe-inline'",
+            'https://fonts.googleapis.com',
+            'https://unpkg.com',
+          ],
+          'img-src': [
+            "'self'",
+            'data:',
+            'https://unpkg.com',
+            'https://*.tile.openstreetmap.org',
+          ],
+          'upgrade-insecure-requests': null,
+        },
+      },
+      referrerPolicy: {
+        policy: 'strict-origin-when-cross-origin',
+      },
+    }),
+  );
   app.use(cookieParser());
-  app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+    }),
+  );
+
+  // Configuración de Swagger
+  const config = new DocumentBuilder()
+    .setTitle('Coldcase API')
+    .setDescription('API de Misión Crítica para Monitoreo Logístico')
+    .setVersion('1.0')
+    .addBearerAuth()
+    .build();
+  const documentFactory = () => SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('api/docs', app, documentFactory);
+
   await app.listen(process.env.PORT ?? 3000);
 }
 void bootstrap();

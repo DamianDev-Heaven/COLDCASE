@@ -54,12 +54,12 @@ export class SimuladorProxyController {
     await this.proxyRequest(req, res, 'api/state');
   }
 
-  @All('api/simulation/*')
+  @All('api/simulation/*path')
   async proxySimulation(
     @Req() req: express.Request,
     @Res() res: express.Response,
   ) {
-    const wildcardPath = req.params[0] || '';
+    const wildcardPath = String(req.params.path || '');
     const path = wildcardPath
       ? `api/simulation/${wildcardPath}`
       : req.path.replace(/^\//, '');

@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { DbService } from '../db/db.service';
 import { UpdateSucursalDto } from './dto/update-sucursal.dto';
 
@@ -78,7 +82,9 @@ export class SucursalService {
     }
 
     if (updates.length === 0) {
-      throw new BadRequestException('Debes enviar al menos un campo para actualizar.');
+      throw new BadRequestException(
+        'Debes enviar al menos un campo para actualizar.',
+      );
     }
 
     values.push(id);
