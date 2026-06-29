@@ -245,6 +245,7 @@ async function syncActiveTrips({ log = true } = {}) {
 
 		return activeTrips;
 	} catch (error) {
+		console.error("syncTrips catch block error:", error);
 		runtimeState.lastError = error instanceof Error ? error.message : 'Error desconocido al sincronizar.';
 		logEvent('error', runtimeState.lastError);
 		return [];

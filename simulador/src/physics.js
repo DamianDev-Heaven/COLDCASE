@@ -85,6 +85,10 @@ function ensureTripState(viaje, simulationMap) {
 	if (existingState.deviceDead === undefined) {
 		existingState.deviceDead = false;
 	}
+	if (existingState.routeSeed === undefined) {
+		existingState.routeSeed = hashString(viaje.id);
+		existingState.temperatureBias = (existingState.routeSeed % 7) - 2;
+	}
 	return existingState;
 }
 
